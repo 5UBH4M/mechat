@@ -102,29 +102,32 @@ class SignalingService {
         return;
       }
 
-      if (status == 'connected' && peerConnection?.getRemoteDescription() == null) {
-        if (data['sdpAnswer'] != null) {
+      if (status == 'connected') {
+        final remoteDesc = await peerConnection?.getRemoteDescription();
+        if (remoteDesc == null && data['sdpAnswer'] != null) {
           final sdpAnswer = RTCSessionDescription(
             data['sdpAnswer']['sdp'],
             data['sdpAnswer']['type'],
           );
           await peerConnection?.setRemoteDescription(sdpAnswer);
-        }
-      }
-    });
-
-    // Listen for Receiver ICE Candidates
-    _candidatesSubscription = callDoc.collection('receiverCandidates').snapshots().listen((snapshot) {
-      for (final change in snapshot.docChanges) {
-        if (change.type == DocumentChangeType.added) {
-          final data = change.doc.data() as Map<String, dynamic>;
-          peerConnection?.addCandidate(
-            RTCIceCandidate(
-              data['candidate'],
-              data['sdpMid'],
-              data['sdpMLineIndex'],
-            ),
-          );
+          
+          // Now it's safe to listen for Receiver ICE Candidates
+          if (_candidatesSubscription == null) {
+            _candidatesSubscription = callDoc.collection('receiverCandidates').snapshots().listen((snapshot) {
+              for (final change in snapshot.docChanges) {
+                if (change.type == DocumentChangeType.added) {
+                  final candidateData = change.doc.data() as Map<String, dynamic>;
+                  peerConnection?.addCandidate(
+                    RTCIceCandidate(
+                      candidateData['candidate'],
+                      candidateData['sdpMid'],
+                      candidateData['sdpMLineIndex'],
+                    ),
+                  );
+                }
+              }
+            });
+          }
         }
       }
     });

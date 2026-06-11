@@ -21,7 +21,6 @@ class AppConstants {
   static const String keyE2EPublicKey = 'e2e_public_key';
   static const String keyNotificationSettings = 'notifications_enabled';
 
-  // WebRTC ICE Server Configurations
   static const Map<String, dynamic> iceServers = {
     'iceServers': [
       {
@@ -30,6 +29,14 @@ class AppConstants {
           'stun:stun1.l.google.com:19302',
           'stun:stun2.l.google.com:19302',
         ]
+      },
+      {
+        'urls': [
+          'turn:openrelay.metered.ca:80',
+          'turn:openrelay.metered.ca:443',
+        ],
+        'username': 'openrelayproject',
+        'credential': 'openrelayproject',
       }
     ]
   };
