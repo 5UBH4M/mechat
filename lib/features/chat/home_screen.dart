@@ -122,9 +122,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
               data: (chats) {
                 // Filter based on search query
                 final filteredChats = chats.where((chat) {
+                  if (chat.isNotesToSelf) return false;
                   if (_searchQuery.isEmpty) return true;
-                  // For simplicity: filter by chatId which contains user names/uids,
-                  // or filter by lastMessage content. In production we'd resolve names.
                   return chat.id.toLowerCase().contains(_searchQuery) ||
                       (chat.lastMessage?.content.toLowerCase().contains(_searchQuery) ?? false);
                 }).toList();
@@ -239,9 +238,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
   ) {
 
     return ListTile(
-      onTap: () {
-        // Route to chat detail passing receiverId
-        context.push('/chat/${isNotes ? 'notes_to_self' : otherUid}');
+      onTap: () async {
+        
+        final currentUser = ref.read(authNotifierProvider).user;
+        if (currentUser == null) return;
+
+        if (currentUser.connectedTo.isNotEmpty && currentUser.connectedTo != otherUid) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('You are already connected to someone else. Please disconnect first.')));
+            }
+            return;
+        }
+
+        // Check if other user is connected to someone else
+        final otherUserDoc = await FirebaseFirestore.instance.collection('users').doc(otherUid).get();
+        if (otherUserDoc.exists) {
+            final otherConnectedTo = otherUserDoc.data()?['connectedTo'] ?? '';
+            if (otherConnectedTo.isNotEmpty && otherConnectedTo != currentUser.uid) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User is already connected to someone else.')));
+                }
+                return;
+            }
+        }
+
+        if (context.mounted) {
+          context.push('/chat/$otherUid');
+        }
       },
       leading: Stack(
         children: [

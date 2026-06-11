@@ -162,7 +162,7 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                   },
                   decoration: const InputDecoration(
                     labelText: 'Username',
-                    hintText: 'john_doe123',
+                    hintText: 'subham123',
                     prefixIcon: Icon(Icons.alternate_email),
                   ),
                 ),

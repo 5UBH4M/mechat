@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/utils/date_formatter.dart';
+import '../auth/auth_notifier.dart';
 import 'call_notifier.dart';
 
 class OngoingCallScreen extends ConsumerWidget {
@@ -13,6 +14,9 @@ class OngoingCallScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final callState = ref.watch(callNotifierProvider);
     final notifier = ref.watch(callNotifierProvider.notifier);
+    final user = ref.watch(authNotifierProvider).user;
+    final disableMute = user?.disableMute ?? false;
+    final disableCameraOff = user?.disableCameraOff ?? false;
 
     // Automatically navigate home if the call is closed
     ref.listen<CallState>(callNotifierProvider, (previous, next) {
@@ -20,6 +24,26 @@ class OngoingCallScreen extends ConsumerWidget {
         if (next.status == 'idle' || next.status == 'ended' || next.status == 'rejected') {
           context.go('/home');
         }
+      }
+      
+      if (previous?.partnerWantsHangup != true && next.partnerWantsHangup == true) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Call Disconnect'),
+            content: const Text('Your partner wants to end the call.'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  notifier.endCall();
+                },
+                child: const Text('Accept'),
+              ),
+            ],
+          ),
+        );
       }
     });
 
@@ -73,27 +97,31 @@ class OngoingCallScreen extends ConsumerWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     // Mute Mic Toggle
-                    IconButton.filled(
-                      style: IconButton.styleFrom(
-                        backgroundColor: callState.isMicMuted ? Colors.white : Colors.white24,
-                        foregroundColor: callState.isMicMuted ? Colors.black : Colors.white,
-                        minimumSize: const Size(56, 56),
+                    if (!disableMute)
+                      IconButton.filled(
+                        style: IconButton.styleFrom(
+                          backgroundColor: callState.isMicMuted ? Colors.white : Colors.white24,
+                          foregroundColor: callState.isMicMuted ? Colors.black : Colors.white,
+                          minimumSize: const Size(56, 56),
+                        ),
+                        icon: Icon(callState.isMicMuted ? Icons.mic_off_rounded : Icons.mic_rounded),
+                        onPressed: notifier.toggleMute,
                       ),
-                      icon: Icon(callState.isMicMuted ? Icons.mic_off_rounded : Icons.mic_rounded),
-                      onPressed: notifier.toggleMute,
-                    ),
                     
                     // Speaker Mode Toggle (Voice Call) or Camera Toggle (Video Call)
                     if (callState.isVideo)
-                      IconButton.filled(
-                        style: IconButton.styleFrom(
-                          backgroundColor: callState.isCameraEnabled ? Colors.white24 : Colors.white,
-                          foregroundColor: callState.isCameraEnabled ? Colors.white : Colors.black,
-                          minimumSize: const Size(56, 56),
-                        ),
-                        icon: Icon(callState.isCameraEnabled ? Icons.videocam_rounded : Icons.videocam_off_rounded),
-                        onPressed: notifier.toggleCamera,
-                      )
+                      if (!disableCameraOff)
+                        IconButton.filled(
+                          style: IconButton.styleFrom(
+                            backgroundColor: callState.isCameraEnabled ? Colors.white24 : Colors.white,
+                            foregroundColor: callState.isCameraEnabled ? Colors.white : Colors.black,
+                            minimumSize: const Size(56, 56),
+                          ),
+                          icon: Icon(callState.isCameraEnabled ? Icons.videocam_rounded : Icons.videocam_off_rounded),
+                          onPressed: notifier.toggleCamera,
+                        )
+                      else
+                        const SizedBox()
                     else
                       IconButton.filled(
                         style: IconButton.styleFrom(
@@ -125,7 +153,12 @@ class OngoingCallScreen extends ConsumerWidget {
                         minimumSize: const Size(64, 64),
                       ),
                       icon: const Icon(Icons.call_end_rounded),
-                      onPressed: notifier.endCall,
+                      onPressed: () {
+                        notifier.endCall();
+                        if (callState.status == 'connected') {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Requested call end. Waiting for partner...')));
+                        }
+                      },
                     ),
                   ],
                 ),

@@ -18,6 +18,13 @@ class UserModel extends UserEntity {
     super.readReceiptsEnabled = true,
     super.lastSeenVisible = true,
     super.profilePhotoVisible = true,
+    super.connectedTo = '',
+    super.disconnectRequested = false,
+    super.previouslyConnected = const [],
+    super.showPreviousConnectionsVisible = true,
+    super.autoAcceptCalls = true,
+    super.disableMute = false,
+    super.disableCameraOff = false,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -40,6 +47,16 @@ class UserModel extends UserEntity {
       readReceiptsEnabled: json['readReceiptsEnabled'] as bool? ?? true,
       lastSeenVisible: json['lastSeenVisible'] as bool? ?? true,
       profilePhotoVisible: json['profilePhotoVisible'] as bool? ?? true,
+      connectedTo: json['connectedTo'] as String? ?? '',
+      disconnectRequested: json['disconnectRequested'] as bool? ?? false,
+      previouslyConnected: (json['previouslyConnected'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          [],
+      showPreviousConnectionsVisible: json['showPreviousConnectionsVisible'] as bool? ?? true,
+      autoAcceptCalls: json['autoAcceptCalls'] as bool? ?? true,
+      disableMute: json['disableMute'] as bool? ?? false,
+      disableCameraOff: json['disableCameraOff'] as bool? ?? false,
     );
   }
 
@@ -60,6 +77,13 @@ class UserModel extends UserEntity {
       'readReceiptsEnabled': readReceiptsEnabled,
       'lastSeenVisible': lastSeenVisible,
       'profilePhotoVisible': profilePhotoVisible,
+      'connectedTo': connectedTo,
+      'disconnectRequested': disconnectRequested,
+      'previouslyConnected': previouslyConnected,
+      'showPreviousConnectionsVisible': showPreviousConnectionsVisible,
+      'autoAcceptCalls': autoAcceptCalls,
+      'disableMute': disableMute,
+      'disableCameraOff': disableCameraOff,
     };
   }
 
@@ -80,6 +104,13 @@ class UserModel extends UserEntity {
       'readReceiptsEnabled': readReceiptsEnabled,
       'lastSeenVisible': lastSeenVisible,
       'profilePhotoVisible': profilePhotoVisible,
+      'connectedTo': connectedTo,
+      'disconnectRequested': disconnectRequested,
+      'previouslyConnected': previouslyConnected,
+      'showPreviousConnectionsVisible': showPreviousConnectionsVisible,
+      'autoAcceptCalls': autoAcceptCalls,
+      'disableMute': disableMute,
+      'disableCameraOff': disableCameraOff,
     };
   }
 
@@ -107,6 +138,13 @@ class UserModel extends UserEntity {
     bool? readReceiptsEnabled,
     bool? lastSeenVisible,
     bool? profilePhotoVisible,
+    String? connectedTo,
+    bool? disconnectRequested,
+    List<String>? previouslyConnected,
+    bool? showPreviousConnectionsVisible,
+    bool? autoAcceptCalls,
+    bool? disableMute,
+    bool? disableCameraOff,
   }) {
     return UserModel(
       uid: uid ?? this.uid,
@@ -124,6 +162,13 @@ class UserModel extends UserEntity {
       readReceiptsEnabled: readReceiptsEnabled ?? this.readReceiptsEnabled,
       lastSeenVisible: lastSeenVisible ?? this.lastSeenVisible,
       profilePhotoVisible: profilePhotoVisible ?? this.profilePhotoVisible,
+      connectedTo: connectedTo ?? this.connectedTo,
+      disconnectRequested: disconnectRequested ?? this.disconnectRequested,
+      previouslyConnected: previouslyConnected ?? this.previouslyConnected,
+      showPreviousConnectionsVisible: showPreviousConnectionsVisible ?? this.showPreviousConnectionsVisible,
+      autoAcceptCalls: autoAcceptCalls ?? this.autoAcceptCalls,
+      disableMute: disableMute ?? this.disableMute,
+      disableCameraOff: disableCameraOff ?? this.disableCameraOff,
     );
   }
 }

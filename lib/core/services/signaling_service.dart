@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer' as dev;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../constants/app_constants.dart';
@@ -13,8 +14,10 @@ class SignalingService {
   MediaStream? remoteStream;
   
   // Call status, remote stream, etc.
+  // Call status, remote stream, etc.
   Function(MediaStream)? onRemoteStream;
   Function(String)? onCallStatusChanged;
+  Function()? onPartnerWantsHangup;
 
   StreamSubscription<DocumentSnapshot>? _callSubscription;
   StreamSubscription<QuerySnapshot>? _candidatesSubscription;
@@ -90,10 +93,11 @@ class SignalingService {
     // Listen for Answer
     _callSubscription = callDoc.snapshots().listen((snapshot) async {
       if (!snapshot.exists) return;
-      final data = snapshot.data() as Map<String, dynamic>;
-      final status = data['status'] as String;
+      final currentData = snapshot.data() as Map<String, dynamic>?;
+      if (currentData == null) return;
+      final status = currentData['status'] as String?;
 
-      if (onCallStatusChanged != null) {
+      if (onCallStatusChanged != null && status != null) {
         onCallStatusChanged!(status);
       }
 
@@ -101,13 +105,20 @@ class SignalingService {
         cleanUpCall();
         return;
       }
+      
+      final myUid = FirebaseAuth.instance.currentUser?.uid;
+      final isCaller = myUid == currentData['callerId'];
+      final otherWantsHangup = isCaller ? currentData['receiverHangup'] == true : currentData['callerHangup'] == true;
+      if (otherWantsHangup && onPartnerWantsHangup != null) {
+        onPartnerWantsHangup!();
+      }
 
       if (status == 'connected') {
         final remoteDesc = await peerConnection?.getRemoteDescription();
-        if (remoteDesc == null && data['sdpAnswer'] != null) {
+        if (remoteDesc == null && currentData['sdpAnswer'] != null) {
           final sdpAnswer = RTCSessionDescription(
-            data['sdpAnswer']['sdp'],
-            data['sdpAnswer']['type'],
+            currentData['sdpAnswer']['sdp'],
+            currentData['sdpAnswer']['type'],
           );
           await peerConnection?.setRemoteDescription(sdpAnswer);
           
@@ -177,12 +188,22 @@ class SignalingService {
     // Listen to changes (e.g. ended by caller)
     _callSubscription = callDoc.snapshots().listen((snap) {
       if (!snap.exists) return;
-      final status = snap.data()?['status'] as String?;
+      final snapData = snap.data() as Map<String, dynamic>?;
+      if (snapData == null) return;
+
+      final status = snapData['status'] as String?;
       if (onCallStatusChanged != null && status != null) {
         onCallStatusChanged!(status);
       }
       if (status == 'ended' || status == 'rejected') {
         cleanUpCall();
+      } else {
+        final myUid = FirebaseAuth.instance.currentUser?.uid;
+        final isCaller = myUid == snapData['callerId'];
+        final otherWantsHangup = isCaller ? snapData['receiverHangup'] == true : snapData['callerHangup'] == true;
+        if (otherWantsHangup && onPartnerWantsHangup != null) {
+          onPartnerWantsHangup!();
+        }
       }
     });
 
@@ -218,14 +239,46 @@ class SignalingService {
   // End Call
   Future<void> endCall(String callId, {bool isRejected = false}) async {
     try {
-      final status = isRejected ? 'rejected' : 'ended';
-      await _db.collection(AppConstants.callsCollection).doc(callId).update({
-        'status': status,
-      });
+      final docRef = _db.collection(AppConstants.callsCollection).doc(callId);
+      final doc = await docRef.get();
+      if (!doc.exists) {
+        cleanUpCall();
+        return;
+      }
+      
+      final data = doc.data()!;
+      if (isRejected || data['status'] != 'connected') {
+         await docRef.update({'status': isRejected ? 'rejected' : 'ended'});
+         cleanUpCall();
+         return;
+      }
+
+      // Check mutual disconnect
+      final myUid = FirebaseAuth.instance.currentUser?.uid;
+      final callerId = data['callerId'];
+      
+      final isCaller = myUid == callerId;
+      final otherWantsHangup = isCaller ? data['receiverHangup'] == true : data['callerHangup'] == true;
+      
+      if (otherWantsHangup) {
+         // Both agreed
+         await docRef.update({'status': 'ended'});
+         cleanUpCall();
+      } else {
+         // I am the first to request hangup
+         if (isCaller) {
+             await docRef.update({'callerHangup': true});
+         } else {
+             await docRef.update({'receiverHangup': true});
+         }
+         // Do not cleanUpCall yet, wait for other user.
+         // We can update local state to show "Waiting for other to end..." if we want,
+         // but for now, we just stay in the call.
+      }
     } catch (e) {
       dev.log("Error ending call: $e");
+      cleanUpCall(); // Fallback
     }
-    cleanUpCall();
   }
 
   // Clean up WebRTC peer connections and media streams

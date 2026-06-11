@@ -10,6 +10,8 @@ class ChatModel extends ChatEntity {
     required super.typingStatus,
     super.isNotesToSelf = false,
     super.disappearingTimer = 0,
+    super.isConnectionEstablished = false,
+    super.connectionRequestedBy = '',
   });
 
   factory ChatModel.fromJson(Map<String, dynamic> json) {
@@ -30,6 +32,8 @@ class ChatModel extends ChatEntity {
       typingStatus: typingMap.map((key, value) => MapEntry(key.toString(), value as bool)),
       isNotesToSelf: json['isNotesToSelf'] as bool? ?? false,
       disappearingTimer: json['disappearingTimer'] as int? ?? 0,
+      isConnectionEstablished: json['isConnectionEstablished'] as bool? ?? false,
+      connectionRequestedBy: json['connectionRequestedBy'] as String? ?? '',
     );
   }
 
@@ -42,6 +46,8 @@ class ChatModel extends ChatEntity {
       'typingStatus': typingStatus,
       'isNotesToSelf': isNotesToSelf,
       'disappearingTimer': disappearingTimer,
+      'isConnectionEstablished': isConnectionEstablished,
+      'connectionRequestedBy': connectionRequestedBy,
     };
   }
 
@@ -54,6 +60,8 @@ class ChatModel extends ChatEntity {
       'typingStatus': typingStatus,
       'isNotesToSelf': isNotesToSelf,
       'disappearingTimer': disappearingTimer,
+      'isConnectionEstablished': isConnectionEstablished,
+      'connectionRequestedBy': connectionRequestedBy,
     };
   }
 
@@ -65,6 +73,8 @@ class ChatModel extends ChatEntity {
     Map<String, bool>? typingStatus,
     bool? isNotesToSelf,
     int? disappearingTimer,
+    bool? isConnectionEstablished,
+    String? connectionRequestedBy,
   }) {
     return ChatModel(
       id: id ?? this.id,
@@ -74,6 +84,8 @@ class ChatModel extends ChatEntity {
       typingStatus: typingStatus ?? this.typingStatus,
       isNotesToSelf: isNotesToSelf ?? this.isNotesToSelf,
       disappearingTimer: disappearingTimer ?? this.disappearingTimer,
+      isConnectionEstablished: isConnectionEstablished ?? this.isConnectionEstablished,
+      connectionRequestedBy: connectionRequestedBy ?? this.connectionRequestedBy,
     );
   }
 }

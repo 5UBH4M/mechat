@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/services/service_providers.dart';
 import '../../domain/entities/user_entity.dart';
@@ -113,6 +114,19 @@ class ContactsNotifier extends StateNotifier<ContactsState> {
       final list = await _contactRepository.getBlockedUsers(blockedUids);
       state = state.copyWith(blockedUsers: list);
     } catch (_) {}
+  }
+
+  Future<void> connectWithUser(String targetUid) async {
+    final currentUser = _ref.read(authNotifierProvider).user;
+    if (currentUser == null) return;
+
+    state = state.copyWith(status: ContactOpsStatus.loading);
+    try {
+      
+      state = state.copyWith(status: ContactOpsStatus.success);
+    } catch (e) {
+      state = state.copyWith(status: ContactOpsStatus.error, errorMessage: e.toString());
+    }
   }
 }
 

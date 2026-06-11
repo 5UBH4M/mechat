@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'contacts_notifier.dart';
+import '../auth/auth_notifier.dart';
 import '../../core/utils/image_helper.dart';
-import '../../domain/entities/user_entity.dart';
+
 
 class ContactsScreen extends ConsumerStatefulWidget {
   const ContactsScreen({super.key});
@@ -71,7 +73,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                         return null;
                       },
                       decoration: const InputDecoration(
-                        hintText: 'Enter username (e.g. john_doe)',
+                        hintText: 'Enter username (e.g. subham)',
                         prefixIcon: Icon(Icons.alternate_email),
                       ),
                     ),
@@ -115,6 +117,11 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                     }
                     if (state.searchResult != null) {
                       final user = state.searchResult!;
+                      final currentUser = ref.watch(authNotifierProvider).user;
+                      final isAlreadyConnectedToSomeoneElse = user.connectedTo.isNotEmpty && user.connectedTo != currentUser?.uid;
+                      final amIAlreadyConnectedToSomeoneElse = currentUser?.connectedTo.isNotEmpty == true && currentUser?.connectedTo != user.uid;
+                      final isAlreadyConnectedToEachOther = user.connectedTo == currentUser?.uid && currentUser?.connectedTo == user.uid;
+
                       return Column(
                         children: [
                           Card(
@@ -161,19 +168,66 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                               ),
                             ),
                           ),
+                          if (user.showPreviousConnectionsVisible && user.previouslyConnected.isNotEmpty) ...[
+                            const SizedBox(height: 16),
+                            const Divider(),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Previously Connected With (${user.previouslyConnected.length})',
+                              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 8),
+                            FutureBuilder<QuerySnapshot>(
+                              future: FirebaseFirestore.instance.collection('users')
+                                  .where(FieldPath.documentId, whereIn: user.previouslyConnected.take(10).toList())
+                                  .get(),
+                              builder: (context, snapshot) {
+                                if (!snapshot.hasData) return const SizedBox.shrink();
+                                final names = snapshot.data!.docs.map((d) => (d.data() as Map<String, dynamic>)['displayName'] ?? 'Unknown').join(', ');
+                                final extra = user.previouslyConnected.length > 10 ? ' and ${user.previouslyConnected.length - 10} more' : '';
+                                return Text(
+                                  '$names$extra',
+                                  style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                                );
+                              },
+                            ),
+                          ],
                           const SizedBox(height: 24),
                           
                           // Action Buttons
                           Row(
                             children: [
                               Expanded(
-                                child: ElevatedButton.icon(
-                                  onPressed: () {
-                                    context.pushReplacement('/chat/${user.uid}');
-                                  },
-                                  icon: const Icon(Icons.message_rounded),
-                                  label: const Text('Start Chat'),
-                                ),
+                                child: isAlreadyConnectedToSomeoneElse
+                                    ? ElevatedButton.icon(
+                                        onPressed: null,
+                                        icon: const Icon(Icons.block),
+                                        label: const Text('Already connected'),
+                                      )
+                                    : amIAlreadyConnectedToSomeoneElse
+                                        ? ElevatedButton.icon(
+                                            onPressed: null,
+                                            icon: const Icon(Icons.warning),
+                                            label: const Text('You are already connected'),
+                                          )
+                                        : isAlreadyConnectedToEachOther
+                                            ? ElevatedButton.icon(
+                                                onPressed: () {
+                                                  context.push('/chat/${user.uid}');
+                                                },
+                                                icon: const Icon(Icons.chat),
+                                                label: const Text('Continue Chat'),
+                                              )
+                                            : ElevatedButton.icon(
+                                                onPressed: () async {
+                                                  await ref.read(contactsNotifierProvider.notifier).connectWithUser(user.uid);
+                                                  if (context.mounted) {
+                                                    context.push('/chat/${user.uid}');
+                                                  }
+                                                },
+                                                icon: const Icon(Icons.chat_bubble_outline),
+                                                label: const Text('Start Chat'),
+                                              ),
                               ),
                               const SizedBox(width: 12),
                               OutlinedButton(

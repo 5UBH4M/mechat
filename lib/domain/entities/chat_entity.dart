@@ -9,6 +9,8 @@ class ChatEntity extends Equatable {
   final Map<String, bool> typingStatus;
   final bool isNotesToSelf;
   final int disappearingTimer; // 0 means disabled, otherwise duration in seconds
+  final bool isConnectionEstablished;
+  final String connectionRequestedBy;
 
   const ChatEntity({
     required this.id,
@@ -18,6 +20,8 @@ class ChatEntity extends Equatable {
     required this.typingStatus,
     this.isNotesToSelf = false,
     this.disappearingTimer = 0,
+    this.isConnectionEstablished = false,
+    this.connectionRequestedBy = '',
   });
 
   @override
@@ -29,5 +33,7 @@ class ChatEntity extends Equatable {
         typingStatus,
         isNotesToSelf,
         disappearingTimer,
+        isConnectionEstablished,
+        connectionRequestedBy,
       ];
 }

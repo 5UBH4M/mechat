@@ -16,6 +16,14 @@ class UserEntity extends Equatable {
   final bool readReceiptsEnabled;
   final bool lastSeenVisible;
   final bool profilePhotoVisible;
+  final String connectedTo;
+  final bool disconnectRequested;
+  final List<String> previouslyConnected;
+  final bool showPreviousConnectionsVisible;
+
+  final bool autoAcceptCalls;
+  final bool disableMute;
+  final bool disableCameraOff;
 
   const UserEntity({
     required this.uid,
@@ -33,6 +41,13 @@ class UserEntity extends Equatable {
     this.readReceiptsEnabled = true,
     this.lastSeenVisible = true,
     this.profilePhotoVisible = true,
+    this.connectedTo = '',
+    this.disconnectRequested = false,
+    this.previouslyConnected = const [],
+    this.showPreviousConnectionsVisible = true,
+    this.autoAcceptCalls = true,
+    this.disableMute = false,
+    this.disableCameraOff = false,
   });
 
   @override
@@ -52,5 +67,12 @@ class UserEntity extends Equatable {
         readReceiptsEnabled,
         lastSeenVisible,
         profilePhotoVisible,
+        connectedTo,
+        disconnectRequested,
+        previouslyConnected,
+        showPreviousConnectionsVisible,
+        autoAcceptCalls,
+        disableMute,
+        disableCameraOff,
       ];
 }

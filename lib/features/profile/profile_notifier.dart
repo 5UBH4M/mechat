@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/services/service_providers.dart';
 import '../../domain/entities/user_entity.dart';
@@ -39,6 +40,20 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
         return;
       }
 
+      final normalizedUsername = username.toLowerCase().trim();
+
+      // Check for username uniqueness
+      final db = FirebaseFirestore.instance;
+      final existingUsers = await db.collection('users')
+          .where('username', isEqualTo: normalizedUsername)
+          .limit(1)
+          .get();
+          
+      if (existingUsers.docs.isNotEmpty && existingUsers.docs.first.id != currentUser.uid) {
+        state = const ProfileState(status: ProfileStatus.error, errorMessage: 'Username is already taken.');
+        return;
+      }
+
       String profilePicUrl = currentUser.profilePictureUrl;
       if (localImagePath != null && localImagePath.isNotEmpty) {
         profilePicUrl = await _profileRepository.uploadProfilePicture(localImagePath, currentUser.uid);
@@ -47,7 +62,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       final updatedUser = UserEntity(
         uid: currentUser.uid,
         phoneNumber: currentUser.phoneNumber,
-        username: username.toLowerCase().trim(),
+        username: normalizedUsername,
         displayName: displayName,
         profilePictureUrl: profilePicUrl,
         about: about,
@@ -60,6 +75,13 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
         readReceiptsEnabled: currentUser.readReceiptsEnabled,
         lastSeenVisible: currentUser.lastSeenVisible,
         profilePhotoVisible: currentUser.profilePhotoVisible,
+        connectedTo: currentUser.connectedTo,
+        disconnectRequested: currentUser.disconnectRequested,
+        previouslyConnected: currentUser.previouslyConnected,
+        showPreviousConnectionsVisible: currentUser.showPreviousConnectionsVisible,
+        autoAcceptCalls: currentUser.autoAcceptCalls,
+        disableMute: currentUser.disableMute,
+        disableCameraOff: currentUser.disableCameraOff,
       );
 
       await _profileRepository.createUserProfile(updatedUser);
@@ -85,6 +107,10 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     required bool readReceiptsEnabled,
     required bool lastSeenVisible,
     required bool profilePhotoVisible,
+    bool? showPreviousConnectionsVisible,
+    bool? autoAcceptCalls,
+    bool? disableMute,
+    bool? disableCameraOff,
   }) async {
     try {
       final authState = _ref.read(authNotifierProvider);
@@ -107,6 +133,13 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
         readReceiptsEnabled: readReceiptsEnabled,
         lastSeenVisible: lastSeenVisible,
         profilePhotoVisible: profilePhotoVisible,
+        connectedTo: currentUser.connectedTo,
+        disconnectRequested: currentUser.disconnectRequested,
+        previouslyConnected: currentUser.previouslyConnected,
+        showPreviousConnectionsVisible: showPreviousConnectionsVisible ?? currentUser.showPreviousConnectionsVisible,
+        autoAcceptCalls: autoAcceptCalls ?? currentUser.autoAcceptCalls,
+        disableMute: disableMute ?? currentUser.disableMute,
+        disableCameraOff: disableCameraOff ?? currentUser.disableCameraOff,
       );
 
       await _profileRepository.createUserProfile(updatedUser);

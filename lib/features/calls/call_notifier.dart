@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:developer' as dev;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/services/notification_service.dart';
 import '../../core/services/service_providers.dart';
 import '../auth/auth_notifier.dart';
 
@@ -19,6 +21,7 @@ class CallState {
   final String remoteUserAvatar;
   final String callerId;
   final String receiverId;
+  final bool partnerWantsHangup;
 
   const CallState({
     this.callId,
@@ -32,6 +35,7 @@ class CallState {
     required this.remoteUserAvatar,
     required this.callerId,
     required this.receiverId,
+    required this.partnerWantsHangup,
   });
 
   factory CallState.idle() => const CallState(
@@ -45,6 +49,7 @@ class CallState {
         remoteUserAvatar: '',
         callerId: '',
         receiverId: '',
+        partnerWantsHangup: false,
       );
 
   CallState copyWith({
@@ -59,6 +64,7 @@ class CallState {
     String? remoteUserAvatar,
     String? callerId,
     String? receiverId,
+    bool? partnerWantsHangup,
   }) {
     return CallState(
       callId: callId ?? this.callId,
@@ -72,6 +78,7 @@ class CallState {
       remoteUserAvatar: remoteUserAvatar ?? this.remoteUserAvatar,
       callerId: callerId ?? this.callerId,
       receiverId: receiverId ?? this.receiverId,
+      partnerWantsHangup: partnerWantsHangup ?? this.partnerWantsHangup,
     );
   }
 }
@@ -127,10 +134,21 @@ class CallNotifier extends StateNotifier<CallState> {
                 remoteUserAvatar: '', // Resolve from user details later
                 callerId: data['callerId'],
                 receiverId: data['receiverId'],
+                partnerWantsHangup: false,
               );
 
               // Setup local/remote signaling callbacks
               _setupSignalingCallbacks();
+
+              // Show notification if app is in background
+              final lifecycleState = WidgetsBinding.instance.lifecycleState;
+              if (lifecycleState != AppLifecycleState.resumed) {
+                _ref.read(notificationServiceProvider).showCustomNotification(
+                  id: doc.id.hashCode,
+                  title: 'Incoming Call',
+                  body: '${data['callerName'] ?? 'Someone'} is calling you',
+                );
+              }
             }
           });
     }, fireImmediately: true);
@@ -155,6 +173,10 @@ class CallNotifier extends StateNotifier<CallState> {
     signaling.onRemoteStream = (stream) {
       remoteRenderer.srcObject = stream;
     };
+
+    signaling.onPartnerWantsHangup = () {
+      state = state.copyWith(partnerWantsHangup: true);
+    };
   }
 
   // Start outgoing call
@@ -177,6 +199,7 @@ class CallNotifier extends StateNotifier<CallState> {
       remoteUserAvatar: '',
       callerId: sender.uid,
       receiverId: receiverId,
+      partnerWantsHangup: false,
     );
 
     _setupSignalingCallbacks();
@@ -230,7 +253,6 @@ class CallNotifier extends StateNotifier<CallState> {
     
     final signaling = _ref.read(signalingServiceProvider);
     await signaling.endCall(callId, isRejected: true);
-    state = CallState.idle();
   }
 
   // End active call
@@ -243,7 +265,6 @@ class CallNotifier extends StateNotifier<CallState> {
     
     final signaling = _ref.read(signalingServiceProvider);
     await signaling.endCall(callId);
-    state = CallState.idle();
   }
 
   // Actions

@@ -39,6 +39,16 @@ class ProfileRepositoryImpl implements ProfileRepository {
       publicKey: user.publicKey,
       blockedUsers: user.blockedUsers,
       pushToken: user.pushToken,
+      readReceiptsEnabled: user.readReceiptsEnabled,
+      lastSeenVisible: user.lastSeenVisible,
+      profilePhotoVisible: user.profilePhotoVisible,
+      connectedTo: user.connectedTo,
+      disconnectRequested: user.disconnectRequested,
+      previouslyConnected: user.previouslyConnected,
+      showPreviousConnectionsVisible: user.showPreviousConnectionsVisible,
+      autoAcceptCalls: user.autoAcceptCalls,
+      disableMute: user.disableMute,
+      disableCameraOff: user.disableCameraOff,
     );
 
     await _db.collection(AppConstants.usersCollection).doc(user.uid).set(model.toFirestore());
@@ -60,6 +70,16 @@ class ProfileRepositoryImpl implements ProfileRepository {
       publicKey: user.publicKey,
       blockedUsers: user.blockedUsers,
       pushToken: user.pushToken,
+      readReceiptsEnabled: user.readReceiptsEnabled,
+      lastSeenVisible: user.lastSeenVisible,
+      profilePhotoVisible: user.profilePhotoVisible,
+      connectedTo: user.connectedTo,
+      disconnectRequested: user.disconnectRequested,
+      previouslyConnected: user.previouslyConnected,
+      showPreviousConnectionsVisible: user.showPreviousConnectionsVisible,
+      autoAcceptCalls: user.autoAcceptCalls,
+      disableMute: user.disableMute,
+      disableCameraOff: user.disableCameraOff,
     );
 
     await _db.collection(AppConstants.usersCollection).doc(user.uid).update(model.toFirestore());

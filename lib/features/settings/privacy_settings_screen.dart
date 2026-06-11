@@ -15,6 +15,10 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
   bool _readReceipts = true;
   bool _lastSeen = true;
   bool _profilePhoto = true;
+  bool _showPreviousConnectionsVisible = true;
+  bool _autoAcceptCalls = true;
+  bool _disableMute = false;
+  bool _disableCameraOff = false;
 
   @override
   void initState() {
@@ -24,6 +28,10 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
       _readReceipts = user.readReceiptsEnabled;
       _lastSeen = user.lastSeenVisible;
       _profilePhoto = user.profilePhotoVisible;
+      _showPreviousConnectionsVisible = user.showPreviousConnectionsVisible;
+      _autoAcceptCalls = user.autoAcceptCalls;
+      _disableMute = user.disableMute;
+      _disableCameraOff = user.disableCameraOff;
     }
   }
 
@@ -32,6 +40,10 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
           readReceiptsEnabled: _readReceipts,
           lastSeenVisible: _lastSeen,
           profilePhotoVisible: _profilePhoto,
+          showPreviousConnectionsVisible: _showPreviousConnectionsVisible,
+          autoAcceptCalls: _autoAcceptCalls,
+          disableMute: _disableMute,
+          disableCameraOff: _disableCameraOff,
         );
   }
 
@@ -52,17 +64,6 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
         padding: const EdgeInsets.all(16.0),
         children: [
           _buildPrivacyTile(
-            title: 'Last Seen and Online',
-            subtitle: _lastSeen ? 'Everyone' : 'Nobody',
-            icon: Icons.access_time_rounded,
-            value: _lastSeen,
-            onChanged: (val) {
-              setState(() => _lastSeen = val);
-              _updateSettings();
-            },
-            theme: theme,
-          ),
-          _buildPrivacyTile(
             title: 'Profile Photo',
             subtitle: _profilePhoto ? 'Everyone' : 'Nobody',
             icon: Icons.account_circle_rounded,
@@ -76,13 +77,48 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
           const SizedBox(height: 16),
           const Divider(),
           const SizedBox(height: 16),
+
           SwitchListTile(
-            title: const Text('Read Receipts'),
-            subtitle: const Text('If turned off, you won\'t send or receive Read Receipts. Read Receipts are always sent for group chats (not applicable in 1-on-1).'),
-            value: _readReceipts,
+            title: const Text('Show Previous Connections'),
+            subtitle: const Text('Allow others to see the list of people you have previously established a connection with on your profile.'),
+            value: _showPreviousConnectionsVisible,
             activeColor: theme.colorScheme.primary,
             onChanged: (val) {
-              setState(() => _readReceipts = val);
+              setState(() => _showPreviousConnectionsVisible = val);
+              _updateSettings();
+            },
+          ),
+          const SizedBox(height: 16),
+          const Divider(),
+          const SizedBox(height: 16),
+          Text('Call Settings', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
+          SwitchListTile(
+            title: const Text('Auto-Accept Calls'),
+            subtitle: const Text('Automatically accept incoming calls after 5 seconds.'),
+            value: _autoAcceptCalls,
+            activeColor: theme.colorScheme.primary,
+            onChanged: (val) {
+              setState(() => _autoAcceptCalls = val);
+              _updateSettings();
+            },
+          ),
+          SwitchListTile(
+            title: const Text('Disable Mute in Calls'),
+            subtitle: const Text('Remove the mute button during calls so audio cannot be muted.'),
+            value: _disableMute,
+            activeColor: theme.colorScheme.primary,
+            onChanged: (val) {
+              setState(() => _disableMute = val);
+              _updateSettings();
+            },
+          ),
+          SwitchListTile(
+            title: const Text('Disable Camera Off'),
+            subtitle: const Text('Remove the video toggle button during video calls so the camera cannot be turned off.'),
+            value: _disableCameraOff,
+            activeColor: theme.colorScheme.primary,
+            onChanged: (val) {
+              setState(() => _disableCameraOff = val);
               _updateSettings();
             },
           ),

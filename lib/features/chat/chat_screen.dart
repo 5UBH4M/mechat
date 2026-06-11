@@ -48,11 +48,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _isNotesToSelf = false;
   bool _isRecording = false;
   String? _audioPath;
-  int _recordingDuration = 0;
   Timer? _recordingTimer;
   DateTime? _recordingStartTime;
   Timer? _typingDebouncer;
   MessageEntity? _replyingToMessage;
+
+  StreamSubscription<DocumentSnapshot>? _receiverSub;
 
   @override
   void initState() {
@@ -64,40 +65,43 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
   }
 
-  Future<void> _loadReceiverProfile() async {
+  void _loadReceiverProfile() {
     if (_isNotesToSelf) return;
     
-    // Read profile from firestore
-    final doc = await FirebaseFirestore.instance
+    _receiverSub = FirebaseFirestore.instance
         .collection(AppConstants.usersCollection)
         .doc(widget.receiverId)
-        .get();
-    
-    if (doc.exists && doc.data() != null) {
-      if (mounted) {
-        setState(() {
-          _receiverUser = UserEntity(
-            uid: doc.id,
-            phoneNumber: doc.data()?['phoneNumber'] ?? '',
-            username: doc.data()?['username'] ?? '',
-            displayName: doc.data()?['displayName'] ?? 'User',
-            profilePictureUrl: doc.data()?['profilePictureUrl'] ?? '',
-            about: doc.data()?['about'] ?? '',
-            isOnline: doc.data()?['isOnline'] ?? false,
-            lastSeen: (doc.data()?['lastSeen'] as Timestamp?)?.toDate() ?? DateTime.now(),
-            publicKey: doc.data()?['publicKey'] ?? '',
-            blockedUsers: List<String>.from(doc.data()?['blockedUsers'] ?? []),
-            pushToken: doc.data()?['pushToken'] ?? '',
-            createdAt: (doc.data()?['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-            lastSeenVisible: doc.data()?['lastSeenVisible'] ?? true,
-          );
-        });
+        .snapshots()
+        .listen((doc) {
+      if (doc.exists && doc.data() != null) {
+        if (mounted) {
+          setState(() {
+            _receiverUser = UserEntity(
+              uid: doc.id,
+              phoneNumber: doc.data()?['phoneNumber'] ?? '',
+              username: doc.data()?['username'] ?? '',
+              displayName: doc.data()?['displayName'] ?? 'User',
+              profilePictureUrl: doc.data()?['profilePictureUrl'] ?? '',
+              about: doc.data()?['about'] ?? '',
+              isOnline: doc.data()?['isOnline'] ?? false,
+              lastSeen: (doc.data()?['lastSeen'] as Timestamp?)?.toDate() ?? DateTime.now(),
+              publicKey: doc.data()?['publicKey'] ?? '',
+              blockedUsers: List<String>.from(doc.data()?['blockedUsers'] ?? []),
+              pushToken: doc.data()?['pushToken'] ?? '',
+              createdAt: (doc.data()?['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+              lastSeenVisible: doc.data()?['lastSeenVisible'] ?? true,
+              disconnectRequested: doc.data()?['disconnectRequested'] ?? false,
+              connectedTo: doc.data()?['connectedTo'] ?? '',
+            );
+          });
+        }
       }
-    }
+    });
   }
 
   @override
   void dispose() {
+    _receiverSub?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     _audioRecorder.dispose();
@@ -165,13 +169,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       await _audioRecorder.start(const RecordConfig(), path: _audioPath!);
       setState(() {
         _isRecording = true;
-        _recordingDuration = 0;
+        _recordingStartTime = DateTime.now();
       });
 
       _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        setState(() {
-          _recordingDuration++;
-        });
+        setState(() {});
       });
     } catch (e) {
       debugPrint('Error starting recording: $e');
@@ -345,6 +347,173 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     } catch (_) {}
   }
 
+  Future<void> _handleDisconnect() async {
+    final currentUser = ref.read(authNotifierProvider).user;
+    if (currentUser == null) return;
+    
+    final db = FirebaseFirestore.instance;
+    final myDoc = db.collection('users').doc(currentUser.uid);
+    final remoteDoc = db.collection('users').doc(widget.receiverId);
+
+    if (!currentUser.disconnectRequested) {
+      if (_receiverUser?.disconnectRequested == true) {
+        // Mutual disconnect!
+        final batch = db.batch();
+        batch.update(myDoc, {'connectedTo': '', 'disconnectRequested': false});
+        batch.update(remoteDoc, {'connectedTo': '', 'disconnectRequested': false});
+        
+        final chatId = ref.read(chatNotifierProvider.notifier).getChatId(currentUser.uid, widget.receiverId);
+        final chatDoc = db.collection('chats').doc(chatId);
+        batch.update(chatDoc, {'isConnectionEstablished': false, 'connectionRequestedBy': ''});
+
+        await batch.commit();
+        if (mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Disconnected successfully.')));
+           context.pop();
+        }
+      } else {
+        await myDoc.update({'disconnectRequested': true});
+        if (mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Disconnect requested. Waiting for partner.')));
+        }
+      }
+    } else {
+      // Cancel disconnect
+      await myDoc.update({'disconnectRequested': false});
+      if (mounted) {
+         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Disconnect request cancelled.')));
+      }
+    }
+  }
+
+  Future<void> _handleLeaveChat() async {
+    final currentUser = ref.read(authNotifierProvider).user;
+    if (currentUser == null) return;
+    
+    final db = FirebaseFirestore.instance;
+    final myDoc = db.collection('users').doc(currentUser.uid);
+    final remoteDoc = db.collection('users').doc(widget.receiverId);
+
+    final batch = db.batch();
+    if (currentUser.connectedTo == widget.receiverId) {
+        batch.update(myDoc, {'connectedTo': '', 'disconnectRequested': false});
+    }
+    if (_receiverUser?.connectedTo == currentUser.uid) {
+        batch.update(remoteDoc, {'connectedTo': '', 'disconnectRequested': false});
+    }
+    
+    await batch.commit();
+    if (mounted) {
+        context.pop();
+    }
+  }
+
+  Future<void> _handleRequestConnection() async {
+    final currentUser = ref.read(authNotifierProvider).user;
+    if (currentUser == null) return;
+    final chatId = ref.read(chatNotifierProvider.notifier).getChatId(currentUser.uid, widget.receiverId);
+    final db = FirebaseFirestore.instance;
+    await db.collection('chats').doc(chatId).update({'connectionRequestedBy': currentUser.uid});
+  }
+
+  Future<void> _handleAcceptConnection() async {
+    final currentUser = ref.read(authNotifierProvider).user;
+    if (currentUser == null) return;
+    
+    final db = FirebaseFirestore.instance;
+    final chatId = ref.read(chatNotifierProvider.notifier).getChatId(currentUser.uid, widget.receiverId);
+    
+    final myDoc = db.collection('users').doc(currentUser.uid);
+    final remoteDoc = db.collection('users').doc(widget.receiverId);
+    final chatDoc = db.collection('chats').doc(chatId);
+    
+    final batch = db.batch();
+    
+    // Update Chat status
+    batch.update(chatDoc, {
+      'isConnectionEstablished': true,
+      'connectionRequestedBy': '',
+    });
+    
+    // Lock both users
+    batch.update(myDoc, {'connectedTo': widget.receiverId, 'disconnectRequested': false});
+    batch.update(remoteDoc, {'connectedTo': currentUser.uid, 'disconnectRequested': false});
+    
+    // Add to previouslyConnected
+    batch.update(myDoc, {
+      'previouslyConnected': FieldValue.arrayUnion([widget.receiverId])
+    });
+    batch.update(remoteDoc, {
+      'previouslyConnected': FieldValue.arrayUnion([currentUser.uid])
+    });
+
+    await batch.commit();
+  }
+
+  Widget _buildConnectionRequestUI(ThemeData theme, String requestedBy, String currentUid) {
+    return Container(
+      color: theme.colorScheme.surfaceContainerHigh,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Text(
+            'Message Limit Reached',
+            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'You have exchanged 5 messages. To continue chatting and unlock calls, you must establish a connection.',
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          if (requestedBy.isEmpty)
+            ElevatedButton(
+              onPressed: _handleRequestConnection,
+              child: const Text('Request Connection'),
+            )
+          else if (requestedBy == currentUid)
+            const Text(
+              'Connection request sent. Waiting for partner...',
+              style: TextStyle(fontStyle: FontStyle.italic),
+            )
+          else
+            ElevatedButton(
+              onPressed: _handleAcceptConnection,
+              style: ElevatedButton.styleFrom(backgroundColor: theme.colorScheme.primary, foregroundColor: theme.colorScheme.onPrimary),
+              child: const Text('Accept Connection'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDisconnectRequestUI(ThemeData theme) {
+    return Container(
+      color: theme.colorScheme.errorContainer,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Text(
+            'Disconnect Requested',
+            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.onErrorContainer),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Your partner has requested to disconnect. If you accept, the connection will be broken.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: theme.colorScheme.onErrorContainer),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _handleDisconnect,
+            style: ElevatedButton.styleFrom(backgroundColor: theme.colorScheme.error, foregroundColor: theme.colorScheme.onError),
+            child: const Text('Accept Disconnect'),
+          ),
+        ],
+      ),
+    );
+  }
+
   // --- Call Launcher Helpers ---
   void _startWebRTCCall(bool isVideo) {
     if (_receiverUser == null) return;
@@ -367,6 +536,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         );
 
     final messagesAsync = ref.watch(chatMessagesProvider(chatId));
+    final chatsAsync = ref.watch(recentChatsProvider);
+    
+    // Find the chat entity if it exists
+    final chatEntity = chatsAsync.value?.where((c) => c.id == chatId).firstOrNull;
+    final isConnectionEstablished = chatEntity?.isConnectionEstablished ?? false;
+    final connectionRequestedBy = chatEntity?.connectionRequestedBy ?? '';
+    
+    final messageCount = messagesAsync.value?.length ?? 0;
+    final limitReached = messageCount >= 5 && !isConnectionEstablished;
+
+    final partnerRequestedDisconnect = _receiverUser?.disconnectRequested == true && currentUser?.disconnectRequested == false;
 
     // Determine Block states
     final isBlockedByMe = currentUser != null && _receiverUser != null &&
@@ -435,7 +615,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ],
         ),
         actions: [
-          if (!_isNotesToSelf && _receiverUser != null && !isChatDisabled) ...[
+          if (!_isNotesToSelf && _receiverUser != null && !isChatDisabled && isConnectionEstablished) ...[
             IconButton(
               icon: const Icon(Icons.call_rounded),
               onPressed: () => _startWebRTCCall(false),
@@ -447,16 +627,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ],
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert_rounded),
-            onSelected: (value) {
-              if (value == 'disappearing') {
-                _showDisappearingMessagesDialog();
+            onSelected: (value) async {
+              if (value == 'disconnect') {
+                if (isConnectionEstablished) {
+                  await _handleDisconnect();
+                } else {
+                  // Simply leave chat and clear connectedTo
+                  await _handleLeaveChat();
+                }
               }
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'disappearing',
-                child: Text('Disappearing Messages'),
-              ),
+              if (!_isNotesToSelf)
+                PopupMenuItem(
+                  value: 'disconnect',
+                  child: Text(
+                    isConnectionEstablished 
+                        ? (currentUser?.disconnectRequested == true ? 'Cancel Disconnect Request' : 'Request Disconnect')
+                        : 'Leave Chat',
+                  ),
+                ),
             ],
           ),
         ],
@@ -524,6 +714,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   ),
                 ),
               )
+            else if (limitReached)
+              _buildConnectionRequestUI(theme, connectionRequestedBy, currentUser?.uid ?? '')
+            else if (partnerRequestedDisconnect && isConnectionEstablished)
+              _buildDisconnectRequestUI(theme)
             else
               _buildInputBar(theme),
           ],
@@ -1071,23 +1265,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     );
                   },
                 ),
-              ListTile(
-                leading: const Icon(Icons.delete, color: Colors.red),
-                title: const Text('Delete for me', style: TextStyle(color: Colors.red)),
-                onTap: () {
-                  ref.read(chatNotifierProvider.notifier).deleteMessageForMe(widget.receiverId, msg.id);
-                  Navigator.pop(ctx);
-                },
-              ),
-              if (isMe)
-                ListTile(
-                  leading: const Icon(Icons.delete_forever, color: Colors.red),
-                  title: const Text('Delete for everyone', style: TextStyle(color: Colors.red)),
-                  onTap: () {
-                    ref.read(chatNotifierProvider.notifier).deleteMessageForEveryone(widget.receiverId, msg.id);
-                    Navigator.pop(ctx);
-                  },
-                ),
             ],
           ),
         );
@@ -1095,72 +1272,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  void _showDisappearingMessagesDialog() {
-    final chats = ref.read(recentChatsProvider).value ?? [];
-    final currentUser = ref.read(authNotifierProvider).user;
-    if (currentUser == null) return;
-    
-    final chatId = ref.read(chatNotifierProvider.notifier).getChatId(currentUser.uid, widget.receiverId);
-    ChatEntity? chat;
-    try {
-      chat = chats.firstWhere((c) => c.id == chatId);
-    } catch (_) {}
-    
-    int currentTimer = chat?.disappearingTimer ?? 0;
-    
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        int selectedTimer = currentTimer;
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: const Text('Disappearing Messages'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  RadioListTile<int>(
-                    title: const Text('Off'),
-                    value: 0,
-                    groupValue: selectedTimer,
-                    onChanged: (val) => setState(() => selectedTimer = val!),
-                  ),
-                  RadioListTile<int>(
-                    title: const Text('24 Hours'),
-                    value: 86400,
-                    groupValue: selectedTimer,
-                    onChanged: (val) => setState(() => selectedTimer = val!),
-                  ),
-                  RadioListTile<int>(
-                    title: const Text('7 Days'),
-                    value: 604800,
-                    groupValue: selectedTimer,
-                    onChanged: (val) => setState(() => selectedTimer = val!),
-                  ),
-                  RadioListTile<int>(
-                    title: const Text('90 Days'),
-                    value: 7776000,
-                    groupValue: selectedTimer,
-                    onChanged: (val) => setState(() => selectedTimer = val!),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCEL')),
-                TextButton(
-                  onPressed: () {
-                    ref.read(chatNotifierProvider.notifier).updateDisappearingTimer(widget.receiverId, selectedTimer);
-                    Navigator.pop(ctx);
-                  },
-                  child: const Text('SAVE'),
-                ),
-              ],
-            );
-          }
-        );
-      }
-    );
-  }
+
 
   void _showForwardDialog(MessageEntity msg) {
     showDialog(

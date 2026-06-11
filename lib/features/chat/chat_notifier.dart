@@ -20,22 +20,8 @@ final recentChatsProvider = StreamProvider.autoDispose<List<ChatEntity>>((ref) {
 // 2. Stream Provider for Messages in a specific chat
 final chatMessagesProvider = StreamProvider.autoDispose.family<List<MessageEntity>, String>((ref, chatId) {
   final chatRepo = ref.watch(chatRepositoryProvider);
-  final chats = ref.watch(recentChatsProvider).value ?? [];
-  
-  ChatEntity? chat;
-  try {
-    chat = chats.firstWhere((c) => c.id == chatId);
-  } catch (_) {}
 
-  return chatRepo.getMessages(chatId).map((messages) {
-    if (chat == null || chat.disappearingTimer == 0) return messages;
-    final timer = chat.disappearingTimer;
-    final now = DateTime.now();
-    return messages.where((msg) {
-      final expiry = msg.timestamp.add(Duration(seconds: timer));
-      return now.isBefore(expiry);
-    }).toList();
-  });
+  return chatRepo.getMessages(chatId);
 });
 
 // 3. Notifier for sending messages and performing actions
@@ -192,17 +178,6 @@ class ChatNotifier extends StateNotifier<double> {
     await _chatRepository.deleteMessageForEveryone(chatId: chatId, messageId: messageId);
   }
 
-  Future<void> updateDisappearingTimer(String receiverId, int timerSeconds) async {
-    final sender = _ref.read(authNotifierProvider).user;
-    if (sender == null) return;
-    
-    final chatId = getChatId(sender.uid, receiverId);
-    await _initializeChatThread(chatId, sender.uid, receiverId);
-    
-    await FirebaseFirestore.instance.collection('chats').doc(chatId).update({
-      'disappearingTimer': timerSeconds,
-    });
-  }
 
   // Helper to ensure firestore has a chat document ready
   Future<void> _initializeChatThread(String chatId, String senderId, String receiverId) async {
