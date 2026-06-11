@@ -1,0 +1,122 @@
+import 'dart:convert';
+import 'package:hive_flutter/hive_flutter.dart';
+import '../constants/app_constants.dart';
+
+class HiveService {
+  static final HiveService _instance = HiveService._internal();
+  factory HiveService() => _instance;
+  HiveService._internal();
+
+  late Box _userBox;
+  late Box _chatBox;
+  late Box _settingsBox;
+  late Box _outboxBox;
+
+  Future<void> init() async {
+    await Hive.initFlutter();
+    _userBox = await Hive.openBox(AppConstants.userBoxName);
+    _chatBox = await Hive.openBox(AppConstants.chatCacheBoxName);
+    _settingsBox = await Hive.openBox(AppConstants.settingsBoxName);
+    _outboxBox = await Hive.openBox(AppConstants.offlineOutboxBoxName);
+  }
+
+  // --- Auth / User Caching ---
+  Future<void> saveUser(Map<String, dynamic> userMap) async {
+    await _userBox.put(AppConstants.keyAuthUser, jsonEncode(userMap));
+  }
+
+  Map<String, dynamic>? getUser() {
+    final raw = _userBox.get(AppConstants.keyAuthUser);
+    if (raw == null) return null;
+    return jsonDecode(raw as String) as Map<String, dynamic>;
+  }
+
+  Future<void> clearUser() async {
+    await _userBox.delete(AppConstants.keyAuthUser);
+  }
+
+  // --- Theme Mode ---
+  Future<void> saveThemeMode(String mode) async {
+    await _settingsBox.put(AppConstants.keyThemeMode, mode);
+  }
+
+  String getThemeMode() {
+    return _settingsBox.get(AppConstants.keyThemeMode, defaultValue: 'dark') as String;
+  }
+
+  // --- Chat List & Message Caching ---
+  Future<void> cacheChats(List<Map<String, dynamic>> chats) async {
+    final Map<String, String> data = {};
+    for (final chat in chats) {
+      final id = chat['id'] as String;
+      data[id] = jsonEncode(chat);
+    }
+    await _chatBox.put('chats_list', jsonEncode(chats));
+  }
+
+  List<Map<String, dynamic>> getCachedChats() {
+    final raw = _chatBox.get('chats_list');
+    if (raw == null) return [];
+    final list = jsonDecode(raw as String) as List<dynamic>;
+    return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  Future<void> cacheMessages(String chatId, List<Map<String, dynamic>> messages) async {
+    await _chatBox.put('messages_$chatId', jsonEncode(messages));
+  }
+
+  List<Map<String, dynamic>> getCachedMessages(String chatId) {
+    final raw = _chatBox.get('messages_$chatId');
+    if (raw == null) return [];
+    final list = jsonDecode(raw as String) as List<dynamic>;
+    return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  // --- Offline Message Queueing (Outbox) ---
+  Future<void> queueOfflineMessage(Map<String, dynamic> message) async {
+    final List<Map<String, dynamic>> currentQueue = getOfflineMessagesQueue();
+    currentQueue.add(message);
+    await _outboxBox.put('queue', jsonEncode(currentQueue));
+  }
+
+  List<Map<String, dynamic>> getOfflineMessagesQueue() {
+    final raw = _outboxBox.get('queue');
+    if (raw == null) return [];
+    final list = jsonDecode(raw as String) as List<dynamic>;
+    return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  Future<void> clearOfflineMessagesQueue() async {
+    await _outboxBox.delete('queue');
+  }
+
+  // --- Encryption Keys ---
+  Future<void> saveE2EKeys(String privateKey, String publicKey) async {
+    await _settingsBox.put(AppConstants.keyE2EPrivateKey, privateKey);
+    await _settingsBox.put(AppConstants.keyE2EPublicKey, publicKey);
+  }
+
+  String? getE2EPrivateKey() => _settingsBox.get(AppConstants.keyE2EPrivateKey) as String?;
+  String? getE2EPublicKey() => _settingsBox.get(AppConstants.keyE2EPublicKey) as String?;
+
+  // --- Chat Wallpaper ---
+  Future<void> saveChatWallpaper(String path) async {
+    await _settingsBox.put('chat_wallpaper_path', path);
+  }
+
+  String? getChatWallpaper() {
+    return _settingsBox.get('chat_wallpaper_path') as String?;
+  }
+
+  Future<void> removeChatWallpaper() async {
+    await _settingsBox.delete('chat_wallpaper_path');
+  }
+
+  // Clear all caches on logout
+  Future<void> clearAllCache() async {
+    await _userBox.clear();
+    await _chatBox.clear();
+    await _outboxBox.clear();
+    // Keep settings (like theme)
+  }
+}

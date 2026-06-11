@@ -1,0 +1,1209 @@
+import 'dart:async';
+import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:any_link_preview/any_link_preview.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:record/record.dart';
+import 'package:uuid/uuid.dart';
+import '../../core/constants/app_constants.dart';
+import '../../core/utils/date_formatter.dart';
+import '../../core/utils/image_helper.dart';
+import '../../domain/entities/message_entity.dart';
+import '../../domain/entities/user_entity.dart';
+import '../../domain/entities/chat_entity.dart';
+import '../auth/auth_notifier.dart';
+import '../calls/call_notifier.dart';
+import '../../core/services/service_providers.dart';
+import 'audio_message_player.dart';
+import 'chat_notifier.dart';
+
+class ChatScreen extends ConsumerStatefulWidget {
+  final String receiverId; // Can be 'notes_to_self' or a real UID
+
+  const ChatScreen({
+    super.key,
+    required this.receiverId,
+  });
+
+  @override
+  ConsumerState<ChatScreen> createState() => _ChatScreenState();
+}
+
+class _ChatScreenState extends ConsumerState<ChatScreen> {
+  final TextEditingController _messageController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  final AudioRecorder _audioRecorder = AudioRecorder();
+
+  UserEntity? _receiverUser;
+  bool _isNotesToSelf = false;
+  bool _isRecording = false;
+  String? _audioPath;
+  int _recordingDuration = 0;
+  Timer? _recordingTimer;
+  DateTime? _recordingStartTime;
+  Timer? _typingDebouncer;
+  MessageEntity? _replyingToMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _isNotesToSelf = widget.receiverId == 'notes_to_self';
+    _loadReceiverProfile();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(chatNotifierProvider.notifier).resetUnreadCount(widget.receiverId);
+    });
+  }
+
+  Future<void> _loadReceiverProfile() async {
+    if (_isNotesToSelf) return;
+    
+    // Read profile from firestore
+    final doc = await FirebaseFirestore.instance
+        .collection(AppConstants.usersCollection)
+        .doc(widget.receiverId)
+        .get();
+    
+    if (doc.exists && doc.data() != null) {
+      if (mounted) {
+        setState(() {
+          _receiverUser = UserEntity(
+            uid: doc.id,
+            phoneNumber: doc.data()?['phoneNumber'] ?? '',
+            username: doc.data()?['username'] ?? '',
+            displayName: doc.data()?['displayName'] ?? 'User',
+            profilePictureUrl: doc.data()?['profilePictureUrl'] ?? '',
+            about: doc.data()?['about'] ?? '',
+            isOnline: doc.data()?['isOnline'] ?? false,
+            lastSeen: (doc.data()?['lastSeen'] as Timestamp?)?.toDate() ?? DateTime.now(),
+            publicKey: doc.data()?['publicKey'] ?? '',
+            blockedUsers: List<String>.from(doc.data()?['blockedUsers'] ?? []),
+            pushToken: doc.data()?['pushToken'] ?? '',
+            createdAt: (doc.data()?['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+            lastSeenVisible: doc.data()?['lastSeenVisible'] ?? true,
+          );
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _scrollController.dispose();
+    _audioRecorder.dispose();
+    _typingDebouncer?.cancel();
+    _recordingTimer?.cancel();
+    super.dispose();
+  }
+
+  void _onTextChanged(String text) {
+    setState(() {}); // Rebuild to toggle mic/send button
+    if (_isNotesToSelf) return;
+    
+    ref.read(chatNotifierProvider.notifier).setTypingStatus(widget.receiverId, true);
+
+    _typingDebouncer?.cancel();
+    _typingDebouncer = Timer(const Duration(seconds: 2), () {
+      ref.read(chatNotifierProvider.notifier).setTypingStatus(widget.receiverId, false);
+    });
+  }
+
+  Future<void> _sendText() async {
+    final text = _messageController.text.trim();
+    if (text.isEmpty) return;
+
+    _messageController.clear();
+    ref.read(chatNotifierProvider.notifier).setTypingStatus(widget.receiverId, false);
+
+    final replyId = _replyingToMessage?.id ?? '';
+    final replyContent = _replyingToMessage?.content ?? '';
+    setState(() {
+      _replyingToMessage = null;
+    });
+
+    await ref.read(chatNotifierProvider.notifier).sendTextMessage(
+          receiverId: widget.receiverId,
+          content: text,
+          repliedToMessageId: replyId,
+          repliedToMessageContent: replyContent,
+        );
+    
+    _scrollToBottom();
+  }
+
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent + 100,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  // --- Voice Message Recording ---
+  Future<void> _startRecording() async {
+    var status = await Permission.microphone.status;
+    if (!status.isGranted) {
+      status = await Permission.microphone.request();
+      if (!status.isGranted) return;
+    }
+
+    try {
+      final tempDir = await getTemporaryDirectory();
+      _audioPath = '${tempDir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      await _audioRecorder.start(const RecordConfig(), path: _audioPath!);
+      setState(() {
+        _isRecording = true;
+        _recordingDuration = 0;
+      });
+
+      _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        setState(() {
+          _recordingDuration++;
+        });
+      });
+    } catch (e) {
+      debugPrint('Error starting recording: $e');
+    }
+  }
+
+  bool _containsLink(String text) {
+    return RegExp(r'(https?:\/\/[^\s]+)').hasMatch(text);
+  }
+
+  String _extractLink(String text) {
+    final match = RegExp(r'(https?:\/\/[^\s]+)').firstMatch(text);
+    return match?.group(0) ?? '';
+  }
+
+  Future<void> _openLocation(String latLng) async {
+    final url = Uri.parse('https://www.google.com/maps/search/?api=1&query=$latLng');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url);
+    }
+  }
+
+  void _sendLocation() {
+    final currentUser = ref.read(authNotifierProvider).user;
+    if (currentUser == null) return;
+    
+    final msg = MessageEntity(
+      id: const Uuid().v4(),
+      senderId: currentUser.uid,
+      receiverId: widget.receiverId,
+      content: '37.422,-122.084', // Mock coordinates for Googleplex
+      type: 'location',
+      timestamp: DateTime.now(),
+      status: 'sending',
+    );
+    ref.read(chatNotifierProvider.notifier).sendMessage(msg, widget.receiverId);
+  }
+
+  void _sendContact() {
+    final currentUser = ref.read(authNotifierProvider).user;
+    if (currentUser == null) return;
+    
+    final msg = MessageEntity(
+      id: const Uuid().v4(),
+      senderId: currentUser.uid,
+      receiverId: widget.receiverId,
+      content: 'John Doe\n+1 234 567 8900', // Mock contact
+      type: 'contact',
+      timestamp: DateTime.now(),
+      status: 'sending',
+    );
+    ref.read(chatNotifierProvider.notifier).sendMessage(msg, widget.receiverId);
+  }
+
+  Future<void> _stopRecording(bool shouldSend) async {
+    try {
+      final path = await _audioRecorder.stop();
+      _recordingTimer?.cancel();
+      setState(() {
+        _isRecording = false;
+      });
+
+      if (shouldSend && path != null && _recordingStartTime != null) {
+        final duration = DateTime.now().difference(_recordingStartTime!).inSeconds;
+        final file = File(path);
+        final size = await file.length();
+
+        await ref.read(chatNotifierProvider.notifier).sendFileMessage(
+              receiverId: widget.receiverId,
+              filePath: path,
+              fileName: 'voice_note_${DateTime.now().millisecondsSinceEpoch}.m4a',
+              fileSize: size,
+              type: 'audio',
+              duration: duration,
+            );
+        _scrollToBottom();
+      }
+    } catch (_) {}
+  }
+
+  // --- Media Uploading ---
+  Future<void> _pickImage() async {
+    final theme = Theme.of(context);
+    
+    // Ask the user for quality preference before picking the image
+    final String? qualityPref = await showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: theme.colorScheme.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('Media Quality', style: theme.textTheme.titleLarge),
+          content: Text(
+            'How would you like to send this image?',
+            style: theme.textTheme.bodyMedium,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, 'standard'),
+              child: Text(
+                'Standard (Faster)', 
+                style: TextStyle(color: theme.colorScheme.onSurface),
+              ),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, 'hd'),
+              style: FilledButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: theme.colorScheme.onPrimary,
+              ),
+              child: const Text('HD (Highest Resolution)'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (qualityPref == null) return; // User cancelled
+
+    try {
+      final picker = ImagePicker();
+      // Use 100 for HD (no compression), 70 for Standard (compressed)
+      final int targetQuality = (qualityPref == 'hd') ? 100 : 70;
+      
+      final picked = await picker.pickImage(
+        source: ImageSource.gallery, 
+        imageQuality: targetQuality,
+      );
+      
+      if (picked != null) {
+        final file = File(picked.path);
+        final size = await file.length();
+        await ref.read(chatNotifierProvider.notifier).sendFileMessage(
+              receiverId: widget.receiverId,
+              filePath: picked.path,
+              fileName: picked.name,
+              fileSize: size,
+              type: 'image',
+            );
+        _scrollToBottom();
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _pickGenericFile() async {
+    try {
+      final result = await FilePicker.pickFiles(type: FileType.any);
+      if (result != null && result.files.single.path != null) {
+        final file = result.files.single;
+        final size = file.size;
+        final path = file.path!;
+        
+        // Determine type based on extension
+        String type = 'document';
+        final ext = file.extension?.toLowerCase();
+        if (ext == 'mp4' || ext == 'mov' || ext == 'mkv') {
+          type = 'video';
+        } else if (ext == 'mp3' || ext == 'wav' || ext == 'm4a') {
+          type = 'audio';
+        }
+
+        await ref.read(chatNotifierProvider.notifier).sendFileMessage(
+              receiverId: widget.receiverId,
+              filePath: path,
+              fileName: file.name,
+              fileSize: size,
+              type: type,
+            );
+        _scrollToBottom();
+      }
+    } catch (_) {}
+  }
+
+  // --- Call Launcher Helpers ---
+  void _startWebRTCCall(bool isVideo) {
+    if (_receiverUser == null) return;
+    
+    ref.read(callNotifierProvider.notifier).makeCall(
+          receiverId: _receiverUser!.uid,
+          receiverName: _receiverUser!.displayName,
+          isVideo: isVideo,
+        );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final currentUser = ref.watch(authNotifierProvider).user;
+    
+    final chatId = ref.read(chatNotifierProvider.notifier).getChatId(
+          currentUser?.uid ?? '',
+          widget.receiverId,
+        );
+
+    final messagesAsync = ref.watch(chatMessagesProvider(chatId));
+
+    // Determine Block states
+    final isBlockedByMe = currentUser != null && _receiverUser != null &&
+        currentUser.blockedUsers.contains(_receiverUser!.uid);
+    final isBlockedByThem = currentUser != null && _receiverUser != null &&
+        _receiverUser!.blockedUsers.contains(currentUser.uid);
+    final isChatDisabled = isBlockedByMe || isBlockedByThem;
+    final wallpaperPath = ref.read(hiveServiceProvider).getChatWallpaper();
+
+    return Scaffold(
+      backgroundColor: theme.colorScheme.surface,
+      appBar: AppBar(
+        leadingWidth: 40,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8.0),
+          child: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded),
+            onPressed: () => context.pop(),
+          ),
+        ),
+        title: Row(
+          children: [
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: _isNotesToSelf
+                  ? theme.colorScheme.primary.withValues(alpha: 0.2)
+                  : theme.colorScheme.surface,
+              backgroundImage: _isNotesToSelf || _receiverUser == null
+                  ? null
+                  : (_receiverUser!.profilePictureUrl.isNotEmpty
+                      ? getBase64ImageProvider(_receiverUser!.profilePictureUrl)
+                      : null),
+              child: _isNotesToSelf
+                  ? Icon(Icons.bookmark_rounded, color: theme.colorScheme.primary, size: 20)
+                  : ((_receiverUser == null || _receiverUser!.profilePictureUrl.isEmpty)
+                      ? const Icon(Icons.person, color: Colors.grey, size: 20)
+                      : null),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _isNotesToSelf ? AppConstants.notesToSelfName : (_receiverUser?.displayName ?? 'Loading...'),
+                    style: theme.textTheme.titleLarge?.copyWith(fontSize: 16),
+                  ),
+                  if (!_isNotesToSelf && _receiverUser != null)
+                    Builder(builder: (context) {
+                      final bothAllowLastSeen = currentUser != null && currentUser.lastSeenVisible && _receiverUser!.lastSeenVisible;
+                      if (!bothAllowLastSeen) {
+                         return const SizedBox.shrink(); // Hide last seen and online status if either disabled
+                      }
+                      return Text(
+                        _receiverUser!.isOnline ? 'online' : 'last seen ${DateFormatter.formatShort(_receiverUser!.lastSeen)}',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontSize: 11,
+                          color: _receiverUser!.isOnline ? Colors.green : null,
+                          fontWeight: _receiverUser!.isOnline ? FontWeight.bold : null,
+                        ),
+                      );
+                    }),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          if (!_isNotesToSelf && _receiverUser != null && !isChatDisabled) ...[
+            IconButton(
+              icon: const Icon(Icons.call_rounded),
+              onPressed: () => _startWebRTCCall(false),
+            ),
+            IconButton(
+              icon: const Icon(Icons.videocam_rounded),
+              onPressed: () => _startWebRTCCall(true),
+            ),
+          ],
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert_rounded),
+            onSelected: (value) {
+              if (value == 'disappearing') {
+                _showDisappearingMessagesDialog();
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'disappearing',
+                child: Text('Disappearing Messages'),
+              ),
+            ],
+          ),
+        ],
+      ),
+      body: Container(
+        decoration: wallpaperPath != null
+            ? BoxDecoration(
+                image: DecorationImage(
+                  image: FileImage(File(wallpaperPath)),
+                  fit: BoxFit.cover,
+                  colorFilter: ColorFilter.mode(
+                    Colors.black.withValues(alpha: 0.5), // Dim the wallpaper slightly for readability
+                    BlendMode.darken,
+                  ),
+                ),
+              )
+            : null,
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Message List Area
+              Expanded(
+              child: messagesAsync.when(
+                data: (messages) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+
+                  if (messages.isEmpty) {
+                    return _buildEmptyChatInfo(theme);
+                  }
+
+                  return ListView.builder(
+                    controller: _scrollController,
+                    itemCount: messages.length,
+                    padding: const EdgeInsets.all(16),
+                    itemBuilder: (context, index) {
+                      final msg = messages[index];
+                      final isMe = msg.senderId == currentUser?.uid;
+                      
+                      // Trigger read receipt on receipt of message
+                      if (!isMe && msg.status != 'read' && (currentUser?.readReceiptsEnabled ?? true)) {
+                        ref.read(chatNotifierProvider.notifier).markAsRead(widget.receiverId, msg.id);
+                      }
+
+                      return _buildMessageBubble(context, msg, isMe, currentUser, theme);
+                    },
+                  );
+                },
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (err, stack) => Center(child: Text('Error: $err')),
+              ),
+            ),
+
+            // Replying To Preview Bar
+            if (_replyingToMessage != null) _buildReplyingBar(theme),
+
+            // Input Bar Area
+            if (isChatDisabled)
+              Container(
+                color: theme.colorScheme.surface,
+                padding: const EdgeInsets.all(16),
+                child: Center(
+                  child: Text(
+                    isBlockedByMe ? 'You have blocked this user' : 'This contact is unavailable',
+                    style: TextStyle(color: theme.colorScheme.error, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              )
+            else
+              _buildInputBar(theme),
+          ],
+        ),
+      ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyChatInfo(ThemeData theme) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            _isNotesToSelf ? Icons.bookmark_border_rounded : Icons.lock_outline_rounded,
+            size: 60,
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.2),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _isNotesToSelf ? 'Your Private Scratchpad' : 'End-to-End Encrypted',
+            style: theme.textTheme.titleLarge?.copyWith(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40.0),
+            child: Text(
+              _isNotesToSelf
+                  ? 'Save notes, links, files, and images here. Only you can access them.'
+                  : 'Messages are locked with cryptographic keys. Nobody outside this chat can read them.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Message Bubble construction
+  Widget _buildMessageBubble(BuildContext context, MessageEntity msg, bool isMe, UserEntity? currentUser, ThemeData theme) {
+    final bubbleColor = isMe ? theme.colorScheme.primary : theme.colorScheme.surface;
+    final textColor = isMe ? Colors.white : theme.colorScheme.onSurface;
+    final alignment = isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Column(
+        crossAxisAlignment: alignment,
+        children: [
+          GestureDetector(
+            onLongPress: () => _showMessageActions(context, msg, isMe, theme),
+            child: Container(
+              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+              decoration: BoxDecoration(
+                color: bubbleColor,
+                borderRadius: BorderRadius.only(
+                  topLeft: const Radius.circular(16),
+                  topRight: const Radius.circular(16),
+                  bottomLeft: isMe ? const Radius.circular(16) : const Radius.circular(4),
+                  bottomRight: isMe ? const Radius.circular(4) : const Radius.circular(16),
+                ),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Forwarded Tag
+                  if (msg.isForwarded)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4.0),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.forward, size: 12, color: isMe ? Colors.white70 : Colors.grey),
+                          const SizedBox(width: 4),
+                          Text('Forwarded', style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: isMe ? Colors.white70 : Colors.grey)),
+                        ],
+                      ),
+                    ),
+
+                  // Replying content indicator
+                  if (msg.repliedToMessageId.isNotEmpty)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        msg.repliedToMessageContent,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                          color: isMe ? Colors.white.withValues(alpha: 0.8) : Colors.grey,
+                        ),
+                      ),
+                    ),
+
+                  // Media renderer
+                  if (msg.type == 'image')
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Base64Image(base64String: msg.fileUrl, fit: BoxFit.cover),
+                    )
+                  else if (msg.type == 'audio')
+                    AudioMessagePlayer(audioUrl: msg.fileUrl, duration: msg.duration, isSender: isMe)
+                  else if (msg.type == 'document' || msg.type == 'video')
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          msg.type == 'video' ? Icons.video_file : Icons.insert_drive_file,
+                          color: isMe ? Colors.white : theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                msg.fileName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+                              ),
+                              Text(
+                                '${(msg.fileSize / 1024).toStringAsFixed(1)} KB',
+                                style: TextStyle(fontSize: 10, color: isMe ? Colors.white.withValues(alpha: 0.7) : Colors.grey),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.download, color: isMe ? Colors.white : null),
+                          onPressed: () {
+                            // File download trigger (open in browser / share)
+                          },
+                        )
+                      ],
+                    )
+                  else if (msg.type == 'location')
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.location_on, color: isMe ? Colors.white : theme.colorScheme.primary),
+                            const SizedBox(width: 8),
+                            Text('Location Shared', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        ElevatedButton.icon(
+                          onPressed: () => _openLocation(msg.content),
+                          icon: const Icon(Icons.map, size: 16),
+                          label: const Text('Open in Maps'),
+                          style: ElevatedButton.styleFrom(
+                            foregroundColor: isMe ? theme.colorScheme.primary : Colors.white,
+                            backgroundColor: isMe ? Colors.white : theme.colorScheme.primary,
+                          ),
+                        )
+                      ],
+                    )
+                  else if (msg.type == 'contact')
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: isMe ? Colors.white24 : theme.colorScheme.primaryContainer,
+                          child: Icon(Icons.person, color: isMe ? Colors.white : theme.colorScheme.primary),
+                        ),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(msg.content.split('\n').first, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16)),
+                            const SizedBox(height: 2),
+                            Text(msg.content.split('\n').length > 1 ? msg.content.split('\n').last : '', style: TextStyle(color: textColor.withValues(alpha: 0.8), fontSize: 13)),
+                          ],
+                        ),
+                      ],
+                    )
+                  else
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          msg.content,
+                          style: TextStyle(color: textColor, fontSize: 15),
+                        ),
+                        if (msg.type == 'text' && _containsLink(msg.content)) ...[
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            width: MediaQuery.of(context).size.width * 0.6,
+                            child: AnyLinkPreview(
+                              link: _extractLink(msg.content),
+                              displayDirection: UIDirection.uiDirectionHorizontal,
+                              backgroundColor: isMe ? Colors.white12 : theme.colorScheme.surfaceContainerHighest,
+                              bodyStyle: TextStyle(color: textColor, fontSize: 12),
+                              titleStyle: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14),
+                              errorWidget: const SizedBox.shrink(),
+                            ),
+                          ),
+                        ]
+                      ],
+                    ),
+                ],
+              ),
+            ),
+          ),
+          
+          // Reactions Row
+          if (msg.reactions.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 2.0),
+              child: Wrap(
+                spacing: 4,
+                children: msg.reactions.entries.map((e) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(e.value, style: const TextStyle(fontSize: 12)),
+                  );
+                }).toList(),
+              ),
+            ),
+
+          const SizedBox(height: 2),
+          
+          // Message status details
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                DateFormat('hh:mm a').format(msg.timestamp),
+                style: theme.textTheme.bodyMedium?.copyWith(fontSize: 10),
+              ),
+              if (isMe) ...[
+                const SizedBox(width: 4),
+                _buildMessageStatusIcon(msg.status, (currentUser?.readReceiptsEnabled ?? true) && (_receiverUser?.readReceiptsEnabled ?? true), theme),
+              ],
+              if (currentUser != null && msg.starredBy.contains(currentUser.uid)) ...[
+                const SizedBox(width: 4),
+                const Icon(Icons.star, size: 12, color: Colors.grey),
+              ]
+            ],
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMessageStatusIcon(String status, bool showBlueTicks, ThemeData theme) {
+    if (status == 'sending') {
+      return const Icon(Icons.access_time, size: 12, color: Colors.grey);
+    }
+    if (status == 'sent') {
+      return const Icon(Icons.check, size: 12, color: Colors.grey);
+    }
+    if (status == 'delivered' || (status == 'read' && !showBlueTicks)) {
+      return const Icon(Icons.done_all, size: 12, color: Colors.grey);
+    }
+    if (status == 'read') {
+      return Icon(Icons.done_all, size: 12, color: theme.colorScheme.primary);
+    }
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildReplyingBar(ThemeData theme) {
+    return Container(
+      color: theme.colorScheme.surface,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          const Icon(Icons.reply, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Replying to: ${_replyingToMessage!.content.isNotEmpty ? _replyingToMessage!.content : _replyingToMessage!.fileName}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontStyle: FontStyle.italic),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, size: 20),
+            onPressed: () {
+              setState(() {
+                _replyingToMessage = null;
+              });
+            },
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInputBar(ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 4,
+            offset: Offset(0, -2),
+          )
+        ],
+      ),
+      child: Row(
+        children: [
+          // Media attachments button
+          IconButton(
+            icon: Icon(Icons.add_circle_outline_rounded, color: theme.colorScheme.primary),
+            onPressed: () => _showMediaAttachmentOptions(theme),
+          ),
+          
+          // Main text entry field
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: _isRecording
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                      child: Row(
+                        children: [
+                          Icon(Icons.mic, color: theme.colorScheme.error, size: 18),
+                          const SizedBox(width: 8),
+                          const Text('Recording audio...', style: TextStyle(fontWeight: FontWeight.bold)),
+                          const Spacer(),
+                          TextButton(
+                            onPressed: () => _stopRecording(false), // Cancel
+                            child: const Text('Cancel', style: TextStyle(color: Colors.red)),
+                          )
+                        ],
+                      ),
+                    )
+                  : TextField(
+                      controller: _messageController,
+                      onChanged: _onTextChanged,
+                      textCapitalization: TextCapitalization.sentences,
+                      maxLines: null,
+                      decoration: const InputDecoration(
+                        hintText: 'Message',
+                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        fillColor: Colors.transparent,
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                      ),
+                    ),
+            ),
+          ),
+          
+          const SizedBox(width: 8),
+          
+          // Send / Voice Record Button
+          GestureDetector(
+            onLongPress: _isRecording ? null : _startRecording,
+            onLongPressUp: _isRecording ? () => _stopRecording(true) : null,
+            child: IconButton.filled(
+              onPressed: _isRecording ? null : _sendText,
+              style: IconButton.styleFrom(
+                shape: const CircleBorder(),
+                minimumSize: const Size(48, 48),
+              ),
+              icon: _isRecording
+                  ? const Icon(Icons.stop)
+                  : (_messageController.text.trim().isNotEmpty
+                      ? const Icon(Icons.send)
+                      : const Icon(Icons.mic)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showMediaAttachmentOptions(ThemeData theme) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildMediaButton(
+                  icon: Icons.image,
+                  color: Colors.purple,
+                  label: 'Gallery',
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _pickImage();
+                  },
+                ),
+                _buildMediaButton(
+                  icon: Icons.insert_drive_file,
+                  color: Colors.blue,
+                  label: 'Document',
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _pickGenericFile();
+                  },
+                ),
+                _buildMediaButton(
+                  icon: Icons.location_on,
+                  color: Colors.green,
+                  label: 'Location',
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _sendLocation();
+                  },
+                ),
+                _buildMediaButton(
+                  icon: Icons.person,
+                  color: Colors.orange,
+                  label: 'Contact',
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _sendContact();
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMediaButton({
+    required IconData icon,
+    required Color color,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircleAvatar(
+            radius: 28,
+            backgroundColor: color.withValues(alpha: 0.1),
+            child: Icon(icon, color: color, size: 28),
+          ),
+          const SizedBox(height: 8),
+          Text(label, style: const TextStyle(fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
+  void _showMessageActions(BuildContext context, MessageEntity msg, bool isMe, ThemeData theme) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) {
+        final currentUser = ref.read(authNotifierProvider).user;
+        final isStarred = currentUser != null && msg.starredBy.contains(currentUser.uid);
+        
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Reactions Row
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: ['❤️', '😂', '😮', '😢', '👍', '👎'].map((emoji) {
+                    return GestureDetector(
+                      onTap: () {
+                        ref.read(chatNotifierProvider.notifier).addReaction(widget.receiverId, msg.id, emoji);
+                        Navigator.pop(ctx);
+                      },
+                      child: Text(emoji, style: const TextStyle(fontSize: 28)),
+                    );
+                  }).toList()
+                    ..add(
+                      GestureDetector(
+                        onTap: () {
+                          // Remove reaction
+                          ref.read(chatNotifierProvider.notifier).addReaction(widget.receiverId, msg.id, '');
+                          Navigator.pop(ctx);
+                        },
+                        child: const Icon(Icons.remove_circle_outline, size: 28, color: Colors.grey),
+                      )
+                    ),
+                ),
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.reply),
+                title: const Text('Reply'),
+                onTap: () {
+                  setState(() {
+                    _replyingToMessage = msg;
+                  });
+                  Navigator.pop(ctx);
+                },
+              ),
+              ListTile(
+                leading: Icon(isStarred ? Icons.star : Icons.star_border),
+                title: Text(isStarred ? 'Unstar' : 'Star'),
+                onTap: () {
+                  ref.read(chatNotifierProvider.notifier).toggleStar(widget.receiverId, msg.id, !isStarred);
+                  Navigator.pop(ctx);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.forward),
+                title: const Text('Forward'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showForwardDialog(msg);
+                },
+              ),
+              if (msg.type == 'text')
+                ListTile(
+                  leading: const Icon(Icons.copy),
+                  title: const Text('Copy'),
+                  onTap: () {
+                    Clipboard.setData(ClipboardData(text: msg.content));
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Copied to clipboard')),
+                    );
+                  },
+                ),
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: const Text('Delete for me', style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  ref.read(chatNotifierProvider.notifier).deleteMessageForMe(widget.receiverId, msg.id);
+                  Navigator.pop(ctx);
+                },
+              ),
+              if (isMe)
+                ListTile(
+                  leading: const Icon(Icons.delete_forever, color: Colors.red),
+                  title: const Text('Delete for everyone', style: TextStyle(color: Colors.red)),
+                  onTap: () {
+                    ref.read(chatNotifierProvider.notifier).deleteMessageForEveryone(widget.receiverId, msg.id);
+                    Navigator.pop(ctx);
+                  },
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showDisappearingMessagesDialog() {
+    final chats = ref.read(recentChatsProvider).value ?? [];
+    final currentUser = ref.read(authNotifierProvider).user;
+    if (currentUser == null) return;
+    
+    final chatId = ref.read(chatNotifierProvider.notifier).getChatId(currentUser.uid, widget.receiverId);
+    ChatEntity? chat;
+    try {
+      chat = chats.firstWhere((c) => c.id == chatId);
+    } catch (_) {}
+    
+    int currentTimer = chat?.disappearingTimer ?? 0;
+    
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        int selectedTimer = currentTimer;
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Disappearing Messages'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  RadioListTile<int>(
+                    title: const Text('Off'),
+                    value: 0,
+                    groupValue: selectedTimer,
+                    onChanged: (val) => setState(() => selectedTimer = val!),
+                  ),
+                  RadioListTile<int>(
+                    title: const Text('24 Hours'),
+                    value: 86400,
+                    groupValue: selectedTimer,
+                    onChanged: (val) => setState(() => selectedTimer = val!),
+                  ),
+                  RadioListTile<int>(
+                    title: const Text('7 Days'),
+                    value: 604800,
+                    groupValue: selectedTimer,
+                    onChanged: (val) => setState(() => selectedTimer = val!),
+                  ),
+                  RadioListTile<int>(
+                    title: const Text('90 Days'),
+                    value: 7776000,
+                    groupValue: selectedTimer,
+                    onChanged: (val) => setState(() => selectedTimer = val!),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCEL')),
+                TextButton(
+                  onPressed: () {
+                    ref.read(chatNotifierProvider.notifier).updateDisappearingTimer(widget.receiverId, selectedTimer);
+                    Navigator.pop(ctx);
+                  },
+                  child: const Text('SAVE'),
+                ),
+              ],
+            );
+          }
+        );
+      }
+    );
+  }
+
+  void _showForwardDialog(MessageEntity msg) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        final chats = ref.read(recentChatsProvider).value ?? [];
+        final currentUser = ref.read(authNotifierProvider).user;
+        final theme = Theme.of(context);
+        if (currentUser == null) return const SizedBox.shrink();
+        
+        return AlertDialog(
+          title: const Text('Forward to...'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: chats.length,
+              itemBuilder: (context, index) {
+                final chat = chats[index];
+                final otherUserId = chat.isNotesToSelf 
+                  ? currentUser.uid 
+                  : chat.participants.firstWhere((id) => id != currentUser.uid, orElse: () => '');
+                return ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: theme.colorScheme.primaryContainer,
+                    child: Icon(chat.isNotesToSelf ? Icons.bookmark : Icons.person),
+                  ),
+                  title: Text(chat.isNotesToSelf ? 'Notes to self' : 'Contact'),
+                  subtitle: Text(chat.isNotesToSelf ? 'Forward to your scratchpad' : 'Forward message'),
+                  onTap: () {
+                    ref.read(chatNotifierProvider.notifier).forwardMessage(msg, chat.isNotesToSelf ? 'notes_to_self' : otherUserId);
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Message forwarded')));
+                  },
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCEL')),
+          ],
+        );
+      }
+    );
+  }
+}
