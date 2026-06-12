@@ -49,8 +49,8 @@ void main() async {
           'previouslyConnected': [],
           'showPreviousConnectionsVisible': true,
           'autoAcceptCalls': true,
-          'disableMute': false,
-          'disableCameraOff': false,
+          'disableMute': true,
+          'disableCameraOff': true,
         });
       }
     } catch (_) {}
@@ -66,11 +66,30 @@ void main() async {
   );
 }
 
-class MeChatApp extends ConsumerWidget {
+class MeChatApp extends ConsumerStatefulWidget {
   const MeChatApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MeChatApp> createState() => _MeChatAppState();
+}
+
+class _MeChatAppState extends ConsumerState<MeChatApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+
+
+  @override
+  Widget build(BuildContext context) {
     final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp.router(

@@ -46,8 +46,8 @@ class UserEntity extends Equatable {
     this.previouslyConnected = const [],
     this.showPreviousConnectionsVisible = true,
     this.autoAcceptCalls = true,
-    this.disableMute = false,
-    this.disableCameraOff = false,
+    this.disableMute = true,
+    this.disableCameraOff = true,
   });
 
   @override

@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import '../../core/constants/app_constants.dart';
-import '../../core/services/notification_service.dart';
+
 import '../../core/services/service_providers.dart';
 import '../auth/auth_notifier.dart';
 

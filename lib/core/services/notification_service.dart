@@ -132,4 +132,49 @@ class NotificationService {
       payload: payload,
     );
   }
+
+  // Show ongoing call notification (foreground service on Android)
+  Future<void> showOngoingCallNotification({
+    required int id,
+    required String title,
+    required String body,
+  }) async {
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'mechat_ongoing_call',
+      'Ongoing Call',
+      channelDescription: 'Ongoing call status',
+      importance: Importance.low,
+      priority: Priority.low,
+      ongoing: true,
+      autoCancel: false,
+      showWhen: true,
+    );
+
+    const NotificationDetails details = NotificationDetails(android: androidDetails);
+    
+    // Start foreground service for Android
+    await _localNotifications
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.startForegroundService(
+          id: id,
+          title: title,
+          body: body,
+          notificationDetails: androidDetails,
+        );
+        
+    // For iOS, just show a normal notification that doesn't auto cancel
+    await _localNotifications.show(
+      id: id,
+      title: title,
+      body: body,
+      notificationDetails: details,
+    );
+  }
+
+  Future<void> cancelOngoingCallNotification(int id) async {
+    await _localNotifications
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.stopForegroundService();
+    await _localNotifications.cancel(id: id);
+  }
 }

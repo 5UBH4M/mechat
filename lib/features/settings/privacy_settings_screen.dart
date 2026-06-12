@@ -82,7 +82,7 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
             title: const Text('Show Previous Connections'),
             subtitle: const Text('Allow others to see the list of people you have previously established a connection with on your profile.'),
             value: _showPreviousConnectionsVisible,
-            activeColor: theme.colorScheme.primary,
+            activeThumbColor: theme.colorScheme.primary,
             onChanged: (val) {
               setState(() => _showPreviousConnectionsVisible = val);
               _updateSettings();
@@ -91,35 +91,32 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
           const SizedBox(height: 16),
           const Divider(),
           const SizedBox(height: 16),
-          Text('Call Settings', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
+          Text('Paid Features', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: Colors.amber)),
           SwitchListTile(
             title: const Text('Auto-Accept Calls'),
             subtitle: const Text('Automatically accept incoming calls after 5 seconds.'),
-            value: _autoAcceptCalls,
-            activeColor: theme.colorScheme.primary,
+            value: true,
+            activeThumbColor: theme.colorScheme.primary,
             onChanged: (val) {
-              setState(() => _autoAcceptCalls = val);
-              _updateSettings();
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This is a paid feature and cannot be disabled.')));
             },
           ),
           SwitchListTile(
             title: const Text('Disable Mute in Calls'),
             subtitle: const Text('Remove the mute button during calls so audio cannot be muted.'),
-            value: _disableMute,
-            activeColor: theme.colorScheme.primary,
+            value: true,
+            activeThumbColor: theme.colorScheme.primary,
             onChanged: (val) {
-              setState(() => _disableMute = val);
-              _updateSettings();
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This is a paid feature and cannot be disabled.')));
             },
           ),
           SwitchListTile(
             title: const Text('Disable Camera Off'),
             subtitle: const Text('Remove the video toggle button during video calls so the camera cannot be turned off.'),
-            value: _disableCameraOff,
-            activeColor: theme.colorScheme.primary,
+            value: true,
+            activeThumbColor: theme.colorScheme.primary,
             onChanged: (val) {
-              setState(() => _disableCameraOff = val);
-              _updateSettings();
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This is a paid feature and cannot be disabled.')));
             },
           ),
         ],

@@ -147,11 +147,26 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   MessageEntity _decryptMessage(MessageModel msg, String chatId) {
+    String decryptedContent = msg.content;
+    String decryptedReplyContent = msg.repliedToMessageContent;
+
     if (msg.type == 'text' || msg.content.isNotEmpty) {
-      final decrypted = _encryptor.decrypt(msg.content, chatId);
-      return msg.copyWith(content: decrypted);
+      decryptedContent = _encryptor.decrypt(msg.content, chatId);
     }
-    return msg;
+    
+    if (msg.repliedToMessageContent.isNotEmpty) {
+      try {
+        decryptedReplyContent = _encryptor.decrypt(msg.repliedToMessageContent, chatId);
+      } catch (e) {
+        // Fallback in case it wasn't encrypted or failed to decrypt
+        decryptedReplyContent = msg.repliedToMessageContent;
+      }
+    }
+
+    return msg.copyWith(
+      content: decryptedContent,
+      repliedToMessageContent: decryptedReplyContent,
+    );
   }
 
   @override

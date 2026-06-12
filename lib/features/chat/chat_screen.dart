@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
 import 'package:any_link_preview/any_link_preview.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,7 +20,7 @@ import '../../core/utils/date_formatter.dart';
 import '../../core/utils/image_helper.dart';
 import '../../domain/entities/message_entity.dart';
 import '../../domain/entities/user_entity.dart';
-import '../../domain/entities/chat_entity.dart';
+
 import '../auth/auth_notifier.dart';
 import '../calls/call_notifier.dart';
 import '../../core/services/service_providers.dart';
@@ -823,9 +823,29 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
                   // Media renderer
                   if (msg.type == 'image')
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: Base64Image(base64String: msg.fileUrl, fit: BoxFit.cover),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => Scaffold(
+                              backgroundColor: Colors.black,
+                              appBar: AppBar(
+                                backgroundColor: Colors.black,
+                                iconTheme: const IconThemeData(color: Colors.white),
+                              ),
+                              body: Center(
+                                child: InteractiveViewer(
+                                  child: Base64Image(base64String: msg.fileUrl, fit: BoxFit.contain),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Base64Image(base64String: msg.fileUrl, fit: BoxFit.cover),
+                      ),
                     )
                   else if (msg.type == 'audio')
                     AudioMessagePlayer(audioUrl: msg.fileUrl, duration: msg.duration, isSender: isMe)

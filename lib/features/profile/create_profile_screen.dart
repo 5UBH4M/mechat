@@ -34,13 +34,15 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
       final picker = ImagePicker();
       final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
       if (picked != null) {
+        if (!mounted) return;
+        final primaryColor = Theme.of(context).colorScheme.primary;
         final croppedFile = await ImageCropper().cropImage(
           sourcePath: picked.path,
           aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
           uiSettings: [
             AndroidUiSettings(
               toolbarTitle: 'Crop Profile Picture',
-              toolbarColor: Theme.of(context).colorScheme.primary,
+              toolbarColor: primaryColor,
               toolbarWidgetColor: Colors.white,
               initAspectRatio: CropAspectRatioPreset.square,
               lockAspectRatio: true,

@@ -4,13 +4,44 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/utils/date_formatter.dart';
 import '../auth/auth_notifier.dart';
+
+import 'package:simple_pip_mode/simple_pip.dart';
+import 'package:simple_pip_mode/pip_widget.dart';
 import 'call_notifier.dart';
 
-class OngoingCallScreen extends ConsumerWidget {
+class OngoingCallScreen extends ConsumerStatefulWidget {
   const OngoingCallScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<OngoingCallScreen> createState() => _OngoingCallScreenState();
+}
+
+class _OngoingCallScreenState extends ConsumerState<OngoingCallScreen> with WidgetsBindingObserver {
+  final SimplePip _pip = SimplePip();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // For Android 12+ auto enter
+    _pip.setAutoPipMode();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive || state == AppLifecycleState.hidden) {
+      _pip.enterPipMode();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final callState = ref.watch(callNotifierProvider);
     final notifier = ref.watch(callNotifierProvider.notifier);
@@ -47,18 +78,30 @@ class OngoingCallScreen extends ConsumerWidget {
       }
     });
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            // 1. Core Background View (Video Streams or Voice Pulsing Wave)
-            if (callState.isVideo)
-              _buildVideoCallStream(callState, notifier)
-            else
-              _buildVoiceCallStream(callState, theme),
+    return PipWidget(
+      pipChild: Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: ref.watch(callNotifierProvider).isVideo 
+            ? _buildVideoCallStream(ref.watch(callNotifierProvider), ref.watch(callNotifierProvider.notifier))
+            : Icon(Icons.call, color: Colors.green, size: 50),
+        ),
+      ),
+      child: Builder(
+        builder: (context) {
+        return Scaffold(
+          backgroundColor: Colors.black,
+          body: SafeArea(
+            child: Stack(
+              children: [
+                // 1. Core Background View (Video Streams or Voice Pulsing Wave)
+                if (callState.isVideo)
+                  _buildVideoCallStream(callState, notifier)
+                else
+                  _buildVoiceCallStream(callState, theme),
 
-            // 2. Call Info Overlay Header (Name, Call Status, Timer)
+
+                  // 2. Call Info Overlay Header (Name, Call Status, Timer)
             Positioned(
               top: 20,
               left: 20,
@@ -144,6 +187,19 @@ class OngoingCallScreen extends ConsumerWidget {
                         icon: const Icon(Icons.flip_camera_ios_rounded),
                         onPressed: notifier.switchCamera,
                       ),
+                      
+                    // PIP Button
+                    IconButton.filled(
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.white24,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(56, 56),
+                      ),
+                      icon: const Icon(Icons.picture_in_picture_alt_rounded),
+                      onPressed: () {
+                        _pip.enterPipMode();
+                      },
+                    ),
 
                     // End / Hangup Button
                     IconButton.filled(
@@ -164,11 +220,14 @@ class OngoingCallScreen extends ConsumerWidget {
                 ),
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
+              ],
+            ),
+          ),
+        );
+      },
+    ),
+  );
+}
 
   Widget _buildVideoCallStream(CallState state, CallNotifier notifier) {
     final hasRemote = state.status == 'connected' && notifier.remoteRenderer.srcObject != null;

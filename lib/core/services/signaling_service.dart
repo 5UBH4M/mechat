@@ -93,7 +93,7 @@ class SignalingService {
     // Listen for Answer
     _callSubscription = callDoc.snapshots().listen((snapshot) async {
       if (!snapshot.exists) return;
-      final currentData = snapshot.data() as Map<String, dynamic>?;
+      final currentData = snapshot.data();
       if (currentData == null) return;
       final status = currentData['status'] as String?;
 
@@ -123,22 +123,20 @@ class SignalingService {
           await peerConnection?.setRemoteDescription(sdpAnswer);
           
           // Now it's safe to listen for Receiver ICE Candidates
-          if (_candidatesSubscription == null) {
-            _candidatesSubscription = callDoc.collection('receiverCandidates').snapshots().listen((snapshot) {
-              for (final change in snapshot.docChanges) {
-                if (change.type == DocumentChangeType.added) {
-                  final candidateData = change.doc.data() as Map<String, dynamic>;
-                  peerConnection?.addCandidate(
-                    RTCIceCandidate(
-                      candidateData['candidate'],
-                      candidateData['sdpMid'],
-                      candidateData['sdpMLineIndex'],
-                    ),
-                  );
-                }
+          _candidatesSubscription ??= callDoc.collection('receiverCandidates').snapshots().listen((snapshot) {
+            for (final change in snapshot.docChanges) {
+              if (change.type == DocumentChangeType.added) {
+                final candidateData = change.doc.data() as Map<String, dynamic>;
+                peerConnection?.addCandidate(
+                  RTCIceCandidate(
+                    candidateData['candidate'],
+                    candidateData['sdpMid'],
+                    candidateData['sdpMLineIndex'],
+                  ),
+                );
               }
-            });
-          }
+            }
+          });
         }
       }
     });
@@ -188,7 +186,7 @@ class SignalingService {
     // Listen to changes (e.g. ended by caller)
     _callSubscription = callDoc.snapshots().listen((snap) {
       if (!snap.exists) return;
-      final snapData = snap.data() as Map<String, dynamic>?;
+      final snapData = snap.data();
       if (snapData == null) return;
 
       final status = snapData['status'] as String?;

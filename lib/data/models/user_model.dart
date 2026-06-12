@@ -23,8 +23,8 @@ class UserModel extends UserEntity {
     super.previouslyConnected = const [],
     super.showPreviousConnectionsVisible = true,
     super.autoAcceptCalls = true,
-    super.disableMute = false,
-    super.disableCameraOff = false,
+    super.disableMute = true,
+    super.disableCameraOff = true,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -55,8 +55,8 @@ class UserModel extends UserEntity {
           [],
       showPreviousConnectionsVisible: json['showPreviousConnectionsVisible'] as bool? ?? true,
       autoAcceptCalls: json['autoAcceptCalls'] as bool? ?? true,
-      disableMute: json['disableMute'] as bool? ?? false,
-      disableCameraOff: json['disableCameraOff'] as bool? ?? false,
+      disableMute: json['disableMute'] as bool? ?? true,
+      disableCameraOff: json['disableCameraOff'] as bool? ?? true,
     );
   }
 

@@ -60,7 +60,9 @@ dependencies:
   equatable: ^2.0.8
   url_launcher: ^6.3.2
   any_link_preview: ^3.0.3
-
+  image: ^4.8.0
+  simple_pip_mode: ^1.1.0
+  swipe_to: ^1.0.6
 dev_dependencies:
   flutter_test:
     sdk: flutter
