@@ -2,10 +2,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/theme/theme_provider.dart';
 import '../../core/utils/image_helper.dart';
+import '../../core/widgets/profile_crop_screen.dart';
 import '../auth/auth_notifier.dart';
 import '../profile/profile_notifier.dart';
 import '../../core/services/service_providers.dart';
@@ -50,27 +50,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
       if (picked != null) {
         if (!mounted) return;
-        final primaryColor = Theme.of(context).colorScheme.primary;
-        final croppedFile = await ImageCropper().cropImage(
-          sourcePath: picked.path,
-          aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
-          uiSettings: [
-            AndroidUiSettings(
-              toolbarTitle: 'Crop Profile Picture',
-              toolbarColor: primaryColor,
-              toolbarWidgetColor: Colors.white,
-              initAspectRatio: CropAspectRatioPreset.square,
-              lockAspectRatio: true,
-            ),
-            IOSUiSettings(
-              title: 'Crop Profile Picture',
-              aspectRatioLockEnabled: true,
-            ),
-          ],
+        final croppedPath = await Navigator.push<String>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ProfileCropScreen(imagePath: picked.path),
+          ),
         );
-        if (croppedFile != null) {
+        if (croppedPath != null) {
           setState(() {
-            _localImagePath = croppedFile.path;
+            _localImagePath = croppedPath;
           });
         }
       }
@@ -170,7 +158,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             if (_isEditing) ...[
               TextFormField(
                 controller: _usernameController,
-                decoration: const InputDecoration(labelText: 'Username'),
+                readOnly: true, // Username cannot be changed once set
+                decoration: InputDecoration(
+                  labelText: 'Username',
+                  suffixIcon: const Icon(Icons.lock_outline, size: 18),
+                  helperText: 'Username cannot be changed',
+                  helperStyle: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                    fontSize: 11,
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
               TextFormField(

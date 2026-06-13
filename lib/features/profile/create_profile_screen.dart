@@ -2,9 +2,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/widgets/profile_crop_screen.dart';
 import 'profile_notifier.dart';
 
 class CreateProfileScreen extends ConsumerStatefulWidget {
@@ -35,27 +35,15 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
       final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
       if (picked != null) {
         if (!mounted) return;
-        final primaryColor = Theme.of(context).colorScheme.primary;
-        final croppedFile = await ImageCropper().cropImage(
-          sourcePath: picked.path,
-          aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
-          uiSettings: [
-            AndroidUiSettings(
-              toolbarTitle: 'Crop Profile Picture',
-              toolbarColor: primaryColor,
-              toolbarWidgetColor: Colors.white,
-              initAspectRatio: CropAspectRatioPreset.square,
-              lockAspectRatio: true,
-            ),
-            IOSUiSettings(
-              title: 'Crop Profile Picture',
-              aspectRatioLockEnabled: true,
-            ),
-          ],
+        final croppedPath = await Navigator.push<String>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ProfileCropScreen(imagePath: picked.path),
+          ),
         );
-        if (croppedFile != null) {
+        if (croppedPath != null) {
           setState(() {
-            _localImagePath = croppedFile.path;
+            _localImagePath = croppedPath;
           });
         }
       }
@@ -154,11 +142,17 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                     if (value == null || value.trim().isEmpty) {
                       return 'Please enter a username';
                     }
-                    if (value.length < 3) {
-                      return 'Username must be at least 3 characters';
-                    }
                     if (value.contains(' ')) {
                       return 'Username cannot contain spaces';
+                    }
+                    if (value.length < 5) {
+                      return 'Username must be at least 5 characters';
+                    }
+                    if (value.length > 20) {
+                      return 'Username must be at most 20 characters';
+                    }
+                    if (!RegExp(r'^[a-zA-Z0-9._-]+$').hasMatch(value)) {
+                      return 'Only letters, numbers, _ - . allowed';
                     }
                     return null;
                   },

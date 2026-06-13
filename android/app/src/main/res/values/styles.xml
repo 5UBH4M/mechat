@@ -17,5 +17,9 @@
     </style>
     
     <style name="UCropStyle" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:windowTranslucentStatus">false</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:fitsSystemWindows">true</item>
     </style>
 </resources>

@@ -87,7 +87,6 @@ class _MeChatAppState extends ConsumerState<MeChatApp> with WidgetsBindingObserv
   }
 
 
-
   @override
   Widget build(BuildContext context) {
     final themeMode = ref.watch(themeModeProvider);

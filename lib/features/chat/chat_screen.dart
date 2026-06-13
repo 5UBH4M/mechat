@@ -18,6 +18,7 @@ import 'package:uuid/uuid.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../core/utils/image_helper.dart';
+import '../../core/widgets/image_viewer_screen.dart';
 import '../../domain/entities/message_entity.dart';
 import '../../domain/entities/user_entity.dart';
 
@@ -52,6 +53,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   DateTime? _recordingStartTime;
   Timer? _typingDebouncer;
   MessageEntity? _replyingToMessage;
+  int _lastMessageCount = 0;
 
   StreamSubscription<DocumentSnapshot>? _receiverSub;
 
@@ -601,11 +603,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                          return const SizedBox.shrink(); // Hide last seen and online status if either disabled
                       }
                       return Text(
-                        _receiverUser!.isOnline ? 'online' : 'last seen ${DateFormatter.formatShort(_receiverUser!.lastSeen)}',
+                        (_receiverUser!.isOnline && DateTime.now().difference(_receiverUser!.lastSeen).inSeconds < 90) ? 'online' : 'last seen ${DateFormatter.formatShort(_receiverUser!.lastSeen)}',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           fontSize: 11,
-                          color: _receiverUser!.isOnline ? Colors.green : null,
-                          fontWeight: _receiverUser!.isOnline ? FontWeight.bold : null,
+                          color: (_receiverUser!.isOnline && DateTime.now().difference(_receiverUser!.lastSeen).inSeconds < 90) ? Colors.green : null,
+                          fontWeight: (_receiverUser!.isOnline && DateTime.now().difference(_receiverUser!.lastSeen).inSeconds < 90) ? FontWeight.bold : null,
                         ),
                       );
                     }),
@@ -671,7 +673,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               Expanded(
               child: messagesAsync.when(
                 data: (messages) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+                  // Only auto-scroll when new messages arrive, not on every rebuild
+                  if (messages.length > _lastMessageCount) {
+                    _lastMessageCount = messages.length;
+                    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+                  }
 
                   if (messages.isEmpty) {
                     return _buildEmptyChatInfo(theme);
@@ -681,6 +687,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     controller: _scrollController,
                     itemCount: messages.length,
                     padding: const EdgeInsets.all(16),
+                    addAutomaticKeepAlives: false,
                     itemBuilder: (context, index) {
                       final msg = messages[index];
                       final isMe = msg.senderId == currentUser?.uid;
@@ -766,235 +773,237 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final textColor = isMe ? Colors.white : theme.colorScheme.onSurface;
     final alignment = isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Column(
-        crossAxisAlignment: alignment,
-        children: [
-          GestureDetector(
-            onLongPress: () => _showMessageActions(context, msg, isMe, theme),
-            child: Container(
-              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
-              decoration: BoxDecoration(
-                color: bubbleColor,
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(16),
-                  topRight: const Radius.circular(16),
-                  bottomLeft: isMe ? const Radius.circular(16) : const Radius.circular(4),
-                  bottomRight: isMe ? const Radius.circular(4) : const Radius.circular(16),
+    return _SwipeToReply(
+      isMe: isMe,
+      onReply: () {
+        setState(() {
+          _replyingToMessage = msg;
+        });
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4.0),
+        child: Column(
+          crossAxisAlignment: alignment,
+          children: [
+            GestureDetector(
+              onLongPress: () => _showMessageActions(context, msg, isMe, theme),
+              child: Container(
+                constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+                decoration: BoxDecoration(
+                  color: bubbleColor,
+                  borderRadius: BorderRadius.only(
+                    topLeft: const Radius.circular(16),
+                    topRight: const Radius.circular(16),
+                    bottomLeft: isMe ? const Radius.circular(16) : const Radius.circular(4),
+                    bottomRight: isMe ? const Radius.circular(4) : const Radius.circular(16),
+                  ),
                 ),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Forwarded Tag
-                  if (msg.isForwarded)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 4.0),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.forward, size: 12, color: isMe ? Colors.white70 : Colors.grey),
-                          const SizedBox(width: 4),
-                          Text('Forwarded', style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: isMe ? Colors.white70 : Colors.grey)),
-                        ],
-                      ),
-                    ),
-
-                  // Replying content indicator
-                  if (msg.repliedToMessageId.isNotEmpty)
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 6),
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        msg.repliedToMessageContent,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontStyle: FontStyle.italic,
-                          color: isMe ? Colors.white.withValues(alpha: 0.8) : Colors.grey,
-                        ),
-                      ),
-                    ),
-
-                  // Media renderer
-                  if (msg.type == 'image')
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => Scaffold(
-                              backgroundColor: Colors.black,
-                              appBar: AppBar(
-                                backgroundColor: Colors.black,
-                                iconTheme: const IconThemeData(color: Colors.white),
-                              ),
-                              body: Center(
-                                child: InteractiveViewer(
-                                  child: Base64Image(base64String: msg.fileUrl, fit: BoxFit.contain),
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: Base64Image(base64String: msg.fileUrl, fit: BoxFit.cover),
-                      ),
-                    )
-                  else if (msg.type == 'audio')
-                    AudioMessagePlayer(audioUrl: msg.fileUrl, duration: msg.duration, isSender: isMe)
-                  else if (msg.type == 'document' || msg.type == 'video')
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          msg.type == 'video' ? Icons.video_file : Icons.insert_drive_file,
-                          color: isMe ? Colors.white : theme.colorScheme.primary,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                msg.fileName,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
-                              ),
-                              Text(
-                                '${(msg.fileSize / 1024).toStringAsFixed(1)} KB',
-                                style: TextStyle(fontSize: 10, color: isMe ? Colors.white.withValues(alpha: 0.7) : Colors.grey),
-                              ),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.download, color: isMe ? Colors.white : null),
-                          onPressed: () {
-                            // File download trigger (open in browser / share)
-                          },
-                        )
-                      ],
-                    )
-                  else if (msg.type == 'location')
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Forwarded Tag
+                    if (msg.isForwarded)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4.0),
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.location_on, color: isMe ? Colors.white : theme.colorScheme.primary),
-                            const SizedBox(width: 8),
-                            Text('Location Shared', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                            Icon(Icons.forward, size: 12, color: isMe ? Colors.white70 : Colors.grey),
+                            const SizedBox(width: 4),
+                            Text('Forwarded', style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: isMe ? Colors.white70 : Colors.grey)),
                           ],
                         ),
-                        const SizedBox(height: 8),
-                        ElevatedButton.icon(
-                          onPressed: () => _openLocation(msg.content),
-                          icon: const Icon(Icons.map, size: 16),
-                          label: const Text('Open in Maps'),
-                          style: ElevatedButton.styleFrom(
-                            foregroundColor: isMe ? theme.colorScheme.primary : Colors.white,
-                            backgroundColor: isMe ? Colors.white : theme.colorScheme.primary,
+                      ),
+
+                    // Replying content indicator
+                    if (msg.repliedToMessageId.isNotEmpty)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          msg.repliedToMessageContent,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                            color: isMe ? Colors.white.withValues(alpha: 0.8) : Colors.grey,
                           ),
-                        )
-                      ],
-                    )
-                  else if (msg.type == 'contact')
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        CircleAvatar(
-                          backgroundColor: isMe ? Colors.white24 : theme.colorScheme.primaryContainer,
-                          child: Icon(Icons.person, color: isMe ? Colors.white : theme.colorScheme.primary),
                         ),
-                        const SizedBox(width: 12),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(msg.content.split('\n').first, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16)),
-                            const SizedBox(height: 2),
-                            Text(msg.content.split('\n').length > 1 ? msg.content.split('\n').last : '', style: TextStyle(color: textColor.withValues(alpha: 0.8), fontSize: 13)),
-                          ],
+                      ),
+
+                    // Media renderer
+                    if (msg.type == 'image')
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.of(context).push(
+                            PageRouteBuilder(
+                              opaque: false,
+                              pageBuilder: (_, __, ___) => ImageViewerScreen(
+                                base64String: msg.fileUrl,
+                                senderName: isMe ? 'You' : (_receiverUser?.displayName ?? 'User'),
+                                timestamp: msg.timestamp,
+                              ),
+                            ),
+                          );
+                        },
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Base64Image(base64String: msg.fileUrl, fit: BoxFit.cover),
                         ),
-                      ],
-                    )
-                  else
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          msg.content,
-                          style: TextStyle(color: textColor, fontSize: 15),
-                        ),
-                        if (msg.type == 'text' && _containsLink(msg.content)) ...[
-                          const SizedBox(height: 8),
-                          SizedBox(
-                            width: MediaQuery.of(context).size.width * 0.6,
-                            child: AnyLinkPreview(
-                              link: _extractLink(msg.content),
-                              displayDirection: UIDirection.uiDirectionHorizontal,
-                              backgroundColor: isMe ? Colors.white12 : theme.colorScheme.surfaceContainerHighest,
-                              bodyStyle: TextStyle(color: textColor, fontSize: 12),
-                              titleStyle: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14),
-                              errorWidget: const SizedBox.shrink(),
+                      )
+                    else if (msg.type == 'audio')
+                      AudioMessagePlayer(audioUrl: msg.fileUrl, duration: msg.duration, isSender: isMe)
+                    else if (msg.type == 'document' || msg.type == 'video')
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            msg.type == 'video' ? Icons.video_file : Icons.insert_drive_file,
+                            color: isMe ? Colors.white : theme.colorScheme.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  msg.fileName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+                                ),
+                                Text(
+                                  '${(msg.fileSize / 1024).toStringAsFixed(1)} KB',
+                                  style: TextStyle(fontSize: 10, color: isMe ? Colors.white.withValues(alpha: 0.7) : Colors.grey),
+                                ),
+                              ],
                             ),
                           ),
-                        ]
-                      ],
-                    ),
-                ],
+                          IconButton(
+                            icon: Icon(Icons.download, color: isMe ? Colors.white : null),
+                            onPressed: () {
+                              // File download trigger (open in browser / share)
+                            },
+                          )
+                        ],
+                      )
+                    else if (msg.type == 'location')
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.location_on, color: isMe ? Colors.white : theme.colorScheme.primary),
+                              const SizedBox(width: 8),
+                              Text('Location Shared', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          ElevatedButton.icon(
+                            onPressed: () => _openLocation(msg.content),
+                            icon: const Icon(Icons.map, size: 16),
+                            label: const Text('Open in Maps'),
+                            style: ElevatedButton.styleFrom(
+                              foregroundColor: isMe ? theme.colorScheme.primary : Colors.white,
+                              backgroundColor: isMe ? Colors.white : theme.colorScheme.primary,
+                            ),
+                          )
+                        ],
+                      )
+                    else if (msg.type == 'contact')
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: isMe ? Colors.white24 : theme.colorScheme.primaryContainer,
+                            child: Icon(Icons.person, color: isMe ? Colors.white : theme.colorScheme.primary),
+                          ),
+                          const SizedBox(width: 12),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(msg.content.split('\n').first, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16)),
+                              const SizedBox(height: 2),
+                              Text(msg.content.split('\n').length > 1 ? msg.content.split('\n').last : '', style: TextStyle(color: textColor.withValues(alpha: 0.8), fontSize: 13)),
+                            ],
+                          ),
+                        ],
+                      )
+                    else
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            msg.content,
+                            style: TextStyle(color: textColor, fontSize: 15),
+                          ),
+                          if (msg.type == 'text' && _containsLink(msg.content)) ...[
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              width: MediaQuery.of(context).size.width * 0.6,
+                              child: AnyLinkPreview(
+                                link: _extractLink(msg.content),
+                                displayDirection: UIDirection.uiDirectionHorizontal,
+                                backgroundColor: isMe ? Colors.white12 : theme.colorScheme.surfaceContainerHighest,
+                                bodyStyle: TextStyle(color: textColor, fontSize: 12),
+                                titleStyle: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14),
+                                errorWidget: const SizedBox.shrink(),
+                              ),
+                            ),
+                          ]
+                        ],
+                      ),
+                  ],
+                ),
               ),
             ),
-          ),
-          
-          // Reactions Row
-          if (msg.reactions.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 2.0),
-              child: Wrap(
-                spacing: 4,
-                children: msg.reactions.entries.map((e) {
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(e.value, style: const TextStyle(fontSize: 12)),
-                  );
-                }).toList(),
+            
+            // Reactions Row
+            if (msg.reactions.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 2.0),
+                child: Wrap(
+                  spacing: 4,
+                  children: msg.reactions.entries.map((e) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(e.value, style: const TextStyle(fontSize: 12)),
+                    );
+                  }).toList(),
+                ),
               ),
-            ),
 
-          const SizedBox(height: 2),
-          
-          // Message status details
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                DateFormat('hh:mm a').format(msg.timestamp),
-                style: theme.textTheme.bodyMedium?.copyWith(fontSize: 10),
-              ),
-              if (isMe) ...[
-                const SizedBox(width: 4),
-                _buildMessageStatusIcon(msg.status, (currentUser?.readReceiptsEnabled ?? true) && (_receiverUser?.readReceiptsEnabled ?? true), theme),
+            const SizedBox(height: 2),
+            
+            // Message status details
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  DateFormat('hh:mm a').format(msg.timestamp),
+                  style: theme.textTheme.bodyMedium?.copyWith(fontSize: 10),
+                ),
+                if (isMe) ...[
+                  const SizedBox(width: 4),
+                  _buildMessageStatusIcon(msg.status, (currentUser?.readReceiptsEnabled ?? true) && (_receiverUser?.readReceiptsEnabled ?? true), theme),
+                ],
+                if (currentUser != null && msg.starredBy.contains(currentUser.uid)) ...[
+                  const SizedBox(width: 4),
+                  const Icon(Icons.star, size: 12, color: Colors.grey),
+                ]
               ],
-              if (currentUser != null && msg.starredBy.contains(currentUser.uid)) ...[
-                const SizedBox(width: 4),
-                const Icon(Icons.star, size: 12, color: Colors.grey),
-              ]
-            ],
-          )
-        ],
+            )
+          ],
+        ),
       ),
     );
   }
@@ -1336,6 +1345,156 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ],
         );
       }
+    );
+  }
+}
+
+/// WhatsApp-style swipe-to-reply widget.
+/// Received messages: swipe RIGHT to reply.
+/// Sent messages: swipe LEFT to reply.
+class _SwipeToReply extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onReply;
+  final bool isMe;
+
+  const _SwipeToReply({
+    required this.child,
+    required this.onReply,
+    required this.isMe,
+  });
+
+  @override
+  State<_SwipeToReply> createState() => _SwipeToReplyState();
+}
+
+class _SwipeToReplyState extends State<_SwipeToReply>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late Animation<double> _animation;
+  double _dragExtent = 0;
+  bool _hasTriggeredHaptic = false;
+
+  static const double _replyThreshold = 60.0;
+  static const double _maxDrag = 100.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+    _animation = Tween<double>(begin: 0, end: 0)
+        .animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onDragUpdate(DragUpdateDetails details) {
+    final delta = details.primaryDelta ?? 0;
+    setState(() {
+      if (widget.isMe) {
+        // Sent messages: swipe LEFT (negative delta)
+        _dragExtent = (_dragExtent - delta).clamp(0.0, _maxDrag);
+      } else {
+        // Received messages: swipe RIGHT (positive delta)
+        _dragExtent = (_dragExtent + delta).clamp(0.0, _maxDrag);
+      }
+    });
+
+    if (_dragExtent >= _replyThreshold && !_hasTriggeredHaptic) {
+      HapticFeedback.mediumImpact();
+      _hasTriggeredHaptic = true;
+    } else if (_dragExtent < _replyThreshold) {
+      _hasTriggeredHaptic = false;
+    }
+  }
+
+  void _onDragEnd(DragEndDetails details) {
+    if (_dragExtent >= _replyThreshold) {
+      widget.onReply();
+    }
+
+    _animation = Tween<double>(
+      begin: _dragExtent,
+      end: 0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+
+    _controller.forward(from: 0).then((_) {
+      if (mounted) {
+        setState(() {
+          _dragExtent = 0;
+          _hasTriggeredHaptic = false;
+        });
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final progress = (_dragExtent / _replyThreshold).clamp(0.0, 1.0);
+    // Sent messages translate left (negative), received translate right (positive)
+    final translateX = widget.isMe ? -_dragExtent : _dragExtent;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onHorizontalDragUpdate: _onDragUpdate,
+      onHorizontalDragEnd: _onDragEnd,
+      child: Stack(
+        children: [
+          // Reply icon — appears on the correct side
+          Positioned(
+            left: widget.isMe ? null : 8,
+            right: widget.isMe ? 8 : null,
+            top: 0,
+            bottom: 0,
+            child: Center(
+              child: Opacity(
+                opacity: progress,
+                child: Transform.scale(
+                  scale: 0.5 + (progress * 0.5),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.reply_rounded,
+                      size: 20,
+                      color: _hasTriggeredHaptic
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // Animated message content
+          AnimatedBuilder(
+            animation: _controller,
+            builder: (context, child) {
+              final dx = _controller.isAnimating
+                  ? (widget.isMe ? -_animation.value : _animation.value)
+                  : translateX;
+              return Transform.translate(
+                offset: Offset(dx, 0),
+                child: child,
+              );
+            },
+            child: SizedBox(
+              width: double.infinity,
+              child: widget.child,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

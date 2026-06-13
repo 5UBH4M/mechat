@@ -6,7 +6,7 @@ import 'package:image/image.dart' as img;
 
 class ImageHelper {
   /// Compresses the image and converts it to a base64 string.
-  static Future<String> convertToBase64(String imagePath) async {
+  static Future<String> convertToBase64(String imagePath, {int maxWidth = 300, int quality = 70}) async {
     final file = File(imagePath);
     final bytes = await file.readAsBytes();
     
@@ -14,25 +14,31 @@ class ImageHelper {
     img.Image? decodedImage = await compute(_decodeImageBackground, bytes);
     if (decodedImage == null) return '';
 
-    // Resize to a maximum width of 300 to keep it very small (Firestore 1MB limit)
-    if (decodedImage.width > 300) {
-      decodedImage = img.copyResize(decodedImage, width: 300);
+    // Resize to a maximum width to keep it small (Firestore 1MB limit)
+    if (decodedImage.width > maxWidth) {
+      decodedImage = img.copyResize(decodedImage, width: maxWidth);
     }
 
     // Compress as JPEG
-    final compressedBytes = await compute(_encodeJpgBackground, decodedImage);
+    final compressedBytes = await compute(_encodeJpgBackground, _EncodeParams(decodedImage, quality));
     
     // Return Base64
     return 'data:image/jpeg;base64,${base64Encode(compressedBytes)}';
   }
 }
 
+class _EncodeParams {
+  final img.Image image;
+  final int quality;
+  _EncodeParams(this.image, this.quality);
+}
+
 img.Image? _decodeImageBackground(Uint8List bytes) {
   return img.decodeImage(bytes);
 }
 
-Uint8List _encodeJpgBackground(img.Image image) {
-  return Uint8List.fromList(img.encodeJpg(image, quality: 70));
+Uint8List _encodeJpgBackground(_EncodeParams params) {
+  return Uint8List.fromList(img.encodeJpg(params.image, quality: params.quality));
 }
 
 Uint8List _decodeBase64(String data) {

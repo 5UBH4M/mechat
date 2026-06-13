@@ -13,7 +13,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final TextEditingController _phoneController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  String _selectedCountryCode = '+1'; // Default
+  String _selectedCountryCode = '+91'; // Default
 
   @override
   void dispose() {

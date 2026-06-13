@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -20,6 +21,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObserver {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  Timer? _heartbeatTimer;
 
   @override
   void initState() {
@@ -29,6 +31,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     ref.read(profileNotifierProvider.notifier).updateOnlinePresence(true);
     // Sync offline queue if items exist
     ref.read(chatNotifierProvider.notifier).syncOffline();
+    _startHeartbeat();
+  }
+
+  void _startHeartbeat() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      ref.read(profileNotifierProvider.notifier).updateOnlinePresence(true);
+    });
   }
 
   @override
@@ -37,13 +47,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     if (state == AppLifecycleState.resumed) {
       ref.read(profileNotifierProvider.notifier).updateOnlinePresence(true);
       ref.read(chatNotifierProvider.notifier).syncOffline();
+      _startHeartbeat();
     } else {
+      _heartbeatTimer?.cancel();
       ref.read(profileNotifierProvider.notifier).updateOnlinePresence(false);
     }
   }
 
   @override
   void dispose() {
+    _heartbeatTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _searchController.dispose();
     super.dispose();

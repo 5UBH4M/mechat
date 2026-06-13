@@ -238,7 +238,7 @@ class ChatRepositoryImpl implements ChatRepository {
 
       String base64String = '';
       if (message.type == 'image') {
-        base64String = await ImageHelper.convertToBase64(filePath);
+        base64String = await ImageHelper.convertToBase64(filePath, maxWidth: 1280, quality: 85);
       } else {
         final bytes = await File(filePath).readAsBytes();
         base64String = 'data:audio/aac;base64,${base64Encode(bytes)}';

@@ -40,12 +40,43 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
         return;
       }
 
-      final normalizedUsername = username.toLowerCase().trim();
+      final trimmedUsername = username.trim();
 
-      // Check for username uniqueness
+      // Validate username format: only alphabets, numbers, _, -, .
+      final usernameRegex = RegExp(r'^[a-zA-Z0-9._-]+$');
+      if (!usernameRegex.hasMatch(trimmedUsername)) {
+        state = const ProfileState(
+          status: ProfileStatus.error,
+          errorMessage: 'Username can only contain letters, numbers, underscores, hyphens, and dots.',
+        );
+        return;
+      }
+
+      if (trimmedUsername.contains(' ')) {
+        state = const ProfileState(
+          status: ProfileStatus.error,
+          errorMessage: 'Username cannot contain spaces.',
+        );
+        return;
+      }
+
+      if (trimmedUsername.length < 5 || trimmedUsername.length > 20) {
+        state = const ProfileState(
+          status: ProfileStatus.error,
+          errorMessage: 'Username must be 5-20 characters.',
+        );
+        return;
+      }
+
+      // Prevent username change if already set
+      final effectiveUsername = (currentUser.username.isNotEmpty)
+          ? currentUser.username
+          : trimmedUsername;
+
+      // Check for username uniqueness (case-sensitive)
       final db = FirebaseFirestore.instance;
       final existingUsers = await db.collection('users')
-          .where('username', isEqualTo: normalizedUsername)
+          .where('username', isEqualTo: effectiveUsername)
           .limit(1)
           .get();
           
@@ -62,7 +93,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       final updatedUser = UserEntity(
         uid: currentUser.uid,
         phoneNumber: currentUser.phoneNumber,
-        username: normalizedUsername,
+        username: effectiveUsername,
         displayName: displayName,
         profilePictureUrl: profilePicUrl,
         about: about,
