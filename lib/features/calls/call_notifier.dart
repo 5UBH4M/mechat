@@ -162,10 +162,16 @@ class CallNotifier extends StateNotifier<CallState> {
       
       if (status == 'connected') {
         _startTimer();
+        _ref.read(notificationServiceProvider).showOngoingCallNotification(
+          id: state.callId.hashCode,
+          title: 'Ongoing Call',
+          body: 'Tap to return to call',
+        );
       }
 
       if (status == 'ended' || status == 'rejected' || status == 'idle') {
         _stopTimer();
+        _ref.read(notificationServiceProvider).cancelOngoingCallNotification(state.callId.hashCode);
         state = CallState.idle();
       }
     };

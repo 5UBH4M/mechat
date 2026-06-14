@@ -12,11 +12,21 @@ class ContactRepositoryImpl implements ContactRepository {
   @override
   Future<UserEntity?> searchUserByUsername(String username) async {
     try {
-      final snap = await _db
+      // First try exact match
+      var snap = await _db
           .collection(AppConstants.usersCollection)
-          .where('username', isEqualTo: username.toLowerCase().trim())
+          .where('username', isEqualTo: username.trim())
           .limit(1)
           .get();
+
+      if (snap.docs.isEmpty && username.trim() != username.toLowerCase().trim()) {
+        // Fallback to lowercase match if exact match fails
+        snap = await _db
+            .collection(AppConstants.usersCollection)
+            .where('username', isEqualTo: username.toLowerCase().trim())
+            .limit(1)
+            .get();
+      }
 
       if (snap.docs.isNotEmpty) {
         return UserModel.fromJson(snap.docs.first.data());

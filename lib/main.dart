@@ -8,6 +8,9 @@ import 'core/services/notification_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
 import 'core/utils/app_router.dart';
+import 'features/auth/auth_notifier.dart';
+import 'features/chat/chat_notifier.dart';
+import 'domain/entities/chat_entity.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -90,6 +93,62 @@ class _MeChatAppState extends ConsumerState<MeChatApp> with WidgetsBindingObserv
   @override
   Widget build(BuildContext context) {
     final themeMode = ref.watch(themeModeProvider);
+
+    // Global listener for incoming messages to show notifications
+    ref.listen(recentChatsProvider, (previous, next) {
+      final currentUser = ref.read(authNotifierProvider).user;
+      if (currentUser == null) return;
+
+      final oldChats = previous?.value ?? [];
+      final newChats = next.value ?? [];
+
+      for (var newChat in newChats) {
+        final oldChat = oldChats.firstWhere(
+          (c) => c.id == newChat.id, 
+          orElse: () => ChatEntity(
+            id: newChat.id,
+            participants: newChat.participants,
+            lastMessage: null,
+            unreadCounts: const {},
+            typingStatus: newChat.typingStatus,
+            isNotesToSelf: newChat.isNotesToSelf,
+          ),
+        );
+        
+        final newLastMsg = newChat.lastMessage;
+        final oldLastMsg = oldChat.lastMessage;
+
+        // If there's a new message and we didn't send it
+        if (newLastMsg != null && newLastMsg.senderId != currentUser.uid) {
+          if (oldLastMsg == null || newLastMsg.id != oldLastMsg.id) {
+            
+            // Check if we are currently in the chat screen for this chat
+            final currentRoute = appRouter.routerDelegate.currentConfiguration.last.matchedLocation;
+            final isChatScreenActive = currentRoute == '/chat/${newLastMsg.senderId}' || 
+              currentRoute == '/chat/${newChat.participants.firstWhere((id) => id != currentUser.uid, orElse: () => '')}';
+            
+            final lifecycleState = WidgetsBinding.instance.lifecycleState;
+            final inBackground = lifecycleState != AppLifecycleState.resumed;
+
+            // Only notify if we are NOT in the chat screen or app is in background
+            if (!isChatScreenActive || inBackground) {
+              String bodyText = newLastMsg.type == 'text' ? newLastMsg.content : '📸 Media message';
+              if (newLastMsg.content.isEmpty && newLastMsg.type == 'text') {
+                 // For deleted messages or similar empty cases, do nothing or handle specially
+                 if(newLastMsg.fileUrl.isEmpty) continue; 
+              }
+
+              NotificationService().showCustomNotification(
+                id: newLastMsg.id.hashCode,
+                title: 'New Message',
+                body: bodyText,
+                payload: '/chat/${newLastMsg.senderId}',
+              );
+            }
+          }
+        }
+      }
+    });
 
     return MaterialApp.router(
       title: 'MeChat',

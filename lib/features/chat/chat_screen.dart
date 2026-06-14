@@ -27,6 +27,7 @@ import '../calls/call_notifier.dart';
 import '../../core/services/service_providers.dart';
 import 'audio_message_player.dart';
 import 'chat_notifier.dart';
+import 'user_info_screen.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String receiverId; // Can be 'notes_to_self' or a real UID
@@ -44,6 +45,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final AudioRecorder _audioRecorder = AudioRecorder();
+  final FocusNode _messageFocusNode = FocusNode();
 
   UserEntity? _receiverUser;
   bool _isNotesToSelf = false;
@@ -107,6 +109,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _messageController.dispose();
     _scrollController.dispose();
     _audioRecorder.dispose();
+    _messageFocusNode.dispose();
     _typingDebouncer?.cancel();
     _recordingTimer?.cancel();
     super.dispose();
@@ -544,6 +547,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final chatEntity = chatsAsync.value?.where((c) => c.id == chatId).firstOrNull;
     final isConnectionEstablished = chatEntity?.isConnectionEstablished ?? false;
     final connectionRequestedBy = chatEntity?.connectionRequestedBy ?? '';
+
+    // Check if the other user is typing
+    final isOtherTyping = !_isNotesToSelf && chatEntity != null && _receiverUser != null
+        ? (chatEntity.typingStatus[_receiverUser!.uid] ?? false)
+        : false;
     
     final messageCount = messagesAsync.value?.length ?? 0;
     final limitReached = messageCount >= 5 && !isConnectionEstablished;
@@ -571,21 +579,32 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ),
         title: Row(
           children: [
-            CircleAvatar(
-              radius: 18,
-              backgroundColor: _isNotesToSelf
-                  ? theme.colorScheme.primary.withValues(alpha: 0.2)
-                  : theme.colorScheme.surface,
-              backgroundImage: _isNotesToSelf || _receiverUser == null
-                  ? null
-                  : (_receiverUser!.profilePictureUrl.isNotEmpty
-                      ? getBase64ImageProvider(_receiverUser!.profilePictureUrl)
-                      : null),
-              child: _isNotesToSelf
-                  ? Icon(Icons.bookmark_rounded, color: theme.colorScheme.primary, size: 20)
-                  : ((_receiverUser == null || _receiverUser!.profilePictureUrl.isEmpty)
-                      ? const Icon(Icons.person, color: Colors.grey, size: 20)
-                      : null),
+            GestureDetector(
+              onTap: (!_isNotesToSelf && _receiverUser != null)
+                  ? () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => UserInfoScreen(user: _receiverUser!),
+                        ),
+                      );
+                    }
+                  : null,
+              child: CircleAvatar(
+                radius: 18,
+                backgroundColor: _isNotesToSelf
+                    ? theme.colorScheme.primary.withValues(alpha: 0.2)
+                    : theme.colorScheme.surface,
+                backgroundImage: _isNotesToSelf || _receiverUser == null
+                    ? null
+                    : (_receiverUser!.profilePictureUrl.isNotEmpty
+                        ? getBase64ImageProvider(_receiverUser!.profilePictureUrl)
+                        : null),
+                child: _isNotesToSelf
+                    ? Icon(Icons.bookmark_rounded, color: theme.colorScheme.primary, size: 20)
+                    : ((_receiverUser == null || _receiverUser!.profilePictureUrl.isEmpty)
+                        ? const Icon(Icons.person, color: Colors.grey, size: 20)
+                        : null),
+              ),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -598,6 +617,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   ),
                   if (!_isNotesToSelf && _receiverUser != null)
                     Builder(builder: (context) {
+                      // Show typing indicator first, then online/last seen
+                      if (isOtherTyping) {
+                        return Text(
+                          'typing...',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontSize: 11,
+                            color: theme.colorScheme.secondary,
+                            fontWeight: FontWeight.w600,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        );
+                      }
                       final bothAllowLastSeen = currentUser != null && currentUser.lastSeenVisible && _receiverUser!.lastSeenVisible;
                       if (!bothAllowLastSeen) {
                          return const SizedBox.shrink(); // Hide last seen and online status if either disabled
@@ -775,9 +806,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     return _SwipeToReply(
       isMe: isMe,
+      focusNode: _messageFocusNode,
       onReply: () {
         setState(() {
           _replyingToMessage = msg;
+        });
+        // Delay focus request until after the swipe-back animation (200ms) fully completes
+        Future.delayed(const Duration(milliseconds: 350), () {
+          if (mounted) {
+            _messageFocusNode.requestFocus();
+            // Force the soft keyboard to show as a fallback
+            SystemChannels.textInput.invokeMethod('TextInput.show');
+          }
         });
       },
       child: Padding(
@@ -1099,6 +1139,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     )
                   : TextField(
                       controller: _messageController,
+                      focusNode: _messageFocusNode,
                       onChanged: _onTextChanged,
                       textCapitalization: TextCapitalization.sentences,
                       maxLines: null,
@@ -1356,11 +1397,13 @@ class _SwipeToReply extends StatefulWidget {
   final Widget child;
   final VoidCallback onReply;
   final bool isMe;
+  final FocusNode? focusNode;
 
   const _SwipeToReply({
     required this.child,
     required this.onReply,
     required this.isMe,
+    this.focusNode,
   });
 
   @override
@@ -1373,6 +1416,7 @@ class _SwipeToReplyState extends State<_SwipeToReply>
   late Animation<double> _animation;
   double _dragExtent = 0;
   bool _hasTriggeredHaptic = false;
+  bool _wasFocused = false;
 
   static const double _replyThreshold = 60.0;
   static const double _maxDrag = 100.0;
@@ -1441,59 +1485,70 @@ class _SwipeToReplyState extends State<_SwipeToReply>
     // Sent messages translate left (negative), received translate right (positive)
     final translateX = widget.isMe ? -_dragExtent : _dragExtent;
 
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onHorizontalDragUpdate: _onDragUpdate,
-      onHorizontalDragEnd: _onDragEnd,
-      child: Stack(
-        children: [
-          // Reply icon — appears on the correct side
-          Positioned(
-            left: widget.isMe ? null : 8,
-            right: widget.isMe ? 8 : null,
-            top: 0,
-            bottom: 0,
-            child: Center(
-              child: Opacity(
-                opacity: progress,
-                child: Transform.scale(
-                  scale: 0.5 + (progress * 0.5),
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.reply_rounded,
-                      size: 20,
-                      color: _hasTriggeredHaptic
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+    return Listener(
+      // Intercept pointer-down so Flutter's FocusManager doesn't
+      // see the touch as "outside the TextField" and unfocus it.
+      onPointerDown: (_) {
+        _wasFocused = widget.focusNode?.hasFocus ?? false;
+        if (_wasFocused) {
+          // Keep the keyboard open by immediately re-requesting focus
+          widget.focusNode?.requestFocus();
+        }
+      },
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onHorizontalDragUpdate: _onDragUpdate,
+        onHorizontalDragEnd: _onDragEnd,
+        child: Stack(
+          children: [
+            // Reply icon — appears on the correct side
+            Positioned(
+              left: widget.isMe ? null : 8,
+              right: widget.isMe ? 8 : null,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: Opacity(
+                  opacity: progress,
+                  child: Transform.scale(
+                    scale: 0.5 + (progress * 0.5),
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.reply_rounded,
+                        size: 20,
+                        color: _hasTriggeredHaptic
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-          // Animated message content
-          AnimatedBuilder(
-            animation: _controller,
-            builder: (context, child) {
-              final dx = _controller.isAnimating
-                  ? (widget.isMe ? -_animation.value : _animation.value)
-                  : translateX;
-              return Transform.translate(
-                offset: Offset(dx, 0),
-                child: child,
-              );
-            },
-            child: SizedBox(
-              width: double.infinity,
-              child: widget.child,
+            // Animated message content
+            AnimatedBuilder(
+              animation: _controller,
+              builder: (context, child) {
+                final dx = _controller.isAnimating
+                    ? (widget.isMe ? -_animation.value : _animation.value)
+                    : translateX;
+                return Transform.translate(
+                  offset: Offset(dx, 0),
+                  child: child,
+                );
+              },
+              child: SizedBox(
+                width: double.infinity,
+                child: widget.child,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -219,26 +219,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     if (isNotes) {
       return _buildTile(
         context, chat, theme, currentUid, otherUid, 
-        'Notes to Self', true, '', unreadCount, isTyping
+        'Notes to Self', true, '', unreadCount, isTyping, false,
       );
     }
 
-    // Resolve user data dynamically
-    return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance.collection('users').doc(otherUid).get(),
+    // Resolve user data dynamically using StreamBuilder for real-time online status
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection('users').doc(otherUid).snapshots(),
       builder: (context, snapshot) {
         String displayName = 'Loading...';
         String avatarUrl = '';
+        bool isOnline = false;
+        DateTime lastSeen = DateTime.now();
+        bool lastSeenVisible = true;
         if (snapshot.hasData && snapshot.data!.exists) {
           final data = snapshot.data!.data() as Map<String, dynamic>?;
           if (data != null) {
             displayName = data['displayName'] ?? 'Unknown User';
             avatarUrl = data['profilePictureUrl'] ?? '';
+            isOnline = data['isOnline'] ?? false;
+            lastSeen = (data['lastSeen'] as Timestamp?)?.toDate() ?? DateTime.now();
+            lastSeenVisible = data['lastSeenVisible'] ?? true;
           }
         }
+        
+        // Determine if user is truly online (isOnline flag AND heartbeat within 90 seconds)
+        final currentUser = ref.read(authNotifierProvider).user;
+        final bothAllowLastSeen = currentUser != null && currentUser.lastSeenVisible && lastSeenVisible;
+        final isActuallyOnline = isOnline && DateTime.now().difference(lastSeen).inSeconds < 90;
+        final showOnlineIndicator = bothAllowLastSeen && isActuallyOnline;
+
         return _buildTile(
           context, chat, theme, currentUid, otherUid, 
-          displayName, false, avatarUrl, unreadCount, isTyping
+          displayName, false, avatarUrl, unreadCount, isTyping, showOnlineIndicator,
         );
       },
     );
@@ -247,7 +260,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
   Widget _buildTile(
     BuildContext context, ChatEntity chat, ThemeData theme,
     String? currentUid, String otherUid, String displayName, 
-    bool isNotes, String avatarUrl, int unreadCount, bool isTyping
+    bool isNotes, String avatarUrl, int unreadCount, bool isTyping, bool showOnlineIndicator,
   ) {
 
     return ListTile(
@@ -289,7 +302,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 ? Icon(Icons.bookmark_rounded, color: theme.colorScheme.primary)
                 : (avatarUrl.isEmpty ? const Icon(Icons.person, color: Colors.grey) : null),
           ),
-          if (!isNotes)
+          if (!isNotes && showOnlineIndicator)
             Positioned(
               bottom: 0,
               right: 0,
