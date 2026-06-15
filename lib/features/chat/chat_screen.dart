@@ -56,6 +56,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Timer? _typingDebouncer;
   MessageEntity? _replyingToMessage;
   int _lastMessageCount = 0;
+  bool _showScrollToBottom = false;
+  bool _isSearching = false;
+  String _searchQuery = '';
 
   StreamSubscription<DocumentSnapshot>? _receiverSub;
 
@@ -66,6 +69,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _loadReceiverProfile();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(chatNotifierProvider.notifier).resetUnreadCount(widget.receiverId);
+    });
+    
+    _scrollController.addListener(() {
+      if (!_scrollController.hasClients) return;
+      final offsetFromBottom = _scrollController.position.maxScrollExtent - _scrollController.position.pixels;
+      if (offsetFromBottom > 300) {
+        if (!_showScrollToBottom) setState(() => _showScrollToBottom = true);
+      } else {
+        if (_showScrollToBottom) setState(() => _showScrollToBottom = false);
+      }
     });
   }
 
@@ -577,7 +590,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             onPressed: () => context.pop(),
           ),
         ),
-        title: Row(
+        title: _isSearching
+            ? TextField(
+                autofocus: true,
+                style: TextStyle(color: theme.colorScheme.onSurface),
+                decoration: InputDecoration(
+                  hintText: 'Search messages...',
+                  hintStyle: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
+                  border: InputBorder.none,
+                ),
+                onChanged: (val) {
+                  setState(() {
+                    _searchQuery = val;
+                  });
+                },
+              )
+            : Row(
           children: [
             GestureDetector(
               onTap: (!_isNotesToSelf && _receiverUser != null)
@@ -647,7 +675,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
           ],
         ),
-        actions: [
+        actions: _isSearching
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () {
+                    setState(() {
+                      _isSearching = false;
+                      _searchQuery = '';
+                    });
+                  },
+                ),
+              ]
+            : [
+                IconButton(
+                  icon: const Icon(Icons.search),
+                  onPressed: () {
+                    setState(() {
+                      _isSearching = true;
+                    });
+                  },
+                ),
           if (!_isNotesToSelf && _receiverUser != null && !isChatDisabled && isConnectionEstablished) ...[
             IconButton(
               icon: const Icon(Icons.call_rounded),
@@ -702,40 +750,74 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             children: [
               // Message List Area
               Expanded(
-              child: messagesAsync.when(
-                data: (messages) {
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: messagesAsync.when(
+                        data: (messages) {
                   // Only auto-scroll when new messages arrive, not on every rebuild
                   if (messages.length > _lastMessageCount) {
                     _lastMessageCount = messages.length;
                     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
                   }
 
-                  if (messages.isEmpty) {
+                  // Batch update read status to prevent scrolling lag
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (currentUser?.readReceiptsEnabled ?? true) {
+                      final unreadIds = messages
+                          .where((m) => m.senderId != currentUser?.uid && m.status != 'read')
+                          .map((m) => m.id)
+                          .toList();
+                      if (unreadIds.isNotEmpty) {
+                        ref.read(chatNotifierProvider.notifier).markAllAsRead(widget.receiverId, unreadIds);
+                      }
+                    }
+                  });
+
+                  var displayMessages = messages;
+                  if (_isSearching && _searchQuery.isNotEmpty) {
+                    displayMessages = messages.where((m) => m.content.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
+                  }
+
+                  if (displayMessages.isEmpty) {
+                    if (_isSearching && _searchQuery.isNotEmpty) {
+                      return Center(child: Text('No results found.', style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurface.withValues(alpha: 0.5))));
+                    }
                     return _buildEmptyChatInfo(theme);
                   }
 
                   return ListView.builder(
-                    controller: _scrollController,
-                    itemCount: messages.length,
-                    padding: const EdgeInsets.all(16),
-                    addAutomaticKeepAlives: false,
-                    itemBuilder: (context, index) {
-                      final msg = messages[index];
+                        controller: _scrollController,
+                        itemCount: displayMessages.length,
+                        padding: const EdgeInsets.all(16),
+                        addAutomaticKeepAlives: false,
+                        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
+                        itemBuilder: (context, index) {
+                      final msg = displayMessages[index];
                       final isMe = msg.senderId == currentUser?.uid;
-                      
-                      // Trigger read receipt on receipt of message
-                      if (!isMe && msg.status != 'read' && (currentUser?.readReceiptsEnabled ?? true)) {
-                        ref.read(chatNotifierProvider.notifier).markAsRead(widget.receiverId, msg.id);
-                      }
 
-                      return _buildMessageBubble(context, msg, isMe, currentUser, theme);
-                    },
-                  );
+                        return _buildMessageBubble(context, msg, isMe, currentUser, theme);
+                      },
+                    );
                 },
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (err, stack) => Center(child: Text('Error: $err')),
               ),
-            ),
+                    ),
+                    if (_showScrollToBottom)
+                      Positioned(
+                        right: 16,
+                        bottom: 16,
+                        child: FloatingActionButton.small(
+                          onPressed: _scrollToBottom,
+                          backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                          elevation: 2,
+                          child: Icon(Icons.keyboard_double_arrow_down_rounded, color: theme.colorScheme.primary),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
 
             // Replying To Preview Bar
             if (_replyingToMessage != null) _buildReplyingBar(theme),
@@ -811,14 +893,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         setState(() {
           _replyingToMessage = msg;
         });
-        // Delay focus request until after the swipe-back animation (200ms) fully completes
-        Future.delayed(const Duration(milliseconds: 350), () {
-          if (mounted) {
-            _messageFocusNode.requestFocus();
-            // Force the soft keyboard to show as a fallback
-            SystemChannels.textInput.invokeMethod('TextInput.show');
-          }
-        });
+        if (mounted) {
+          _messageFocusNode.requestFocus();
+        }
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 4.0),
@@ -1066,6 +1143,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Widget _buildReplyingBar(ThemeData theme) {
     return Container(
+      key: const ValueKey('reply_bar'),
       color: theme.colorScheme.surface,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
@@ -1095,6 +1173,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Widget _buildInputBar(ThemeData theme) {
     return Container(
+      key: const ValueKey('input_bar'),
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
@@ -1141,6 +1220,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       controller: _messageController,
                       focusNode: _messageFocusNode,
                       onChanged: _onTextChanged,
+                      onTapOutside: (event) {
+                        // Prevent keyboard from closing automatically when tapping outside (e.g. starting a swipe).
+                        // It will close on drag due to ListView's keyboardDismissBehavior.
+                      },
                       textCapitalization: TextCapitalization.sentences,
                       maxLines: null,
                       decoration: const InputDecoration(
@@ -1485,17 +1568,7 @@ class _SwipeToReplyState extends State<_SwipeToReply>
     // Sent messages translate left (negative), received translate right (positive)
     final translateX = widget.isMe ? -_dragExtent : _dragExtent;
 
-    return Listener(
-      // Intercept pointer-down so Flutter's FocusManager doesn't
-      // see the touch as "outside the TextField" and unfocus it.
-      onPointerDown: (_) {
-        _wasFocused = widget.focusNode?.hasFocus ?? false;
-        if (_wasFocused) {
-          // Keep the keyboard open by immediately re-requesting focus
-          widget.focusNode?.requestFocus();
-        }
-      },
-      child: GestureDetector(
+    return GestureDetector(
         behavior: HitTestBehavior.opaque,
         onHorizontalDragUpdate: _onDragUpdate,
         onHorizontalDragEnd: _onDragEnd,
@@ -1549,7 +1622,6 @@ class _SwipeToReplyState extends State<_SwipeToReply>
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 }

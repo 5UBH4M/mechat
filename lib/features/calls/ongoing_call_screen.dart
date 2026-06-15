@@ -63,16 +63,33 @@ class _OngoingCallScreenState extends ConsumerState<OngoingCallScreen> with Widg
           barrierDismissible: false,
           builder: (ctx) => AlertDialog(
             title: const Text('Call Disconnect'),
-            content: const Text('Your partner wants to end the call.'),
+            content: const Text('Your partner wants to end the call. Accept or reject?'),
             actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  notifier.rejectHangupRequest();
+                },
+                child: const Text('Reject', style: TextStyle(color: Colors.red)),
+              ),
               TextButton(
                 onPressed: () {
                   Navigator.of(ctx).pop();
                   notifier.endCall();
                 },
-                child: const Text('Accept'),
+                child: const Text('Accept', style: TextStyle(color: Colors.green)),
               ),
             ],
+          ),
+        );
+      }
+
+      if (previous?.partnerHangupRejected != true && next.partnerHangupRejected == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Your partner rejected the call end request. You can retry later.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
           ),
         );
       }

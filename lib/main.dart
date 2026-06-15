@@ -99,7 +99,8 @@ class _MeChatAppState extends ConsumerState<MeChatApp> with WidgetsBindingObserv
       final currentUser = ref.read(authNotifierProvider).user;
       if (currentUser == null) return;
 
-      final oldChats = previous?.value ?? [];
+      final oldChats = previous?.value;
+      if (oldChats == null) return; // Prevent notifying for all messages on app startup
       final newChats = next.value ?? [];
 
       for (var newChat in newChats) {

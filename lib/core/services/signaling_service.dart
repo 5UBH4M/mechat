@@ -18,6 +18,7 @@ class SignalingService {
   Function(MediaStream)? onRemoteStream;
   Function(String)? onCallStatusChanged;
   Function()? onPartnerWantsHangup;
+  Function()? onPartnerHangupRejected;
 
   StreamSubscription<DocumentSnapshot>? _callSubscription;
   StreamSubscription<QuerySnapshot>? _candidatesSubscription;
@@ -111,6 +112,13 @@ class SignalingService {
       final otherWantsHangup = isCaller ? currentData['receiverHangup'] == true : currentData['callerHangup'] == true;
       if (otherWantsHangup && onPartnerWantsHangup != null) {
         onPartnerWantsHangup!();
+      } else if (!otherWantsHangup && currentData['rejectedHangup'] == true) {
+        // Partner rejected our hangup request
+        if (onPartnerHangupRejected != null) {
+          onPartnerHangupRejected!();
+        }
+        // Clear the rejected flag so it doesn't trigger again immediately
+        callDoc.update({'rejectedHangup': FieldValue.delete()});
       }
 
       if (status == 'connected') {
@@ -201,6 +209,11 @@ class SignalingService {
         final otherWantsHangup = isCaller ? snapData['receiverHangup'] == true : snapData['callerHangup'] == true;
         if (otherWantsHangup && onPartnerWantsHangup != null) {
           onPartnerWantsHangup!();
+        } else if (!otherWantsHangup && snapData['rejectedHangup'] == true) {
+          if (onPartnerHangupRejected != null) {
+            onPartnerHangupRejected!();
+          }
+          callDoc.update({'rejectedHangup': FieldValue.delete()});
         }
       }
     });
@@ -276,6 +289,28 @@ class SignalingService {
     } catch (e) {
       dev.log("Error ending call: $e");
       cleanUpCall(); // Fallback
+    }
+  }
+
+  // Reject a hangup request from the other party
+  Future<void> rejectHangup(String callId) async {
+    try {
+      final docRef = _db.collection(AppConstants.callsCollection).doc(callId);
+      final doc = await docRef.get();
+      if (!doc.exists) return;
+      
+      final data = doc.data()!;
+      final myUid = FirebaseAuth.instance.currentUser?.uid;
+      final isCaller = myUid == data['callerId'];
+
+      // If they asked to hang up, we reject it by setting their flag to false and adding a rejected marker
+      if (isCaller) {
+        await docRef.update({'receiverHangup': false, 'rejectedHangup': true});
+      } else {
+        await docRef.update({'callerHangup': false, 'rejectedHangup': true});
+      }
+    } catch (e) {
+      dev.log("Error rejecting hangup: $e");
     }
   }
 

@@ -153,6 +153,29 @@ class ChatNotifier extends StateNotifier<double> {
     await batch.commit();
   }
 
+  Future<void> markAllAsRead(String receiverId, List<String> messageIds) async {
+    if (messageIds.isEmpty) return;
+    final sender = _ref.read(authNotifierProvider).user;
+    if (sender == null) return;
+
+    final chatId = getChatId(sender.uid, receiverId);
+    final batch = FirebaseFirestore.instance.batch();
+    
+    for (var msgId in messageIds) {
+      final msgRef = FirebaseFirestore.instance
+          .collection('chats')
+          .doc(chatId)
+          .collection('messages')
+          .doc(msgId);
+      batch.update(msgRef, {'status': 'read'});
+    }
+    
+    final chatRef = FirebaseFirestore.instance.collection('chats').doc(chatId);
+    batch.update(chatRef, {'unreadCounts.${sender.uid}': 0});
+    
+    await batch.commit();
+  }
+
   Future<void> resetUnreadCount(String receiverId) async {
     final sender = _ref.read(authNotifierProvider).user;
     if (sender == null) return;

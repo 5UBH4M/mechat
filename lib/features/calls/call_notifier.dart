@@ -22,6 +22,7 @@ class CallState {
   final String callerId;
   final String receiverId;
   final bool partnerWantsHangup;
+  final bool partnerHangupRejected;
 
   const CallState({
     this.callId,
@@ -36,6 +37,7 @@ class CallState {
     required this.callerId,
     required this.receiverId,
     required this.partnerWantsHangup,
+    this.partnerHangupRejected = false,
   });
 
   factory CallState.idle() => const CallState(
@@ -50,6 +52,7 @@ class CallState {
         callerId: '',
         receiverId: '',
         partnerWantsHangup: false,
+        partnerHangupRejected: false,
       );
 
   CallState copyWith({
@@ -65,6 +68,7 @@ class CallState {
     String? callerId,
     String? receiverId,
     bool? partnerWantsHangup,
+    bool? partnerHangupRejected,
   }) {
     return CallState(
       callId: callId ?? this.callId,
@@ -79,6 +83,7 @@ class CallState {
       callerId: callerId ?? this.callerId,
       receiverId: receiverId ?? this.receiverId,
       partnerWantsHangup: partnerWantsHangup ?? this.partnerWantsHangup,
+      partnerHangupRejected: partnerHangupRejected ?? this.partnerHangupRejected,
     );
   }
 }
@@ -183,6 +188,16 @@ class CallNotifier extends StateNotifier<CallState> {
     signaling.onPartnerWantsHangup = () {
       state = state.copyWith(partnerWantsHangup: true);
     };
+
+    signaling.onPartnerHangupRejected = () {
+      state = state.copyWith(partnerHangupRejected: true);
+      // Reset it shortly so it can trigger again if needed
+      Future.delayed(const Duration(seconds: 1), () {
+        if (mounted) {
+          state = state.copyWith(partnerHangupRejected: false);
+        }
+      });
+    };
   }
 
   // Start outgoing call
@@ -259,6 +274,19 @@ class CallNotifier extends StateNotifier<CallState> {
     
     final signaling = _ref.read(signalingServiceProvider);
     await signaling.endCall(callId, isRejected: true);
+    state = CallState.idle();
+  }
+
+  // Reject a hangup request
+  Future<void> rejectHangupRequest() async {
+    final callId = state.callId;
+    if (callId == null) return;
+    
+    // Clear local hangup request dialog state
+    state = state.copyWith(partnerWantsHangup: false);
+    
+    final signaling = _ref.read(signalingServiceProvider);
+    await signaling.rejectHangup(callId);
   }
 
   // End active call
