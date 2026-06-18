@@ -262,6 +262,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     onTap: () => context.push('/privacy-settings'),
                   ),
                   
+                  // Notification Settings Link
+                  ListTile(
+                    leading: Icon(Icons.notifications_rounded, color: theme.colorScheme.primary),
+                    title: const Text('Notification Settings'),
+                    trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+                    onTap: () => context.push('/notification-settings'),
+                  ),
+                  
                   // Wallpaper Settings Link
                   ListTile(
                     leading: Icon(Icons.wallpaper_rounded, color: theme.colorScheme.primary),

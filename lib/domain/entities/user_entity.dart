@@ -26,6 +26,9 @@ class UserEntity extends Equatable {
   final bool autoAcceptCalls;
   final bool disableMute;
   final bool disableCameraOff;
+  
+  final bool hideNotificationSender;
+  final bool hideNotificationMessage;
 
   const UserEntity({
     required this.uid,
@@ -52,6 +55,8 @@ class UserEntity extends Equatable {
     this.autoAcceptCalls = true,
     this.disableMute = true,
     this.disableCameraOff = true,
+    this.hideNotificationSender = false,
+    this.hideNotificationMessage = false,
   });
 
   @override
@@ -80,5 +85,7 @@ class UserEntity extends Equatable {
         autoAcceptCalls,
         disableMute,
         disableCameraOff,
+        hideNotificationSender,
+        hideNotificationMessage,
       ];
 }

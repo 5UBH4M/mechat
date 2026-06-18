@@ -27,6 +27,8 @@ class UserModel extends UserEntity {
     super.autoAcceptCalls = true,
     super.disableMute = true,
     super.disableCameraOff = true,
+    super.hideNotificationSender = false,
+    super.hideNotificationMessage = false,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -61,6 +63,8 @@ class UserModel extends UserEntity {
       autoAcceptCalls: json['autoAcceptCalls'] as bool? ?? true,
       disableMute: json['disableMute'] as bool? ?? true,
       disableCameraOff: json['disableCameraOff'] as bool? ?? true,
+      hideNotificationSender: json['hideNotificationSender'] as bool? ?? false,
+      hideNotificationMessage: json['hideNotificationMessage'] as bool? ?? false,
     );
   }
 
@@ -90,6 +94,8 @@ class UserModel extends UserEntity {
       'autoAcceptCalls': autoAcceptCalls,
       'disableMute': disableMute,
       'disableCameraOff': disableCameraOff,
+      'hideNotificationSender': hideNotificationSender,
+      'hideNotificationMessage': hideNotificationMessage,
     };
   }
 
@@ -119,6 +125,8 @@ class UserModel extends UserEntity {
       'autoAcceptCalls': autoAcceptCalls,
       'disableMute': disableMute,
       'disableCameraOff': disableCameraOff,
+      'hideNotificationSender': hideNotificationSender,
+      'hideNotificationMessage': hideNotificationMessage,
     };
   }
 
@@ -155,6 +163,8 @@ class UserModel extends UserEntity {
     bool? autoAcceptCalls,
     bool? disableMute,
     bool? disableCameraOff,
+    bool? hideNotificationSender,
+    bool? hideNotificationMessage,
   }) {
     return UserModel(
       uid: uid ?? this.uid,
@@ -181,6 +191,8 @@ class UserModel extends UserEntity {
       autoAcceptCalls: autoAcceptCalls ?? this.autoAcceptCalls,
       disableMute: disableMute ?? this.disableMute,
       disableCameraOff: disableCameraOff ?? this.disableCameraOff,
+      hideNotificationSender: hideNotificationSender ?? this.hideNotificationSender,
+      hideNotificationMessage: hideNotificationMessage ?? this.hideNotificationMessage,
     );
   }
 }

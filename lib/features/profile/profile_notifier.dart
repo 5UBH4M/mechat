@@ -146,6 +146,8 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     bool? autoAcceptCalls,
     bool? disableMute,
     bool? disableCameraOff,
+    bool? hideNotificationSender,
+    bool? hideNotificationMessage,
   }) async {
     try {
       final authState = _ref.read(authNotifierProvider);
@@ -177,6 +179,8 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
         autoAcceptCalls: autoAcceptCalls ?? currentUser.autoAcceptCalls,
         disableMute: disableMute ?? currentUser.disableMute,
         disableCameraOff: disableCameraOff ?? currentUser.disableCameraOff,
+        hideNotificationSender: hideNotificationSender ?? currentUser.hideNotificationSender,
+        hideNotificationMessage: hideNotificationMessage ?? currentUser.hideNotificationMessage,
       );
 
       await _profileRepository.createUserProfile(updatedUser);

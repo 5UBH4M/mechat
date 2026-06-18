@@ -54,12 +54,20 @@ db.collectionGroup("messages").onSnapshot((snapshot) => {
       const pushToken = receiverDoc.data().pushToken;
       if (!pushToken) return;
 
-      const senderDoc = await db.collection("users").doc(message.senderId).get();
-      const senderName = senderDoc.exists ? senderDoc.data().displayName : "Someone";
+      const hideSender = receiverDoc.data().hideNotificationSender === true;
+      const hideMessage = receiverDoc.data().hideNotificationMessage === true;
 
-      let body = message.type === 'text' ? message.content : `📸 Sent a ${message.type}`;
-      if (message.type === 'location') body = `📍 Shared a location`;
-      if (message.type === 'contact') body = `👤 Shared a contact`;
+      const senderDoc = await db.collection("users").doc(message.senderId).get();
+      const senderName = senderDoc.exists && !hideSender ? senderDoc.data().displayName : "New Message";
+
+      let body = '';
+      if (!hideMessage) {
+        body = message.type === 'text' ? `💬 Sent a new message` : `📸 Sent a ${message.type}`;
+        if (message.type === 'location') body = `📍 Shared a location`;
+        if (message.type === 'contact') body = `👤 Shared a contact`;
+      } else {
+        body = hideSender ? '' : 'Sent a message';
+      }
 
       const payload = {
         token: pushToken,

@@ -70,7 +70,9 @@ class NotificationService {
       // 4. Listen to foreground messages
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
         dev.log("Foreground message received: ${message.messageId}");
-        _showLocalNotification(message);
+        // Do not show a system notification if the app is already in the foreground.
+        // The chat UI will update automatically.
+        // _showLocalNotification(message);
       });
 
       // 5. Force save token to Firestore immediately

@@ -12,6 +12,8 @@ import 'features/auth/auth_notifier.dart';
 import 'features/chat/chat_notifier.dart';
 import 'domain/entities/chat_entity.dart';
 
+final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -133,10 +135,29 @@ class _MeChatAppState extends ConsumerState<MeChatApp> with WidgetsBindingObserv
 
             // Only notify if we are NOT in the chat screen or app is in background
             if (!isChatScreenActive || inBackground) {
+              // Read user's notification settings
+              final hideSender = currentUser.hideNotificationSender;
+              final hideMessage = currentUser.hideNotificationMessage;
+
               String bodyText = newLastMsg.type == 'text' ? newLastMsg.content : '📸 Media message';
               if (newLastMsg.content.isEmpty && newLastMsg.type == 'text') {
                  // For deleted messages or similar empty cases, do nothing or handle specially
                  if(newLastMsg.fileUrl.isEmpty) continue; 
+              }
+
+              if (hideMessage) {
+                bodyText = hideSender ? '' : 'Sent a message';
+              }
+
+              // Show in-app notification using a Snackbar (if app is foregrounded)
+              if (!inBackground) {
+                scaffoldMessengerKey.currentState?.clearSnackBars();
+                scaffoldMessengerKey.currentState?.showSnackBar(
+                  SnackBar(
+                    content: Text(hideSender ? 'New message: $bodyText' : 'New message from ${newLastMsg.senderId == currentUser.uid ? "You" : "Contact"}: $bodyText'),
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
               }
 
               NotificationService().showCustomNotification(
@@ -172,6 +193,7 @@ class _MeChatAppState extends ConsumerState<MeChatApp> with WidgetsBindingObserv
       debugShowCheckedModeBanner: false,
       theme: activeTheme,
       routerConfig: appRouter,
+      scaffoldMessengerKey: scaffoldMessengerKey,
     );
   }
 }
