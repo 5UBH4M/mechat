@@ -1,4 +1,6 @@
 import 'dart:developer' as dev;
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
@@ -70,6 +72,20 @@ class NotificationService {
         dev.log("Foreground message received: ${message.messageId}");
         _showLocalNotification(message);
       });
+
+      // 5. Force save token to Firestore immediately
+      try {
+        final token = await _fcm.getToken();
+        dev.log("FCM Token: $token");
+        if (token != null) {
+          final currentUser = FirebaseAuth.instance.currentUser;
+          if (currentUser != null) {
+            await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).update({'pushToken': token});
+          }
+        }
+      } catch (e) {
+        dev.log("Failed to save FCM token: $e");
+      }
     } catch (e) {
       dev.log("Error initializing NotificationService: $e");
     }

@@ -2,8 +2,9 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/constants/app_constants.dart';
-import '../../core/services/hive_service.dart';
 import '../../domain/entities/user_entity.dart';
+import '../../core/services/notification_service.dart';
+import '../../core/services/hive_service.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../models/user_model.dart';
 
@@ -31,7 +32,16 @@ class AuthRepositoryImpl implements AuthRepository {
       try {
         final doc = await _db.collection(AppConstants.usersCollection).doc(firebaseUser.uid).get();
         if (doc.exists) {
-          final model = UserModel.fromJson(doc.data()!);
+          UserModel model = UserModel.fromJson(doc.data()!);
+          
+          try {
+            final token = await NotificationService().getToken();
+            if (token != null && token != model.pushToken) {
+              await _db.collection(AppConstants.usersCollection).doc(firebaseUser.uid).update({'pushToken': token});
+              model = model.copyWith(pushToken: token);
+            }
+          } catch (_) {}
+
           await _hive.saveUser(model.toJson());
           return model;
         }
