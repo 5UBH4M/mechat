@@ -176,4 +176,186 @@ class AppTheme {
       ),
     );
   }
+
+  static ThemeData get terminalTheme {
+    const Color bg = Colors.black;
+    const Color fg = Colors.white;
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      colorScheme: const ColorScheme.dark(
+        primary: fg,
+        secondary: fg,
+        surface: bg,
+        error: fg,
+        onPrimary: bg,
+        onSecondary: bg,
+        onSurface: fg,
+      ),
+      scaffoldBackgroundColor: bg,
+      cardTheme: const CardThemeData(
+        color: bg,
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          side: BorderSide(color: fg, width: 1),
+          borderRadius: BorderRadius.zero,
+        ),
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: bg,
+        elevation: 0,
+        centerTitle: false,
+        iconTheme: IconThemeData(color: fg),
+        titleTextStyle: TextStyle(
+          color: fg,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          fontFamily: 'monospace',
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: bg,
+          foregroundColor: fg,
+          elevation: 0,
+          minimumSize: const Size.fromHeight(52),
+          side: const BorderSide(color: fg, width: 1),
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.zero,
+          ),
+          textStyle: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            fontFamily: 'monospace',
+          ),
+        ),
+      ),
+      inputDecorationTheme: const InputDecorationTheme(
+        filled: true,
+        fillColor: bg,
+        hintStyle: TextStyle(color: Colors.white54, fontFamily: 'monospace'),
+        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.zero,
+          borderSide: BorderSide(color: fg, width: 1),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.zero,
+          borderSide: BorderSide(color: fg, width: 1),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.zero,
+          borderSide: BorderSide(color: fg, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.zero,
+          borderSide: BorderSide(color: fg, width: 1),
+        ),
+      ),
+      textTheme: const TextTheme(
+        headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: fg, fontFamily: 'monospace'),
+        headlineMedium: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: fg, fontFamily: 'monospace'),
+        titleLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: fg, fontFamily: 'monospace'),
+        bodyLarge: TextStyle(fontSize: 16, color: fg, fontFamily: 'monospace'),
+        bodyMedium: TextStyle(fontSize: 14, color: fg, fontFamily: 'monospace'),
+        labelLarge: TextStyle(fontFamily: 'monospace', color: fg),
+        labelMedium: TextStyle(fontFamily: 'monospace', color: fg),
+        labelSmall: TextStyle(fontFamily: 'monospace', color: fg),
+      ),
+    );
+  }
+
+  static ThemeData get oldPhoneTheme {
+    const Color bg = Color(0xFF869D8A); // Classic greenish-grey Nokia screen
+    const Color fg = Color(0xFF1E2124); // Dark pixels
+    const Color surface = Color(0xFF7D9381); // Slightly darker green-grey for surface
+    
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.light,
+      colorScheme: const ColorScheme.light(
+        primary: fg,
+        secondary: fg,
+        surface: surface,
+        error: fg,
+        onPrimary: bg,
+        onSecondary: bg,
+        onSurface: fg,
+      ),
+      scaffoldBackgroundColor: bg,
+      cardTheme: const CardThemeData(
+        color: surface,
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          side: BorderSide(color: fg, width: 2),
+          borderRadius: BorderRadius.all(Radius.circular(4)),
+        ),
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: bg,
+        elevation: 0,
+        centerTitle: false,
+        iconTheme: IconThemeData(color: fg),
+        titleTextStyle: TextStyle(
+          color: fg,
+          fontSize: 20,
+          fontWeight: FontWeight.w900,
+          fontFamily: 'monospace',
+          letterSpacing: 2,
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: surface,
+          foregroundColor: fg,
+          elevation: 0,
+          minimumSize: const Size.fromHeight(52),
+          side: const BorderSide(color: fg, width: 2),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(4),
+          ),
+          textStyle: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w900,
+            fontFamily: 'monospace',
+            letterSpacing: 1,
+          ),
+        ),
+      ),
+      inputDecorationTheme: const InputDecorationTheme(
+        filled: true,
+        fillColor: surface,
+        hintStyle: TextStyle(color: Color(0x991E2124), fontFamily: 'monospace'),
+        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(4)),
+          borderSide: BorderSide(color: fg, width: 2),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(4)),
+          borderSide: BorderSide(color: fg, width: 2),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(4)),
+          borderSide: BorderSide(color: fg, width: 3),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(4)),
+          borderSide: BorderSide(color: fg, width: 2),
+        ),
+      ),
+      textTheme: const TextTheme(
+        headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: fg, fontFamily: 'monospace'),
+        headlineMedium: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: fg, fontFamily: 'monospace'),
+        titleLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: fg, fontFamily: 'monospace'),
+        bodyLarge: TextStyle(fontSize: 16, color: fg, fontWeight: FontWeight.w700, fontFamily: 'monospace'),
+        bodyMedium: TextStyle(fontSize: 14, color: fg, fontWeight: FontWeight.w700, fontFamily: 'monospace'),
+        labelLarge: TextStyle(fontFamily: 'monospace', color: fg, fontWeight: FontWeight.w700),
+        labelMedium: TextStyle(fontFamily: 'monospace', color: fg, fontWeight: FontWeight.w700),
+        labelSmall: TextStyle(fontFamily: 'monospace', color: fg, fontWeight: FontWeight.w700),
+      ),
+    );
+  }
 }

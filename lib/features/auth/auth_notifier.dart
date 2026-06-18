@@ -58,6 +58,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     });
   }
 
+  void updateUser(UserEntity user) {
+    state = state.copyWith(user: user);
+  }
+
   Future<void> sendOtp(String phoneNumber) async {
     state = state.copyWith(status: AuthStatus.loading);
     try {

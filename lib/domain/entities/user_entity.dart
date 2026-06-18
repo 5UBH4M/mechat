@@ -20,6 +20,8 @@ class UserEntity extends Equatable {
   final bool disconnectRequested;
   final List<String> previouslyConnected;
   final bool showPreviousConnectionsVisible;
+  final bool hideContactPhotoInChat;
+  final bool hideContactNameInChat;
 
   final bool autoAcceptCalls;
   final bool disableMute;
@@ -45,6 +47,8 @@ class UserEntity extends Equatable {
     this.disconnectRequested = false,
     this.previouslyConnected = const [],
     this.showPreviousConnectionsVisible = true,
+    this.hideContactPhotoInChat = false,
+    this.hideContactNameInChat = false,
     this.autoAcceptCalls = true,
     this.disableMute = true,
     this.disableCameraOff = true,
@@ -71,6 +75,8 @@ class UserEntity extends Equatable {
         disconnectRequested,
         previouslyConnected,
         showPreviousConnectionsVisible,
+        hideContactPhotoInChat,
+        hideContactNameInChat,
         autoAcceptCalls,
         disableMute,
         disableCameraOff,

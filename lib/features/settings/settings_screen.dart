@@ -9,6 +9,7 @@ import '../../core/widgets/profile_crop_screen.dart';
 import '../auth/auth_notifier.dart';
 import '../profile/profile_notifier.dart';
 import '../../core/services/service_providers.dart';
+import '../chat/user_info_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -119,7 +120,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             // User Avatar Picker / Viewer
             Center(
               child: GestureDetector(
-                onTap: _pickImage,
+                onTap: () {
+                  if (_isEditing) {
+                    _pickImage();
+                  } else {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => UserInfoScreen(user: user),
+                      ),
+                    );
+                  }
+                },
                 child: Stack(
                   children: [
                     CircleAvatar(
@@ -210,15 +221,36 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               child: Column(
                 children: [
                   // Dark Mode Switch Option
+                  // Theme Selection Option
                   ListTile(
-                    leading: Icon(themeMode == ThemeMode.dark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
-                        color: theme.colorScheme.primary),
-                    title: const Text('Dark Mode'),
-                    trailing: Switch(
-                      value: themeMode == ThemeMode.dark,
-                      onChanged: (val) {
-                        ref.read(themeModeProvider.notifier).toggleTheme();
+                    leading: Icon(Icons.palette_rounded, color: theme.colorScheme.primary),
+                    title: const Text('Theme'),
+                    trailing: DropdownButton<AppThemeType>(
+                      value: themeMode,
+                      underline: const SizedBox(),
+                      onChanged: (AppThemeType? newTheme) {
+                        if (newTheme != null) {
+                          ref.read(themeModeProvider.notifier).setTheme(newTheme);
+                        }
                       },
+                      items: const [
+                        DropdownMenuItem(
+                          value: AppThemeType.light,
+                          child: Text('Light'),
+                        ),
+                        DropdownMenuItem(
+                          value: AppThemeType.dark,
+                          child: Text('Dark'),
+                        ),
+                        DropdownMenuItem(
+                          value: AppThemeType.terminal,
+                          child: Text('Terminal'),
+                        ),
+                        DropdownMenuItem(
+                          value: AppThemeType.oldPhone,
+                          child: Text('Old Phone'),
+                        ),
+                      ],
                     ),
                   ),
                   

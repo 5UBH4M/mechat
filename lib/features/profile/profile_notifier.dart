@@ -110,6 +110,8 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
         disconnectRequested: currentUser.disconnectRequested,
         previouslyConnected: currentUser.previouslyConnected,
         showPreviousConnectionsVisible: currentUser.showPreviousConnectionsVisible,
+        hideContactPhotoInChat: currentUser.hideContactPhotoInChat,
+        hideContactNameInChat: currentUser.hideContactNameInChat,
         autoAcceptCalls: currentUser.autoAcceptCalls,
         disableMute: currentUser.disableMute,
         disableCameraOff: currentUser.disableCameraOff,
@@ -118,7 +120,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       await _profileRepository.createUserProfile(updatedUser);
       
       // Refresh auth state details
-      _ref.read(authNotifierProvider.notifier).init();
+      _ref.read(authNotifierProvider.notifier).updateUser(updatedUser);
       
       state = const ProfileState(status: ProfileStatus.success);
     } catch (e) {
@@ -139,6 +141,8 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     required bool lastSeenVisible,
     required bool profilePhotoVisible,
     bool? showPreviousConnectionsVisible,
+    bool? hideContactPhotoInChat,
+    bool? hideContactNameInChat,
     bool? autoAcceptCalls,
     bool? disableMute,
     bool? disableCameraOff,
@@ -168,13 +172,15 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
         disconnectRequested: currentUser.disconnectRequested,
         previouslyConnected: currentUser.previouslyConnected,
         showPreviousConnectionsVisible: showPreviousConnectionsVisible ?? currentUser.showPreviousConnectionsVisible,
+        hideContactPhotoInChat: hideContactPhotoInChat ?? currentUser.hideContactPhotoInChat,
+        hideContactNameInChat: hideContactNameInChat ?? currentUser.hideContactNameInChat,
         autoAcceptCalls: autoAcceptCalls ?? currentUser.autoAcceptCalls,
         disableMute: disableMute ?? currentUser.disableMute,
         disableCameraOff: disableCameraOff ?? currentUser.disableCameraOff,
       );
 
       await _profileRepository.createUserProfile(updatedUser);
-      _ref.read(authNotifierProvider.notifier).init();
+      _ref.read(authNotifierProvider.notifier).updateUser(updatedUser);
     } catch (_) {}
   }
 }

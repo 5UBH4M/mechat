@@ -20,12 +20,57 @@ class UserInfoScreen extends ConsumerStatefulWidget {
 
 class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
   late UserEntity _user;
+  int _sentCount = 0;
+  int _receivedCount = 0;
+  bool _isLoadingCounts = true;
 
   @override
   void initState() {
     super.initState();
     _user = widget.user;
     _listenToUserUpdates();
+    _fetchMessageCounts();
+  }
+
+  Future<void> _fetchMessageCounts() async {
+    final currentUser = ref.read(authNotifierProvider).user;
+    if (currentUser == null) return;
+    
+    // We need to calculate the chat ID. The current implementation in chat_notifier is:
+    final uid1 = currentUser.uid;
+    final uid2 = widget.user.uid;
+    final uids = [uid1, uid2]..sort();
+    final chatId = uids.join('_');
+
+    try {
+      final sentQuery = await FirebaseFirestore.instance
+          .collection('chats')
+          .doc(chatId)
+          .collection('messages')
+          .where('senderId', isEqualTo: currentUser.uid)
+          .count()
+          .get();
+
+      final receivedQuery = await FirebaseFirestore.instance
+          .collection('chats')
+          .doc(chatId)
+          .collection('messages')
+          .where('senderId', isEqualTo: widget.user.uid)
+          .count()
+          .get();
+
+      if (mounted) {
+        setState(() {
+          _sentCount = sentQuery.count ?? 0;
+          _receivedCount = receivedQuery.count ?? 0;
+          _isLoadingCounts = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingCounts = false);
+      }
+    }
   }
 
   void _listenToUserUpdates() {
@@ -248,7 +293,59 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
 
                 const SizedBox(height: 8),
 
-                // Block / Unblock action
+                // Message Stats section
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  color: theme.colorScheme.surface,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Message Statistics',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _isLoadingCounts 
+                          ? const Center(child: CircularProgressIndicator())
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                Column(
+                                  children: [
+                                    Text(
+                                      '$_sentCount',
+                                      style: theme.textTheme.headlineMedium?.copyWith(
+                                        color: theme.colorScheme.primary,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text('Sent', style: theme.textTheme.bodyMedium),
+                                  ],
+                                ),
+                                Container(width: 1, height: 40, color: theme.colorScheme.onSurface.withValues(alpha: 0.2)),
+                                Column(
+                                  children: [
+                                    Text(
+                                      '$_receivedCount',
+                                      style: theme.textTheme.headlineMedium?.copyWith(
+                                        color: theme.colorScheme.primary,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text('Received', style: theme.textTheme.bodyMedium),
+                                  ],
+                                ),
+                              ],
+                            ),
+                    ],
+                  ),
+                ),
                 Container(
                   width: double.infinity,
                   color: theme.colorScheme.surface,

@@ -151,12 +151,26 @@ class _MeChatAppState extends ConsumerState<MeChatApp> with WidgetsBindingObserv
       }
     });
 
+    ThemeData activeTheme;
+    switch (themeMode) {
+      case AppThemeType.light:
+        activeTheme = AppTheme.lightTheme;
+        break;
+      case AppThemeType.terminal:
+        activeTheme = AppTheme.terminalTheme;
+        break;
+      case AppThemeType.oldPhone:
+        activeTheme = AppTheme.oldPhoneTheme;
+        break;
+      case AppThemeType.dark:
+        activeTheme = AppTheme.darkTheme;
+        break;
+    }
+
     return MaterialApp.router(
       title: 'MeChat',
       debugShowCheckedModeBanner: false,
-      themeMode: themeMode,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
+      theme: activeTheme,
       routerConfig: appRouter,
     );
   }

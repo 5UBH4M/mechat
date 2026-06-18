@@ -19,6 +19,8 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
   bool _autoAcceptCalls = true;
   bool _disableMute = false;
   bool _disableCameraOff = false;
+  bool _hideContactPhotoInChat = false;
+  bool _hideContactNameInChat = false;
 
   @override
   void initState() {
@@ -32,6 +34,8 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
       _autoAcceptCalls = user.autoAcceptCalls;
       _disableMute = user.disableMute;
       _disableCameraOff = user.disableCameraOff;
+      _hideContactPhotoInChat = user.hideContactPhotoInChat;
+      _hideContactNameInChat = user.hideContactNameInChat;
     }
   }
 
@@ -44,6 +48,8 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
           autoAcceptCalls: _autoAcceptCalls,
           disableMute: _disableMute,
           disableCameraOff: _disableCameraOff,
+          hideContactPhotoInChat: _hideContactPhotoInChat,
+          hideContactNameInChat: _hideContactNameInChat,
         );
   }
 
@@ -85,6 +91,30 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
             activeThumbColor: theme.colorScheme.primary,
             onChanged: (val) {
               setState(() => _showPreviousConnectionsVisible = val);
+              _updateSettings();
+            },
+          ),
+          const SizedBox(height: 16),
+          const Divider(),
+          const SizedBox(height: 16),
+          Text('Chat Privacy', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
+          SwitchListTile(
+            title: const Text('Hide Profile Photo in Chat'),
+            subtitle: const Text('Hide the contact\'s profile photo in the chat screen header to prevent others from seeing who you are talking to.'),
+            value: _hideContactPhotoInChat,
+            activeThumbColor: theme.colorScheme.primary,
+            onChanged: (val) {
+              setState(() => _hideContactPhotoInChat = val);
+              _updateSettings();
+            },
+          ),
+          SwitchListTile(
+            title: const Text('Hide Name in Chat'),
+            subtitle: const Text('Hide the contact\'s name in the chat screen header.'),
+            value: _hideContactNameInChat,
+            activeThumbColor: theme.colorScheme.primary,
+            onChanged: (val) {
+              setState(() => _hideContactNameInChat = val);
               _updateSettings();
             },
           ),

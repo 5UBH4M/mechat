@@ -578,6 +578,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         _receiverUser!.blockedUsers.contains(currentUser.uid);
     final isChatDisabled = isBlockedByMe || isBlockedByThem;
     final wallpaperPath = ref.read(hiveServiceProvider).getChatWallpaper();
+    
+    final hidePhoto = currentUser?.hideContactPhotoInChat == true && !_isNotesToSelf;
+    final hideName = currentUser?.hideContactNameInChat == true && !_isNotesToSelf;
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
@@ -619,17 +622,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   : null,
               child: CircleAvatar(
                 radius: 18,
-                backgroundColor: _isNotesToSelf
+                backgroundColor: _isNotesToSelf || hidePhoto
                     ? theme.colorScheme.primary.withValues(alpha: 0.2)
                     : theme.colorScheme.surface,
-                backgroundImage: _isNotesToSelf || _receiverUser == null
+                backgroundImage: _isNotesToSelf || _receiverUser == null || hidePhoto
                     ? null
                     : (_receiverUser!.profilePictureUrl.isNotEmpty
                         ? getBase64ImageProvider(_receiverUser!.profilePictureUrl)
                         : null),
                 child: _isNotesToSelf
                     ? Icon(Icons.bookmark_rounded, color: theme.colorScheme.primary, size: 20)
-                    : ((_receiverUser == null || _receiverUser!.profilePictureUrl.isEmpty)
+                    : (hidePhoto || _receiverUser == null || _receiverUser!.profilePictureUrl.isEmpty
                         ? const Icon(Icons.person, color: Colors.grey, size: 20)
                         : null),
               ),
@@ -640,7 +643,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _isNotesToSelf ? AppConstants.notesToSelfName : (_receiverUser?.displayName ?? 'Loading...'),
+                    _isNotesToSelf ? AppConstants.notesToSelfName : (hideName ? 'Contact' : (_receiverUser?.displayName ?? 'Loading...')),
                     style: theme.textTheme.titleLarge?.copyWith(fontSize: 16),
                   ),
                   if (!_isNotesToSelf && _receiverUser != null)
@@ -883,7 +886,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   // Message Bubble construction
   Widget _buildMessageBubble(BuildContext context, MessageEntity msg, bool isMe, UserEntity? currentUser, ThemeData theme) {
     final bubbleColor = isMe ? theme.colorScheme.primary : theme.colorScheme.surface;
-    final textColor = isMe ? Colors.white : theme.colorScheme.onSurface;
+    final textColor = isMe ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface;
     final alignment = isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start;
 
     return _SwipeToReply(
@@ -926,9 +929,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.forward, size: 12, color: isMe ? Colors.white70 : Colors.grey),
+                            Icon(Icons.forward, size: 12, color: isMe ? textColor.withValues(alpha: 0.7) : Colors.grey),
                             const SizedBox(width: 4),
-                            Text('Forwarded', style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: isMe ? Colors.white70 : Colors.grey)),
+                            Text('Forwarded', style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: isMe ? textColor.withValues(alpha: 0.7) : Colors.grey)),
                           ],
                         ),
                       ),
@@ -947,7 +950,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           style: TextStyle(
                             fontSize: 12,
                             fontStyle: FontStyle.italic,
-                            color: isMe ? Colors.white.withValues(alpha: 0.8) : Colors.grey,
+                            color: isMe ? textColor.withValues(alpha: 0.8) : Colors.grey,
                           ),
                         ),
                       ),
@@ -980,7 +983,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         children: [
                           Icon(
                             msg.type == 'video' ? Icons.video_file : Icons.insert_drive_file,
-                            color: isMe ? Colors.white : theme.colorScheme.primary,
+                            color: isMe ? textColor : theme.colorScheme.primary,
                           ),
                           const SizedBox(width: 8),
                           Expanded(
@@ -995,13 +998,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                 ),
                                 Text(
                                   '${(msg.fileSize / 1024).toStringAsFixed(1)} KB',
-                                  style: TextStyle(fontSize: 10, color: isMe ? Colors.white.withValues(alpha: 0.7) : Colors.grey),
+                                  style: TextStyle(fontSize: 10, color: isMe ? textColor.withValues(alpha: 0.7) : Colors.grey),
                                 ),
                               ],
                             ),
                           ),
                           IconButton(
-                            icon: Icon(Icons.download, color: isMe ? Colors.white : null),
+                            icon: Icon(Icons.download, color: isMe ? textColor : null),
                             onPressed: () {
                               // File download trigger (open in browser / share)
                             },
@@ -1015,7 +1018,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.location_on, color: isMe ? Colors.white : theme.colorScheme.primary),
+                              Icon(Icons.location_on, color: isMe ? textColor : theme.colorScheme.primary),
                               const SizedBox(width: 8),
                               Text('Location Shared', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
                             ],
@@ -1026,8 +1029,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                             icon: const Icon(Icons.map, size: 16),
                             label: const Text('Open in Maps'),
                             style: ElevatedButton.styleFrom(
-                              foregroundColor: isMe ? theme.colorScheme.primary : Colors.white,
-                              backgroundColor: isMe ? Colors.white : theme.colorScheme.primary,
+                              foregroundColor: isMe ? theme.colorScheme.primary : textColor,
+                              backgroundColor: isMe ? textColor : theme.colorScheme.primary,
                             ),
                           )
                         ],
@@ -1037,8 +1040,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           CircleAvatar(
-                            backgroundColor: isMe ? Colors.white24 : theme.colorScheme.primaryContainer,
-                            child: Icon(Icons.person, color: isMe ? Colors.white : theme.colorScheme.primary),
+                            backgroundColor: isMe ? textColor.withValues(alpha: 0.24) : theme.colorScheme.primaryContainer,
+                            child: Icon(Icons.person, color: isMe ? textColor : theme.colorScheme.primary),
                           ),
                           const SizedBox(width: 12),
                           Column(
