@@ -2,7 +2,7 @@ import 'dart:developer' as dev;
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-// Top-level background message handler
+@pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   dev.log("Handling background message: ${message.messageId}");
 }
@@ -55,7 +55,7 @@ class NotificationService {
 
       // Create standard Android Notification Channel
       const AndroidNotificationChannel channel = AndroidNotificationChannel(
-        'mechat_messages',
+        'mechat_channel',
         'MeChat Messages',
         description: 'Notifications for new messages',
         importance: Importance.max,
@@ -90,7 +90,7 @@ class NotificationService {
     if (notification == null) return;
 
     const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'mechat_messages',
+      'mechat_channel',
       'MeChat Messages',
       channelDescription: 'Notifications for new messages',
       importance: Importance.max,
