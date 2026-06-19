@@ -11,6 +11,7 @@ import '../../features/profile/create_profile_screen.dart';
 import '../../features/settings/blocked_users_screen.dart';
 import '../../features/settings/privacy_settings_screen.dart';
 import '../../features/settings/settings_screen.dart';
+import '../../features/settings/custom_theme_screen.dart';
 import '../../features/profile/notification_settings_screen.dart';
 
 final appRouter = GoRouter(
@@ -58,6 +59,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/notification-settings',
       builder: (context, state) => const NotificationSettingsScreen(),
+    ),
+    GoRoute(
+      path: '/custom-theme',
+      builder: (context, state) => const CustomThemeScreen(),
     ),
     GoRoute(
       path: '/blocked-users',

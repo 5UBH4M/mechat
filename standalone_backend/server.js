@@ -66,7 +66,7 @@ db.collectionGroup("messages").onSnapshot((snapshot) => {
         if (message.type === 'location') body = `📍 Shared a location`;
         if (message.type === 'contact') body = `👤 Shared a contact`;
       } else {
-        body = hideSender ? '' : 'Sent a message';
+        body = hideSender ? 'Open app to view message' : 'Sent a hidden message';
       }
 
       const payload = {

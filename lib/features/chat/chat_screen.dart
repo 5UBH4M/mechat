@@ -888,6 +888,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final bubbleColor = isMe ? theme.colorScheme.primary : theme.colorScheme.surface;
     final textColor = isMe ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface;
     final alignment = isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+    final isTerminal = theme.appBarTheme.titleTextStyle?.fontFamily == 'monospace';
+    
+    // Extract dynamic bubble radius from theme
+    double bubbleRadius = 16.0;
+    if (theme.cardTheme.shape is RoundedRectangleBorder) {
+      final shape = theme.cardTheme.shape as RoundedRectangleBorder;
+      if (shape.borderRadius is BorderRadius) {
+        bubbleRadius = (shape.borderRadius as BorderRadius).topLeft.x;
+      }
+    }
 
     return _SwipeToReply(
       isMe: isMe,
@@ -911,11 +921,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
                 decoration: BoxDecoration(
                   color: bubbleColor,
-                  borderRadius: BorderRadius.only(
-                    topLeft: const Radius.circular(16),
-                    topRight: const Radius.circular(16),
-                    bottomLeft: isMe ? const Radius.circular(16) : const Radius.circular(4),
-                    bottomRight: isMe ? const Radius.circular(4) : const Radius.circular(16),
+                  border: isTerminal ? Border.all(color: theme.colorScheme.onSurface, width: 1) : null,
+                  borderRadius: isTerminal ? BorderRadius.zero : BorderRadius.only(
+                    topLeft: Radius.circular(bubbleRadius),
+                    topRight: Radius.circular(bubbleRadius),
+                    bottomLeft: isMe ? Radius.circular(bubbleRadius) : const Radius.circular(0),
+                    bottomRight: isMe ? const Radius.circular(0) : Radius.circular(bubbleRadius),
                   ),
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),

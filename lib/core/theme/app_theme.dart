@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'custom_theme_model.dart';
 
 class AppTheme {
   // Brand Colors
@@ -357,5 +358,81 @@ class AppTheme {
         labelSmall: TextStyle(fontFamily: 'monospace', color: fg, fontWeight: FontWeight.w700),
       ),
     );
+  }
+
+  static ThemeData buildCustomTheme(CustomThemeModel model) {
+    return ThemeData(
+      useMaterial3: true,
+      brightness: ThemeData.estimateBrightnessForColor(model.backgroundColor),
+      colorScheme: ColorScheme(
+        brightness: ThemeData.estimateBrightnessForColor(model.backgroundColor),
+        primary: model.primaryColor,
+        onPrimary: ThemeData.estimateBrightnessForColor(model.primaryColor) == Brightness.dark ? Colors.white : Colors.black87,
+        secondary: model.secondaryColor,
+        onSecondary: Colors.white,
+        surface: model.surfaceColor,
+        onSurface: ThemeData.estimateBrightnessForColor(model.surfaceColor) == Brightness.dark ? Colors.white : Colors.black87,
+        error: accentColor,
+        onError: Colors.white,
+      ),
+      scaffoldBackgroundColor: model.backgroundColor,
+      cardTheme: CardThemeData(
+        color: model.surfaceColor,
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(model.bubbleRadius)),
+        ),
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: model.backgroundColor,
+        elevation: 0,
+        centerTitle: false,
+        iconTheme: IconThemeData(color: ThemeData.estimateBrightnessForColor(model.backgroundColor) == Brightness.dark ? Colors.white : Colors.black87),
+        titleTextStyle: TextStyle(
+          color: ThemeData.estimateBrightnessForColor(model.backgroundColor) == Brightness.dark ? Colors.white : Colors.black87,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          fontFamily: model.fontFamily,
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: model.primaryColor,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          minimumSize: const Size.fromHeight(52),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(model.bubbleRadius),
+          ),
+          textStyle: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            fontFamily: model.fontFamily,
+          ),
+        ),
+      ),
+      textTheme: TextTheme(
+        headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, fontFamily: model.fontFamily),
+        headlineMedium: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, fontFamily: model.fontFamily),
+        titleLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, fontFamily: model.fontFamily),
+        bodyLarge: TextStyle(fontSize: 16, fontFamily: model.fontFamily),
+        bodyMedium: TextStyle(fontSize: 14, fontFamily: model.fontFamily),
+      ).apply(
+        bodyColor: ThemeData.estimateBrightnessForColor(model.surfaceColor) == Brightness.dark ? const Color(0xFFE2E8F0) : const Color(0xFF334155),
+        displayColor: ThemeData.estimateBrightnessForColor(model.surfaceColor) == Brightness.dark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A),
+      ),
+    );
+  }
+
+  static ThemeData get cyberpunkTheme {
+    return buildCustomTheme(const CustomThemeModel(
+      primaryColor: Color(0xFFFCE205),
+      secondaryColor: Color(0xFFFF003C),
+      backgroundColor: Color(0xFF0D0D0D),
+      surfaceColor: Color(0xFF1A1A1A),
+      fontFamily: 'monospace',
+      bubbleRadius: 0.0,
+    ));
   }
 }

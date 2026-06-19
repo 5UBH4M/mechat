@@ -95,6 +95,7 @@ class _MeChatAppState extends ConsumerState<MeChatApp> with WidgetsBindingObserv
   @override
   Widget build(BuildContext context) {
     final themeMode = ref.watch(themeModeProvider);
+    final customTheme = ref.watch(customThemeProvider);
 
     // Global listener for incoming messages to show notifications
     ref.listen(recentChatsProvider, (previous, next) {
@@ -185,6 +186,12 @@ class _MeChatAppState extends ConsumerState<MeChatApp> with WidgetsBindingObserv
         break;
       case AppThemeType.dark:
         activeTheme = AppTheme.darkTheme;
+        break;
+      case AppThemeType.custom:
+        activeTheme = AppTheme.buildCustomTheme(customTheme);
+        break;
+      case AppThemeType.cyberpunk:
+        activeTheme = AppTheme.cyberpunkTheme;
         break;
     }
 

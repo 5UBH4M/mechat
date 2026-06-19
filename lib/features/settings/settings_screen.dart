@@ -230,7 +230,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       underline: const SizedBox(),
                       onChanged: (AppThemeType? newTheme) {
                         if (newTheme != null) {
-                          ref.read(themeModeProvider.notifier).setTheme(newTheme);
+                          if (newTheme == AppThemeType.custom) {
+                            context.push('/custom-theme');
+                          } else {
+                            ref.read(themeModeProvider.notifier).setTheme(newTheme);
+                          }
                         }
                       },
                       items: const [
@@ -249,6 +253,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         DropdownMenuItem(
                           value: AppThemeType.oldPhone,
                           child: Text('Old Phone'),
+                        ),
+                        DropdownMenuItem(
+                          value: AppThemeType.cyberpunk,
+                          child: Text('Cyberpunk'),
+                        ),
+                        DropdownMenuItem(
+                          value: AppThemeType.custom,
+                          child: Text('Custom (Edit)'),
                         ),
                       ],
                     ),

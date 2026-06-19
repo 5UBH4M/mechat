@@ -44,6 +44,16 @@ class HiveService {
     return _settingsBox.get(AppConstants.keyThemeMode, defaultValue: 'dark') as String;
   }
 
+  Future<void> saveCustomTheme(Map<String, dynamic> customThemeMap) async {
+    await _settingsBox.put('customTheme', jsonEncode(customThemeMap));
+  }
+
+  Map<String, dynamic>? getCustomTheme() {
+    final raw = _settingsBox.get('customTheme');
+    if (raw == null) return null;
+    return jsonDecode(raw as String) as Map<String, dynamic>;
+  }
+
   // --- Chat List & Message Caching ---
   Future<void> cacheChats(List<Map<String, dynamic>> chats) async {
     final Map<String, String> data = {};
