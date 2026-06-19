@@ -73,7 +73,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     
     _scrollController.addListener(() {
       if (!_scrollController.hasClients) return;
-      final offsetFromBottom = _scrollController.position.maxScrollExtent - _scrollController.position.pixels;
+      final offsetFromBottom = _scrollController.position.pixels;
       if (offsetFromBottom > 300) {
         if (!_showScrollToBottom) setState(() => _showScrollToBottom = true);
       } else {
@@ -166,7 +166,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent + 100,
+        0.0,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
@@ -777,9 +777,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     }
                   });
 
-                  var displayMessages = messages;
+                  var displayMessages = messages.reversed.toList();
                   if (_isSearching && _searchQuery.isNotEmpty) {
-                    displayMessages = messages.where((m) => m.content.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
+                    displayMessages = displayMessages.where((m) => m.content.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
                   }
 
                   if (displayMessages.isEmpty) {
@@ -790,6 +790,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   }
 
                   return ListView.builder(
+                        reverse: true,
                         controller: _scrollController,
                         itemCount: displayMessages.length,
                         padding: const EdgeInsets.all(16),
