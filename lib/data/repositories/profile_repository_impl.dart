@@ -51,6 +51,8 @@ class ProfileRepositoryImpl implements ProfileRepository {
       autoAcceptCalls: user.autoAcceptCalls,
       disableMute: user.disableMute,
       disableCameraOff: user.disableCameraOff,
+      hideNotificationSender: user.hideNotificationSender,
+      hideNotificationMessage: user.hideNotificationMessage,
     );
 
     await _db.collection(AppConstants.usersCollection).doc(user.uid).set(model.toFirestore());
@@ -84,6 +86,8 @@ class ProfileRepositoryImpl implements ProfileRepository {
       autoAcceptCalls: user.autoAcceptCalls,
       disableMute: user.disableMute,
       disableCameraOff: user.disableCameraOff,
+      hideNotificationSender: user.hideNotificationSender,
+      hideNotificationMessage: user.hideNotificationMessage,
     );
 
     await _db.collection(AppConstants.usersCollection).doc(user.uid).update(model.toFirestore());
