@@ -6,6 +6,7 @@ import '../../core/utils/image_helper.dart';
 import '../../domain/entities/user_entity.dart';
 import '../auth/auth_notifier.dart';
 
+
 class UserInfoScreen extends ConsumerStatefulWidget {
   final UserEntity user;
 
@@ -23,6 +24,8 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
   int _sentCount = 0;
   int _receivedCount = 0;
   bool _isLoadingCounts = true;
+  Duration _totalCallDuration = Duration.zero;
+  List<Map<String, dynamic>> _callLogs = [];
 
   @override
   void initState() {
@@ -59,10 +62,48 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
           .count()
           .get();
 
+      final callsQuery1 = await FirebaseFirestore.instance
+          .collection('calls')
+          .where('callerId', isEqualTo: currentUser.uid)
+          .where('receiverId', isEqualTo: widget.user.uid)
+          .get();
+
+      final callsQuery2 = await FirebaseFirestore.instance
+          .collection('calls')
+          .where('callerId', isEqualTo: widget.user.uid)
+          .where('receiverId', isEqualTo: currentUser.uid)
+          .get();
+
+      List<Map<String, dynamic>> logs = [];
+      for (var doc in callsQuery1.docs) {
+        logs.add(doc.data());
+      }
+      for (var doc in callsQuery2.docs) {
+        logs.add(doc.data());
+      }
+
+      // Sort descending by createdAt
+      logs.sort((a, b) {
+        final aTime = (a['createdAt'] as Timestamp?)?.toDate() ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bTime = (b['createdAt'] as Timestamp?)?.toDate() ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return bTime.compareTo(aTime);
+      });
+
+      Duration totalDuration = Duration.zero;
+      for (var data in logs) {
+        if (data['status'] == 'ended' && data['startedAt'] != null && data['endedAt'] != null) {
+          final start = (data['startedAt'] as Timestamp).toDate();
+          final end = (data['endedAt'] as Timestamp).toDate();
+          totalDuration += end.difference(start);
+        }
+      }
+
       if (mounted) {
         setState(() {
           _sentCount = sentQuery.count ?? 0;
           _receivedCount = receivedQuery.count ?? 0;
+          _totalCallDuration = totalDuration;
+          _callLogs = logs;
           _isLoadingCounts = false;
         });
       }
@@ -346,6 +387,84 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
                     ],
                   ),
                 ),
+
+                  // Call Logs Section
+                  const SizedBox(height: 16),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.call_rounded, color: Colors.green),
+                            const SizedBox(width: 8),
+                            Text('Call History', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        if (_isLoadingCounts)
+                          const Center(child: CircularProgressIndicator())
+                        else if (_callLogs.isEmpty)
+                          const Text('No previous calls.', style: TextStyle(color: Colors.grey))
+                        else ...[
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Total Duration', style: TextStyle(color: Colors.grey)),
+                              Text(DateFormatter.formatDurationReadable(_totalCallDuration.inSeconds), style: const TextStyle(fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                          const Divider(height: 24),
+                          ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: _callLogs.length,
+                            itemBuilder: (context, index) {
+                              final log = _callLogs[index];
+                              final isVideo = log['isVideo'] == true;
+                              final status = log['status'];
+                              final isCaller = log['callerId'] == ref.read(authNotifierProvider).user?.uid;
+                              
+                              final createdAt = (log['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+                              String durationStr = '';
+                              if (log['startedAt'] != null && log['endedAt'] != null) {
+                                final start = (log['startedAt'] as Timestamp).toDate();
+                                final end = (log['endedAt'] as Timestamp).toDate();
+                                durationStr = DateFormatter.formatDurationReadable(end.difference(start).inSeconds);
+                              }
+
+                              IconData iconData;
+                              Color iconColor;
+                              if (status == 'rejected' || status == 'missed' || (status != 'ended' && status != 'connected')) {
+                                iconData = isCaller ? Icons.call_made_rounded : Icons.call_missed_rounded;
+                                iconColor = Colors.red;
+                              } else {
+                                iconData = isCaller ? Icons.call_made_rounded : Icons.call_received_rounded;
+                                iconColor = Colors.green;
+                              }
+
+                              return ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: CircleAvatar(
+                                  backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                                  child: Icon(iconData, color: iconColor, size: 20),
+                                ),
+                                title: Text(status == 'rejected' ? 'Missed Call' : (isVideo ? 'Video Call' : 'Voice Call')),
+                                subtitle: Text(DateFormatter.formatShort(createdAt)),
+                                trailing: Text(durationStr.isNotEmpty ? durationStr : status.toUpperCase(), style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                              );
+                            },
+                          ),
+                        ]
+                      ],
+                    ),
+                  ),
+
                 Container(
                   width: double.infinity,
                   color: theme.colorScheme.surface,
@@ -390,6 +509,7 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
                   ),
                 ),
 
+
                 const SizedBox(height: 40),
               ],
             ),
@@ -398,4 +518,6 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
       ),
     );
   }
+
+
 }

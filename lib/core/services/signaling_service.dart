@@ -185,6 +185,7 @@ class SignalingService {
     // Update Call Status
     await callDoc.update({
       'status': 'connected',
+      'startedAt': FieldValue.serverTimestamp(),
       'sdpAnswer': {
         'type': answer.type,
         'sdp': answer.sdp,
@@ -259,7 +260,10 @@ class SignalingService {
       
       final data = doc.data()!;
       if (isRejected || data['status'] != 'connected') {
-         await docRef.update({'status': isRejected ? 'rejected' : 'ended'});
+         await docRef.update({
+           'status': isRejected ? 'rejected' : 'ended',
+           'endedAt': FieldValue.serverTimestamp()
+         });
          cleanUpCall();
          return;
       }
@@ -273,7 +277,10 @@ class SignalingService {
       
       if (otherWantsHangup) {
          // Both agreed
-         await docRef.update({'status': 'ended'});
+         await docRef.update({
+           'status': 'ended',
+           'endedAt': FieldValue.serverTimestamp()
+         });
          cleanUpCall();
       } else {
          // I am the first to request hangup

@@ -221,49 +221,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               child: Column(
                 children: [
                   // Dark Mode Switch Option
-                  // Theme Selection Option
+                  // Appearance Settings Link
                   ListTile(
                     leading: Icon(Icons.palette_rounded, color: theme.colorScheme.primary),
-                    title: const Text('Theme'),
-                    trailing: DropdownButton<AppThemeType>(
-                      value: themeMode,
-                      underline: const SizedBox(),
-                      onChanged: (AppThemeType? newTheme) {
-                        if (newTheme != null) {
-                          if (newTheme == AppThemeType.custom) {
-                            context.push('/custom-theme');
-                          } else {
-                            ref.read(themeModeProvider.notifier).setTheme(newTheme);
-                          }
-                        }
-                      },
-                      items: const [
-                        DropdownMenuItem(
-                          value: AppThemeType.light,
-                          child: Text('Light'),
-                        ),
-                        DropdownMenuItem(
-                          value: AppThemeType.dark,
-                          child: Text('Dark'),
-                        ),
-                        DropdownMenuItem(
-                          value: AppThemeType.terminal,
-                          child: Text('Terminal'),
-                        ),
-                        DropdownMenuItem(
-                          value: AppThemeType.oldPhone,
-                          child: Text('Old Phone'),
-                        ),
-                        DropdownMenuItem(
-                          value: AppThemeType.cyberpunk,
-                          child: Text('Cyberpunk'),
-                        ),
-                        DropdownMenuItem(
-                          value: AppThemeType.custom,
-                          child: Text('Custom (Edit)'),
-                        ),
-                      ],
-                    ),
+                    title: const Text('Appearance'),
+                    trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+                    onTap: () => context.push('/appearance'),
                   ),
                   
                   // Privacy Settings Link

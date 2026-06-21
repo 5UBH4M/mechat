@@ -9,9 +9,10 @@ import '../../features/chat/home_screen.dart';
 import '../../features/contacts/contacts_screen.dart';
 import '../../features/profile/create_profile_screen.dart';
 import '../../features/settings/blocked_users_screen.dart';
+import '../../features/settings/appearance_screen.dart';
 import '../../features/settings/privacy_settings_screen.dart';
 import '../../features/settings/settings_screen.dart';
-import '../../features/settings/custom_theme_screen.dart';
+import '../../features/settings/advanced_appearance_screen.dart';
 import '../../features/profile/notification_settings_screen.dart';
 
 final appRouter = GoRouter(
@@ -62,7 +63,11 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: '/custom-theme',
-      builder: (context, state) => const CustomThemeScreen(),
+      builder: (context, state) => const AdvancedAppearanceScreen(),
+    ),
+    GoRoute(
+      path: '/appearance',
+      builder: (context, state) => const AppearanceScreen(),
     ),
     GoRoute(
       path: '/blocked-users',

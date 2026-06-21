@@ -29,4 +29,19 @@ class DateFormatter {
     }
     return '$minutes:$secs';
   }
+
+  static String formatDurationReadable(int seconds) {
+    if (seconds == 0) return '0s';
+    final duration = Duration(seconds: seconds);
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+    final secs = duration.inSeconds.remainder(60);
+    
+    List<String> parts = [];
+    if (hours > 0) parts.add('${hours}h');
+    if (minutes > 0) parts.add('${minutes}m');
+    if (secs > 0) parts.add('${secs}s');
+    
+    return parts.join(' ');
+  }
 }

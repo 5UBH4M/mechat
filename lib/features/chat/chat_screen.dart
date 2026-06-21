@@ -14,10 +14,13 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../core/utils/image_helper.dart';
+import '../../core/theme/theme_controller.dart';
+import '../../core/theme/theme_provider.dart';
 import '../../core/widgets/image_viewer_screen.dart';
 import '../../domain/entities/message_entity.dart';
 import '../../domain/entities/user_entity.dart';
@@ -26,7 +29,9 @@ import '../auth/auth_notifier.dart';
 import '../calls/call_notifier.dart';
 import '../../core/services/service_providers.dart';
 import 'audio_message_player.dart';
+import 'chat_media_notifier.dart';
 import 'chat_notifier.dart';
+import 'chat_search_notifier.dart';
 import 'user_info_screen.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
@@ -43,9 +48,11 @@ class ChatScreen extends ConsumerStatefulWidget {
 
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
+  final ItemScrollController _itemScrollController = ItemScrollController();
+  final ItemPositionsListener _itemPositionsListener = ItemPositionsListener.create();
   final AudioRecorder _audioRecorder = AudioRecorder();
   final FocusNode _messageFocusNode = FocusNode();
+  final TextEditingController _searchController = TextEditingController();
 
   UserEntity? _receiverUser;
   bool _isNotesToSelf = false;
@@ -57,8 +64,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   MessageEntity? _replyingToMessage;
   int _lastMessageCount = 0;
   bool _showScrollToBottom = false;
-  bool _isSearching = false;
-  String _searchQuery = '';
 
   StreamSubscription<DocumentSnapshot>? _receiverSub;
 
@@ -71,13 +76,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ref.read(chatNotifierProvider.notifier).resetUnreadCount(widget.receiverId);
     });
     
-    _scrollController.addListener(() {
-      if (!_scrollController.hasClients) return;
-      final offsetFromBottom = _scrollController.position.pixels;
-      if (offsetFromBottom > 300) {
-        if (!_showScrollToBottom) setState(() => _showScrollToBottom = true);
-      } else {
+    _itemPositionsListener.itemPositions.addListener(() {
+      final positions = _itemPositionsListener.itemPositions.value;
+      if (positions.isEmpty) return;
+      final bottomItem = positions.where((p) => p.index == 0).firstOrNull;
+      if (bottomItem != null && bottomItem.itemLeadingEdge < 0.1) {
         if (_showScrollToBottom) setState(() => _showScrollToBottom = false);
+      } else {
+        if (!_showScrollToBottom) setState(() => _showScrollToBottom = true);
       }
     });
   }
@@ -120,7 +126,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void dispose() {
     _receiverSub?.cancel();
     _messageController.dispose();
-    _scrollController.dispose();
+    _searchController.dispose();
     _audioRecorder.dispose();
     _messageFocusNode.dispose();
     _typingDebouncer?.cancel();
@@ -164,11 +170,31 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _scrollToBottom() {
-    if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        0.0,
+    if (_itemScrollController.isAttached) {
+      _itemScrollController.scrollTo(
+        index: 0,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
+      );
+    }
+  }
+
+  void _scrollToDate(DateTime targetDate, List<MessageEntity> messages) {
+    if (messages.isEmpty) return;
+    int closestIndex = 0;
+    Duration minDiff = const Duration(days: 99999);
+    for (int i = 0; i < messages.length; i++) {
+      final diff = messages[i].timestamp.difference(targetDate).abs();
+      if (diff < minDiff) {
+        minDiff = diff;
+        closestIndex = i;
+      }
+    }
+    if (_itemScrollController.isAttached) {
+      _itemScrollController.scrollTo(
+        index: closestIndex,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
       );
     }
   }
@@ -545,13 +571,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final currentUser = ref.watch(authNotifierProvider).user;
+    final searchState = ref.watch(chatSearchProvider);
+    final searchNotifier = ref.read(chatSearchProvider.notifier);
     
     final chatId = ref.read(chatNotifierProvider.notifier).getChatId(
           currentUser?.uid ?? '',
           widget.receiverId,
         );
+
+    final advTheme = ref.watch(advancedThemeProvider(chatId));
+    final globalThemeMode = ref.watch(themeModeProvider);
+    final isDark = globalThemeMode == AppThemeType.dark || globalThemeMode == AppThemeType.terminal || globalThemeMode == AppThemeType.cyberpunk || globalThemeMode == AppThemeType.oldPhone;
+    final theme = advTheme.toThemeData(isDark ? Brightness.dark : Brightness.light);
 
     final messagesAsync = ref.watch(chatMessagesProvider(chatId));
     final chatsAsync = ref.watch(recentChatsProvider);
@@ -582,8 +614,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final hidePhoto = currentUser?.hideContactPhotoInChat == true && !_isNotesToSelf;
     final hideName = currentUser?.hideContactNameInChat == true && !_isNotesToSelf;
 
-    return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+    final messagesList = messagesAsync.value?.reversed.toList() ?? [];
+
+    ref.listen<ChatSearchState>(chatSearchProvider, (prev, next) {
+      if (next.isSearching && next.currentMatchIndex != -1 && next.matchIndices.isNotEmpty) {
+        if (prev?.currentMatchIndex != next.currentMatchIndex || prev?.query != next.query) {
+          if (_itemScrollController.isAttached) {
+            _itemScrollController.scrollTo(
+              index: next.matchIndices[next.currentMatchIndex],
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+            );
+          }
+        }
+      }
+    });
+
+    return Theme(
+      data: theme,
+      child: Scaffold(
+        backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
         leadingWidth: 40,
         leading: Padding(
@@ -593,20 +643,64 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             onPressed: () => context.pop(),
           ),
         ),
-        title: _isSearching
-            ? TextField(
-                autofocus: true,
-                style: TextStyle(color: theme.colorScheme.onSurface),
-                decoration: InputDecoration(
-                  hintText: 'Search messages...',
-                  hintStyle: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
-                  border: InputBorder.none,
-                ),
-                onChanged: (val) {
-                  setState(() {
-                    _searchQuery = val;
-                  });
-                },
+        title: searchState.isSearching
+            ? Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      autofocus: true,
+                      style: TextStyle(color: theme.colorScheme.onSurface),
+                      decoration: InputDecoration(
+                        hintText: 'Search messages...',
+                        hintStyle: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
+                        border: InputBorder.none,
+                      ),
+                      onChanged: (val) {
+                        searchNotifier.updateQuery(val, messagesList);
+                      },
+                      onSubmitted: (val) {
+                        if (val.trim().isNotEmpty) searchNotifier.addRecentSearch(val.trim());
+                      },
+                    ),
+                  ),
+                  if (searchState.query.isNotEmpty)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 32),
+                          icon: const Icon(Icons.clear, size: 20),
+                          onPressed: () {
+                            _searchController.clear();
+                            searchNotifier.updateQuery('', messagesList);
+                          },
+                        ),
+                        if (searchState.matchIndices.isNotEmpty && searchState.currentMatchIndex != -1)
+                          Text(
+                            '${searchState.currentMatchIndex + 1} / ${searchState.matchIndices.length}',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 32),
+                          icon: const Icon(Icons.keyboard_arrow_up),
+                          onPressed: () {
+                            searchNotifier.previousMatch(); 
+                          },
+                        ),
+                        IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 32),
+                          icon: const Icon(Icons.keyboard_arrow_down),
+                          onPressed: () {
+                            searchNotifier.nextMatch();
+                          },
+                        ),
+                      ],
+                    ),
+                ],
               )
             : Row(
           children: [
@@ -678,15 +772,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
           ],
         ),
-        actions: _isSearching
+        actions: searchState.isSearching
             ? [
                 IconButton(
                   icon: const Icon(Icons.close),
                   onPressed: () {
-                    setState(() {
-                      _isSearching = false;
-                      _searchQuery = '';
-                    });
+                    _searchController.clear();
+                    searchNotifier.stopSearch();
                   },
                 ),
               ]
@@ -694,11 +786,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 IconButton(
                   icon: const Icon(Icons.search),
                   onPressed: () {
-                    setState(() {
-                      _isSearching = true;
-                    });
+                    searchNotifier.startSearch();
                   },
                 ),
+
           if (!_isNotesToSelf && _receiverUser != null && !isChatDisabled && isConnectionEstablished) ...[
             IconButton(
               icon: const Icon(Icons.call_rounded),
@@ -777,32 +868,55 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     }
                   });
 
-                  var displayMessages = messages.reversed.toList();
-                  if (_isSearching && _searchQuery.isNotEmpty) {
-                    displayMessages = displayMessages.where((m) => m.content.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
-                  }
-
-                  if (displayMessages.isEmpty) {
-                    if (_isSearching && _searchQuery.isNotEmpty) {
-                      return Center(child: Text('No results found.', style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurface.withValues(alpha: 0.5))));
-                    }
+                  if (messagesList.isEmpty) {
                     return _buildEmptyChatInfo(theme);
                   }
 
-                  return ListView.builder(
-                        reverse: true,
-                        controller: _scrollController,
-                        itemCount: displayMessages.length,
-                        padding: const EdgeInsets.all(16),
-                        addAutomaticKeepAlives: false,
-                        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
-                        itemBuilder: (context, index) {
-                      final msg = displayMessages[index];
-                      final isMe = msg.senderId == currentUser?.uid;
+                  return Stack(
+                    children: [
+                      GestureDetector(
+                        onTap: () => FocusScope.of(context).unfocus(),
+                        child: ScrollablePositionedList.builder(
+                          reverse: true,
+                          itemScrollController: _itemScrollController,
+                          itemPositionsListener: _itemPositionsListener,
+                          itemCount: messagesList.length,
+                          padding: const EdgeInsets.all(16),
+                          addAutomaticKeepAlives: false,
+                          itemBuilder: (context, index) {
+                            final msg = messagesList[index];
+                            final isMe = msg.senderId == currentUser?.uid;
 
-                        return _buildMessageBubble(context, msg, isMe, currentUser, theme);
-                      },
-                    );
+                            return _buildMessageBubble(context, msg, isMe, currentUser, theme, searchState, index);
+                          },
+                        ),
+                      ),
+                      if (searchState.isSearching && searchState.query.isEmpty && searchState.recentSearches.isNotEmpty)
+                        Positioned.fill(
+                          child: Container(
+                            color: theme.colorScheme.surface.withValues(alpha: 0.95),
+                            child: ListView.builder(
+                              itemCount: searchState.recentSearches.length,
+                              itemBuilder: (context, index) {
+                                final recentQuery = searchState.recentSearches[index];
+                                return ListTile(
+                                  leading: const Icon(Icons.history),
+                                  title: Text(recentQuery),
+                                  trailing: IconButton(
+                                    icon: const Icon(Icons.close),
+                                    onPressed: () => searchNotifier.removeRecentSearch(recentQuery),
+                                  ),
+                                  onTap: () {
+                                    _searchController.text = recentQuery;
+                                    searchNotifier.updateQuery(recentQuery, messagesList);
+                                  },
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
                 },
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (err, stack) => Center(child: Text('Error: $err')),
@@ -847,8 +961,45 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ],
         ),
       ),
-      ),
-    );
+    ),
+  ),
+);
+}
+
+  Widget _buildHighlightedText(String text, String query, bool isCurrentMatch, Color textColor) {
+    if (query.isEmpty) return Text(text, style: TextStyle(color: textColor, fontSize: 15));
+    
+    final lowerText = text.toLowerCase();
+    final lowerQuery = query.toLowerCase();
+    
+    final List<TextSpan> spans = [];
+    int start = 0;
+    
+    while (true) {
+      final int index = lowerText.indexOf(lowerQuery, start);
+      if (index == -1) {
+        spans.add(TextSpan(text: text.substring(start), style: TextStyle(color: textColor, fontSize: 15)));
+        break;
+      }
+      
+      if (index > start) {
+        spans.add(TextSpan(text: text.substring(start, index), style: TextStyle(color: textColor, fontSize: 15)));
+      }
+      
+      spans.add(TextSpan(
+        text: text.substring(index, index + query.length),
+        style: TextStyle(
+          color: Colors.black,
+          backgroundColor: isCurrentMatch ? Colors.deepOrange : Colors.yellow,
+          fontSize: 15,
+          fontWeight: FontWeight.bold,
+        ),
+      ));
+      
+      start = index + query.length;
+    }
+    
+    return RichText(text: TextSpan(children: spans));
   }
 
   Widget _buildEmptyChatInfo(ThemeData theme) {
@@ -885,9 +1036,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   // Message Bubble construction
-  Widget _buildMessageBubble(BuildContext context, MessageEntity msg, bool isMe, UserEntity? currentUser, ThemeData theme) {
-    final bubbleColor = isMe ? theme.colorScheme.primary : theme.colorScheme.surface;
-    final textColor = isMe ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface;
+  Widget _buildMessageBubble(BuildContext context, MessageEntity msg, bool isMe, UserEntity? currentUser, ThemeData theme, ChatSearchState searchState, int index) {
+    bool isMatch = searchState.isSearching && searchState.matchIndices.contains(index);
+    bool isCurrentMatch = isMatch && searchState.matchIndices.isNotEmpty && searchState.currentMatchIndex != -1 && searchState.matchIndices[searchState.currentMatchIndex] == index;
+    
+    Color baseBubbleColor = isMe ? theme.colorScheme.primary : theme.colorScheme.secondaryContainer;
+    if (isMatch && searchState.isFuzzy) {
+      baseBubbleColor = isCurrentMatch ? Colors.deepOrange : Colors.orange;
+    }
+    
+    final bubbleColor = baseBubbleColor;
+    final textColor = isMe ? theme.colorScheme.onPrimary : theme.colorScheme.onSecondaryContainer;
     final alignment = isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start;
     final isTerminal = theme.appBarTheme.titleTextStyle?.fontFamily == 'monospace';
     
@@ -1070,10 +1229,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            msg.content,
-                            style: TextStyle(color: textColor, fontSize: 15),
-                          ),
+                          if (isMatch && !searchState.isFuzzy && searchState.query.isNotEmpty)
+                            _buildHighlightedText(msg.content, searchState.query, isCurrentMatch, textColor)
+                          else
+                            Text(
+                              msg.content,
+                              style: TextStyle(color: textColor, fontSize: 15),
+                            ),
                           if (msg.type == 'text' && _containsLink(msg.content)) ...[
                             const SizedBox(height: 8),
                             SizedBox(
@@ -1131,6 +1293,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 if (currentUser != null && msg.starredBy.contains(currentUser.uid)) ...[
                   const SizedBox(width: 4),
                   const Icon(Icons.star, size: 12, color: Colors.grey),
+                ],
+                if (ref.watch(chatMediaProvider(widget.receiverId)).bookmarkedIds.contains(msg.id)) ...[
+                  const SizedBox(width: 4),
+                  const Icon(Icons.bookmark, size: 12, color: Colors.grey),
                 ]
               ],
             )
@@ -1410,6 +1576,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 title: Text(isStarred ? 'Unstar' : 'Star'),
                 onTap: () {
                   ref.read(chatNotifierProvider.notifier).toggleStar(widget.receiverId, msg.id, !isStarred);
+                  Navigator.pop(ctx);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.bookmark_border),
+                title: const Text('Bookmark'),
+                onTap: () {
+                  ref.read(chatMediaProvider(widget.receiverId).notifier).toggleBookmark(msg);
                   Navigator.pop(ctx);
                 },
               ),

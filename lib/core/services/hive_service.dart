@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../constants/app_constants.dart';
+import '../theme/theme_controller.dart';
 
 class HiveService {
   static final HiveService _instance = HiveService._internal();
@@ -18,6 +19,7 @@ class HiveService {
     _chatBox = await Hive.openBox(AppConstants.chatCacheBoxName);
     _settingsBox = await Hive.openBox(AppConstants.settingsBoxName);
     _outboxBox = await Hive.openBox(AppConstants.offlineOutboxBoxName);
+    await Hive.openBox(ThemeController.boxName);
   }
 
   // --- Auth / User Caching ---

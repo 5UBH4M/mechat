@@ -7,6 +7,7 @@ import 'core/services/hive_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
+import 'core/theme/theme_controller.dart';
 import 'core/utils/app_router.dart';
 import 'features/auth/auth_notifier.dart';
 import 'features/chat/chat_notifier.dart';
@@ -173,34 +174,49 @@ class _MeChatAppState extends ConsumerState<MeChatApp> with WidgetsBindingObserv
       }
     });
 
-    ThemeData activeTheme;
-    switch (themeMode) {
+    final advTheme = ref.watch(advancedThemeProvider(null));
+    final globalThemeId = ref.watch(themeControllerProvider).globalThemeId;
+    final useAdvancedGlobal = globalThemeId != 'material3';
+    final themeModeType = ref.watch(themeModeProvider);
+
+    ThemeData lightTheme = AppTheme.lightTheme;
+    ThemeData darkTheme = AppTheme.darkTheme;
+    ThemeMode activeMode = ThemeMode.system;
+
+    switch (themeModeType) {
       case AppThemeType.light:
-        activeTheme = AppTheme.lightTheme;
-        break;
-      case AppThemeType.terminal:
-        activeTheme = AppTheme.terminalTheme;
-        break;
-      case AppThemeType.oldPhone:
-        activeTheme = AppTheme.oldPhoneTheme;
+        activeMode = ThemeMode.light;
         break;
       case AppThemeType.dark:
-        activeTheme = AppTheme.darkTheme;
+        activeMode = ThemeMode.dark;
         break;
-      case AppThemeType.custom:
-        activeTheme = AppTheme.buildCustomTheme(customTheme);
+      case AppThemeType.terminal:
+        lightTheme = AppTheme.terminalTheme;
+        darkTheme = AppTheme.terminalTheme;
+        activeMode = ThemeMode.dark;
+        break;
+      case AppThemeType.oldPhone:
+        lightTheme = AppTheme.oldPhoneTheme;
+        darkTheme = AppTheme.oldPhoneTheme;
+        activeMode = ThemeMode.dark;
         break;
       case AppThemeType.cyberpunk:
-        activeTheme = AppTheme.cyberpunkTheme;
+        lightTheme = AppTheme.cyberpunkTheme;
+        darkTheme = AppTheme.cyberpunkTheme;
+        activeMode = ThemeMode.dark;
+        break;
+      default:
         break;
     }
 
     return MaterialApp.router(
       title: 'MeChat',
       debugShowCheckedModeBanner: false,
-      theme: activeTheme,
-      routerConfig: appRouter,
+      theme: useAdvancedGlobal ? advTheme.toThemeData(Brightness.light) : lightTheme,
+      darkTheme: useAdvancedGlobal ? advTheme.toThemeData(Brightness.dark) : darkTheme,
+      themeMode: activeMode,
       scaffoldMessengerKey: scaffoldMessengerKey,
+      routerConfig: appRouter,
     );
   }
 }

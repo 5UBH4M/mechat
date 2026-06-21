@@ -45,6 +45,11 @@ class _CustomThemeScreenState extends ConsumerState<CustomThemeScreen> {
     'Roboto',
     'monospace',
     'serif',
+    'sans-serif',
+    'sans-serif-condensed',
+    'sans-serif-medium',
+    'sans-serif-light',
+    'cursive',
   ];
 
   @override
@@ -76,10 +81,18 @@ class _CustomThemeScreenState extends ConsumerState<CustomThemeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSectionHeader('Your Chat Bubble & Main Buttons'),
+            _buildThemePreview(),
+            const SizedBox(height: 24),
+            _buildSectionHeader('Sender Bubble Color'),
             _buildColorPicker(
               selectedColor: _tempTheme.primaryColor,
               onColorSelected: (c) => setState(() => _tempTheme = _tempTheme.copyWith(primaryColor: c)),
+            ),
+            const SizedBox(height: 24),
+            _buildSectionHeader('Sender Text Color'),
+            _buildColorPicker(
+              selectedColor: _tempTheme.senderTextColor,
+              onColorSelected: (c) => setState(() => _tempTheme = _tempTheme.copyWith(senderTextColor: c)),
             ),
             const SizedBox(height: 24),
             _buildSectionHeader('Accent Color (Switches & Highlights)'),
@@ -94,10 +107,16 @@ class _CustomThemeScreenState extends ConsumerState<CustomThemeScreen> {
               onColorSelected: (c) => setState(() => _tempTheme = _tempTheme.copyWith(backgroundColor: c)),
             ),
             const SizedBox(height: 24),
-            _buildSectionHeader('Contact Chat Bubble & Menu Color'),
+            _buildSectionHeader('Receiver Bubble Color'),
             _buildColorPicker(
-              selectedColor: _tempTheme.surfaceColor,
-              onColorSelected: (c) => setState(() => _tempTheme = _tempTheme.copyWith(surfaceColor: c)),
+              selectedColor: _tempTheme.receiverBubbleColor,
+              onColorSelected: (c) => setState(() => _tempTheme = _tempTheme.copyWith(receiverBubbleColor: c)),
+            ),
+            const SizedBox(height: 24),
+            _buildSectionHeader('Receiver Text Color'),
+            _buildColorPicker(
+              selectedColor: _tempTheme.receiverTextColor,
+              onColorSelected: (c) => setState(() => _tempTheme = _tempTheme.copyWith(receiverTextColor: c)),
             ),
             const SizedBox(height: 24),
             _buildSectionHeader('App Font / Text Style'),
@@ -140,6 +159,77 @@ class _CustomThemeScreenState extends ConsumerState<CustomThemeScreen> {
       child: Text(
         title,
         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  Widget _buildThemePreview() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _tempTheme.backgroundColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Live Preview',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: _tempTheme.backgroundColor.computeLuminance() > 0.5 ? Colors.black : Colors.white,
+              fontFamily: _tempTheme.fontFamily,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Receiver Bubble
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: _tempTheme.receiverBubbleColor,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(_tempTheme.bubbleRadius),
+                  topRight: Radius.circular(_tempTheme.bubbleRadius),
+                  bottomRight: Radius.circular(_tempTheme.bubbleRadius),
+                ),
+              ),
+              child: Text(
+                'Hi! Check out this new theme!',
+                style: TextStyle(
+                  color: _tempTheme.receiverTextColor,
+                  fontFamily: _tempTheme.fontFamily,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Sender Bubble
+          Align(
+            alignment: Alignment.centerRight,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: _tempTheme.primaryColor,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(_tempTheme.bubbleRadius),
+                  topRight: Radius.circular(_tempTheme.bubbleRadius),
+                  bottomLeft: Radius.circular(_tempTheme.bubbleRadius),
+                ),
+              ),
+              child: Text(
+                'Wow, it looks fully customizable!',
+                style: TextStyle(
+                  color: _tempTheme.senderTextColor,
+                  fontFamily: _tempTheme.fontFamily,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
