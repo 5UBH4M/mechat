@@ -23,7 +23,7 @@ abstract class AdvancedThemeModel with _$AdvancedThemeModel {
 
   factory AdvancedThemeModel.fromJson(Map<String, dynamic> json) => _$AdvancedThemeModelFromJson(json);
 
-  TextStyle _safeGetFont(String fontFamily, {Color? color, double? fontSize, FontWeight? fontWeight}) {
+  static TextStyle safeGetFont(String fontFamily, {Color? color, double? fontSize, FontWeight? fontWeight}) {
     try {
       return GoogleFonts.getFont(fontFamily, color: color, fontSize: fontSize, fontWeight: fontWeight);
     } catch (_) {
@@ -51,7 +51,7 @@ abstract class AdvancedThemeModel with _$AdvancedThemeModel {
         appBarTheme: AppBarTheme(
           backgroundColor: scheme.surface,
           iconTheme: IconThemeData(color: scheme.onSurface, size: appAppearance.iconSize),
-          titleTextStyle: _safeGetFont(
+          titleTextStyle: safeGetFont(
             textTheme.fontFamily,
             color: scheme.onSurface,
             fontSize: 20,
@@ -59,8 +59,8 @@ abstract class AdvancedThemeModel with _$AdvancedThemeModel {
           ),
         ),
         textTheme: TextTheme(
-          bodyLarge: _safeGetFont(textTheme.fontFamily, fontSize: textTheme.fontSize),
-          bodyMedium: _safeGetFont(textTheme.fontFamily, fontSize: textTheme.fontSize - 2),
+          bodyLarge: safeGetFont(textTheme.fontFamily, fontSize: textTheme.fontSize),
+          bodyMedium: safeGetFont(textTheme.fontFamily, fontSize: textTheme.fontSize - 2),
         ),
         cardTheme: CardThemeData(
           shape: RoundedRectangleBorder(
@@ -96,7 +96,7 @@ abstract class AdvancedThemeModel with _$AdvancedThemeModel {
       appBarTheme: AppBarTheme(
         backgroundColor: Color(appAppearance.appBarColor),
         iconTheme: IconThemeData(color: Color(appAppearance.appBarIconColor), size: appAppearance.iconSize),
-        titleTextStyle: _safeGetFont(
+        titleTextStyle: safeGetFont(
           textTheme.fontFamily,
           color: Color(appAppearance.appBarTitleColor),
           fontSize: 20,
@@ -104,8 +104,8 @@ abstract class AdvancedThemeModel with _$AdvancedThemeModel {
         ),
       ),
       textTheme: TextTheme(
-        bodyLarge: _safeGetFont(textTheme.fontFamily, fontSize: textTheme.fontSize),
-        bodyMedium: _safeGetFont(textTheme.fontFamily, fontSize: textTheme.fontSize - 2),
+        bodyLarge: safeGetFont(textTheme.fontFamily, fontSize: textTheme.fontSize),
+        bodyMedium: safeGetFont(textTheme.fontFamily, fontSize: textTheme.fontSize - 2),
       ),
       cardTheme: CardThemeData(
         shape: RoundedRectangleBorder(

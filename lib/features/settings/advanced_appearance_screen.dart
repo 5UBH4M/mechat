@@ -377,7 +377,7 @@ class _AdvancedAppearanceScreenState extends ConsumerState<AdvancedAppearanceScr
                   Expanded(
                     child: Text(
                       'Chat Preview',
-                      style: GoogleFonts.getFont(
+                      style: AdvancedThemeModel.safeGetFont(
                         _theme.textTheme.fontFamily,
                         color: Color(_theme.appAppearance.appBarTitleColor),
                         fontSize: 16,
@@ -503,7 +503,7 @@ class _AdvancedAppearanceScreenState extends ConsumerState<AdvancedAppearanceScr
           children: [
             Text(
               text,
-              style: GoogleFonts.getFont(
+              style: AdvancedThemeModel.safeGetFont(
                 _theme.textTheme.fontFamily,
                 color: Color(textColor),
                 fontSize: isEmoji ? _theme.textTheme.emojiSize : _theme.textTheme.fontSize - 1,
@@ -513,7 +513,7 @@ class _AdvancedAppearanceScreenState extends ConsumerState<AdvancedAppearanceScr
             const SizedBox(height: 2),
             Text(
               time,
-              style: GoogleFonts.getFont(
+              style: AdvancedThemeModel.safeGetFont(
                 _theme.textTheme.fontFamily,
                 color: Color(_theme.textTheme.timestampColor),
                 fontSize: _theme.textTheme.timestampSize - 1,
