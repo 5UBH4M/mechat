@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/encryptor_service.dart';
 import '../../core/services/hive_service.dart';
@@ -234,14 +235,40 @@ class ChatRepositoryImpl implements ChatRepository {
     required void Function(double progress) onProgress,
   }) async {
     try {
-      onProgress(0.5);
+      onProgress(0.01);
 
-      String base64String = '';
-      if (message.type == 'image') {
-        base64String = await ImageHelper.convertToBase64(filePath, maxWidth: 1280, quality: 85);
-      } else {
-        final bytes = await File(filePath).readAsBytes();
-        base64String = 'data:audio/aac;base64,${base64Encode(bytes)}';
+      String fileUrl = '';
+      
+      // Try Firebase Storage first for proper file handling
+      try {
+        final storageRef = FirebaseStorage.instance
+            .ref()
+            .child('chat_media')
+            .child(chatId)
+            .child('${message.id}_${message.fileName}');
+        
+        final uploadTask = storageRef.putFile(
+          File(filePath),
+          SettableMetadata(contentType: _getContentType(message.type, message.fileName)),
+        );
+
+        // Listen to real upload progress
+        uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
+          final progress = snapshot.bytesTransferred / snapshot.totalBytes;
+          onProgress(progress.clamp(0.01, 0.99));
+        });
+
+        // Wait for upload to complete
+        final snapshot = await uploadTask;
+        fileUrl = await snapshot.ref.getDownloadURL();
+      } catch (_) {
+        // Fallback to base64 for images if Storage fails
+        if (message.type == 'image') {
+          fileUrl = await ImageHelper.convertToBase64(filePath, maxWidth: 1280, quality: 85);
+        } else {
+          final bytes = await File(filePath).readAsBytes();
+          fileUrl = 'data:audio/aac;base64,${base64Encode(bytes)}';
+        }
       }
 
       onProgress(1.0);
@@ -250,11 +277,11 @@ class ChatRepositoryImpl implements ChatRepository {
         id: message.id,
         senderId: message.senderId,
         receiverId: message.receiverId,
-        content: '', // Media messages don't need text content
+        content: '',
         type: message.type,
         timestamp: message.timestamp,
         status: 'sent',
-        fileUrl: base64String,
+        fileUrl: fileUrl,
         fileName: message.fileName,
         fileSize: message.fileSize,
         duration: message.duration,
@@ -265,6 +292,25 @@ class ChatRepositoryImpl implements ChatRepository {
       await sendMessage(mediaMessage, chatId);
     } catch (e) {
       rethrow;
+    }
+  }
+
+  String _getContentType(String type, String fileName) {
+    switch (type) {
+      case 'image':
+        if (fileName.endsWith('.png')) return 'image/png';
+        if (fileName.endsWith('.gif')) return 'image/gif';
+        return 'image/jpeg';
+      case 'video':
+        return 'video/mp4';
+      case 'audio':
+        if (fileName.endsWith('.m4a')) return 'audio/mp4';
+        return 'audio/mpeg';
+      case 'document':
+        if (fileName.endsWith('.pdf')) return 'application/pdf';
+        return 'application/octet-stream';
+      default:
+        return 'application/octet-stream';
     }
   }
 

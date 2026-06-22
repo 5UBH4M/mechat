@@ -92,9 +92,14 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
       Duration totalDuration = Duration.zero;
       for (var data in logs) {
         if (data['status'] == 'ended' && data['startedAt'] != null && data['endedAt'] != null) {
-          final start = (data['startedAt'] as Timestamp).toDate();
-          final end = (data['endedAt'] as Timestamp).toDate();
-          totalDuration += end.difference(start);
+          try {
+            final start = (data['startedAt'] as Timestamp).toDate();
+            final end = (data['endedAt'] as Timestamp).toDate();
+            final diff = end.difference(start);
+            if (diff.inSeconds > 0) {
+              totalDuration += diff;
+            }
+          } catch (_) {}
         }
       }
 
@@ -427,25 +432,40 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
                             itemBuilder: (context, index) {
                               final log = _callLogs[index];
                               final isVideo = log['isVideo'] == true;
-                              final status = log['status'];
+                              final status = (log['status'] as String?) ?? 'unknown';
                               final isCaller = log['callerId'] == ref.read(authNotifierProvider).user?.uid;
                               
                               final createdAt = (log['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
                               String durationStr = '';
                               if (log['startedAt'] != null && log['endedAt'] != null) {
-                                final start = (log['startedAt'] as Timestamp).toDate();
-                                final end = (log['endedAt'] as Timestamp).toDate();
-                                durationStr = DateFormatter.formatDurationReadable(end.difference(start).inSeconds);
+                                try {
+                                  final start = (log['startedAt'] as Timestamp).toDate();
+                                  final end = (log['endedAt'] as Timestamp).toDate();
+                                  final secs = end.difference(start).inSeconds;
+                                  if (secs > 0) {
+                                    durationStr = DateFormatter.formatDurationReadable(secs);
+                                  }
+                                } catch (_) {}
                               }
 
                               IconData iconData;
                               Color iconColor;
-                              if (status == 'rejected' || status == 'missed' || (status != 'ended' && status != 'connected')) {
+                              final isMissed = status == 'rejected' || status == 'missed' || (status != 'ended' && status != 'connected');
+                              if (isMissed) {
                                 iconData = isCaller ? Icons.call_made_rounded : Icons.call_missed_rounded;
                                 iconColor = Colors.red;
                               } else {
                                 iconData = isCaller ? Icons.call_made_rounded : Icons.call_received_rounded;
                                 iconColor = Colors.green;
+                              }
+
+                              String trailingText;
+                              if (durationStr.isNotEmpty) {
+                                trailingText = durationStr;
+                              } else if (isMissed) {
+                                trailingText = 'Missed';
+                              } else {
+                                trailingText = status.toUpperCase();
                               }
 
                               return ListTile(
@@ -454,9 +474,9 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
                                   backgroundColor: theme.colorScheme.surfaceContainerHighest,
                                   child: Icon(iconData, color: iconColor, size: 20),
                                 ),
-                                title: Text(status == 'rejected' ? 'Missed Call' : (isVideo ? 'Video Call' : 'Voice Call')),
+                                title: Text(isMissed ? 'Missed Call' : (isVideo ? 'Video Call' : 'Voice Call')),
                                 subtitle: Text(DateFormatter.formatShort(createdAt)),
-                                trailing: Text(durationStr.isNotEmpty ? durationStr : status.toUpperCase(), style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                                trailing: Text(trailingText, style: TextStyle(fontSize: 12, color: isMissed ? Colors.red : Colors.grey, fontWeight: durationStr.isNotEmpty ? FontWeight.w600 : FontWeight.normal)),
                               );
                             },
                           ),

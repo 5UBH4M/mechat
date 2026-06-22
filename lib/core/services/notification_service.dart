@@ -4,10 +4,16 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+/// Top-level background handler — must be top-level function
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   dev.log("Handling background message: ${message.messageId}");
+  // FCM will auto-display the notification from the `notification` payload
+  // sent by our Cloud Function, so we don't need to do anything extra here.
 }
+
+/// Global callback for notification tap — set from MeChatApp
+typedef NotificationTapCallback = void Function(String? payload);
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -16,6 +22,9 @@ class NotificationService {
 
   FirebaseMessaging get _fcm => FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
+
+  /// Set this from the app to handle notification taps
+  NotificationTapCallback? onNotificationTap;
 
   Future<void> init() async {
     try {
@@ -49,10 +58,7 @@ class NotificationService {
 
       await _localNotifications.initialize(
         settings: initSettings,
-        onDidReceiveNotificationResponse: (NotificationResponse response) {
-          // Handle notification click - navigate to chat/call screen if needed
-          dev.log("Notification clicked: ${response.payload}");
-        },
+        onDidReceiveNotificationResponse: _handleNotificationTap,
       );
 
       // Create standard Android Notification Channel
@@ -67,15 +73,52 @@ class NotificationService {
           .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
           ?.createNotificationChannel(channel);
 
-      // 4. Listen to foreground messages
+      // 4. Listen to foreground messages from FCM — show as local notification
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        dev.log("Foreground message received: ${message.messageId}");
-        // Do not show a system notification if the app is already in the foreground.
-        // The chat UI will update automatically.
-        // _showLocalNotification(message);
+        dev.log("Foreground FCM message: ${message.messageId}");
+        final notification = message.notification;
+        if (notification != null) {
+          // Build payload for navigation on tap
+          final senderId = message.data['senderId'] ?? '';
+          final payload = senderId.isNotEmpty ? '/chat/$senderId' : null;
+
+          _localNotifications.show(
+            id: notification.hashCode,
+            title: notification.title,
+            body: notification.body,
+            notificationDetails: const NotificationDetails(
+              android: AndroidNotificationDetails(
+                'mechat_channel',
+                'MeChat Messages',
+                channelDescription: 'Notifications for new messages',
+                importance: Importance.max,
+                priority: Priority.high,
+                autoCancel: true,
+              ),
+            ),
+            payload: payload,
+          );
+        }
       });
 
-      // 5. Force save token to Firestore immediately
+      // 5. Handle notification tap when app was terminated
+      final initialMessage = await _fcm.getInitialMessage();
+      if (initialMessage != null) {
+        final senderId = initialMessage.data['senderId'];
+        if (senderId != null && senderId.isNotEmpty && onNotificationTap != null) {
+          onNotificationTap!('/chat/$senderId');
+        }
+      }
+
+      // 6. Handle notification tap when app was in background
+      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+        final senderId = message.data['senderId'];
+        if (senderId != null && onNotificationTap != null) {
+          onNotificationTap!('/chat/$senderId');
+        }
+      });
+
+      // 7. Force save token to Firestore immediately
       try {
         final token = await _fcm.getToken();
         dev.log("FCM Token: $token");
@@ -93,6 +136,13 @@ class NotificationService {
     }
   }
 
+  void _handleNotificationTap(NotificationResponse response) {
+    dev.log("Notification clicked: ${response.payload}");
+    if (response.payload != null && onNotificationTap != null) {
+      onNotificationTap!(response.payload);
+    }
+  }
+
   Future<String?> getToken() async {
     try {
       return await _fcm.getToken();
@@ -102,10 +152,25 @@ class NotificationService {
     }
   }
 
-  Future<void> _showLocalNotification(RemoteMessage message) async {
-    final notification = message.notification;
-    final data = message.data;
-    if (notification == null) return;
+  /// Show a message notification with proper sender name and content
+  Future<void> showMessageNotification({
+    required int id,
+    required String senderName,
+    required String messageBody,
+    required String chatRoute,
+    bool hideSender = false,
+    bool hideMessage = false,
+  }) async {
+    String title;
+    String body;
+
+    if (hideSender) {
+      title = 'MeChat';
+      body = hideMessage ? 'New message' : messageBody;
+    } else {
+      title = senderName;
+      body = hideMessage ? 'Sent a message' : messageBody;
+    }
 
     const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
       'mechat_channel',
@@ -113,16 +178,17 @@ class NotificationService {
       channelDescription: 'Notifications for new messages',
       importance: Importance.max,
       priority: Priority.high,
+      autoCancel: true,
     );
 
     const NotificationDetails details = NotificationDetails(android: androidDetails);
 
     await _localNotifications.show(
-      id: notification.hashCode,
-      title: notification.title,
-      body: notification.body,
+      id: id,
+      title: title,
+      body: body,
       notificationDetails: details,
-      payload: data.toString(),
+      payload: chatRoute,
     );
   }
 
@@ -139,6 +205,7 @@ class NotificationService {
       channelDescription: 'Alerts and system messages',
       importance: Importance.high,
       priority: Priority.high,
+      autoCancel: true,
     );
 
     const NotificationDetails details = NotificationDetails(android: androidDetails);
@@ -193,6 +260,11 @@ class NotificationService {
     await _localNotifications
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
         ?.stopForegroundService();
+    await _localNotifications.cancel(id: id);
+  }
+
+  /// Cancel a specific notification by ID
+  Future<void> cancelNotification(int id) async {
     await _localNotifications.cancel(id: id);
   }
 }

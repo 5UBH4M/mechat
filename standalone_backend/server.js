@@ -2,6 +2,7 @@ const { initializeApp, cert } = require("firebase-admin/app");
 const { getFirestore } = require("firebase-admin/firestore");
 const { getMessaging } = require("firebase-admin/messaging");
 const express = require("express");
+const crypto = require("crypto");
 
 // NOTE: You must generate a private key from your Firebase Console
 // (Project Settings -> Service Accounts -> Generate New Private Key)
@@ -27,6 +28,34 @@ initializeApp({
 
 const db = getFirestore();
 const messaging = getMessaging();
+
+// Helper to decrypt the message text using the same logic as the Flutter app
+function decryptMessage(encryptedText, chatId) {
+  if (!encryptedText || typeof encryptedText !== 'string' || !encryptedText.includes(':')) {
+    return "New message"; // Fallback if format is unexpected
+  }
+  
+  try {
+    const parts = encryptedText.split(':');
+    const iv = Buffer.from(parts[0], 'base64');
+    const ciphertext = Buffer.from(parts[1], 'base64');
+    
+    // Derive key using SHA-256 of the chatId (same as Flutter's _deriveKey)
+    const key = crypto.createHash('sha256').update(chatId, 'utf8').digest();
+    
+    const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+    // Disable auto padding because Flutter's encrypt package uses PKCS7 which OpenSSL handles,
+    // but sometimes there are discrepancies. Usually auto padding is fine for AES-CBC.
+    // Let's leave it default (true).
+    
+    let decrypted = decipher.update(ciphertext, undefined, 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+  } catch (err) {
+    console.error("Decryption error:", err);
+    return "New message";
+  }
+}
 
 console.log("Listening for new messages and calls...");
 
@@ -62,9 +91,15 @@ db.collectionGroup("messages").onSnapshot((snapshot) => {
 
       let body = '';
       if (!hideMessage) {
-        body = message.type === 'text' ? `💬 Sent a new message` : `📸 Sent a ${message.type}`;
-        if (message.type === 'location') body = `📍 Shared a location`;
-        if (message.type === 'contact') body = `👤 Shared a contact`;
+        if (message.type === 'text') {
+          body = decryptMessage(message.content, chatId);
+        } else if (message.type === 'location') {
+          body = `📍 Shared a location`;
+        } else if (message.type === 'contact') {
+          body = `👤 Shared a contact`;
+        } else {
+          body = `📸 Sent a ${message.type}`;
+        }
       } else {
         body = hideSender ? 'Open app to view message' : 'Sent a hidden message';
       }

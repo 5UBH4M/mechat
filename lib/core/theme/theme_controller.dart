@@ -211,5 +211,7 @@ class ThemeController extends Notifier<ThemeState> {
 final themeControllerProvider = NotifierProvider<ThemeController, ThemeState>(ThemeController.new);
 
 final advancedThemeProvider = Provider.family<AdvancedThemeModel, String?>((ref, chatId) {
-  return ref.watch(themeControllerProvider.notifier).getEffectiveTheme(chatId);
+  // Watch the state to ensure UI rebuilds when theme changes
+  ref.watch(themeControllerProvider);
+  return ref.read(themeControllerProvider.notifier).getEffectiveTheme(chatId);
 });

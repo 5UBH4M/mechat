@@ -80,10 +80,20 @@ class MeChatApp extends ConsumerStatefulWidget {
 }
 
 class _MeChatAppState extends ConsumerState<MeChatApp> with WidgetsBindingObserver {
+  /// Cache of userId -> displayName for notification sender names
+  final Map<String, String> _userNameCache = {};
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+
+    // Set up notification tap handler to navigate to the chat
+    NotificationService().onNotificationTap = (String? payload) {
+      if (payload != null && payload.startsWith('/chat/')) {
+        appRouter.go(payload);
+      }
+    };
   }
 
   @override
@@ -92,6 +102,18 @@ class _MeChatAppState extends ConsumerState<MeChatApp> with WidgetsBindingObserv
     super.dispose();
   }
 
+  /// Look up a user's display name, with in-memory caching
+  Future<String> _getSenderName(String uid) async {
+    if (_userNameCache.containsKey(uid)) return _userNameCache[uid]!;
+    try {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final name = doc.data()?['displayName'] as String? ?? 'Someone';
+      _userNameCache[uid] = name;
+      return name;
+    } catch (_) {
+      return 'Someone';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -141,33 +163,60 @@ class _MeChatAppState extends ConsumerState<MeChatApp> with WidgetsBindingObserv
               final hideSender = currentUser.hideNotificationSender;
               final hideMessage = currentUser.hideNotificationMessage;
 
-              String bodyText = newLastMsg.type == 'text' ? newLastMsg.content : '📸 Media message';
+              String bodyText;
+              switch (newLastMsg.type) {
+                case 'image':
+                  bodyText = '📷 Photo';
+                  break;
+                case 'video':
+                  bodyText = '📹 Video';
+                  break;
+                case 'audio':
+                  bodyText = '🎵 Voice message';
+                  break;
+                case 'document':
+                  bodyText = '📄 Document';
+                  break;
+                default:
+                  bodyText = newLastMsg.content;
+              }
+
               if (newLastMsg.content.isEmpty && newLastMsg.type == 'text') {
-                 // For deleted messages or similar empty cases, do nothing or handle specially
                  if(newLastMsg.fileUrl.isEmpty) continue; 
               }
 
-              if (hideMessage) {
-                bodyText = hideSender ? '' : 'Sent a message';
-              }
+              final chatRoute = '/chat/${newLastMsg.senderId}';
 
-              // Show in-app notification using a Snackbar (if app is foregrounded)
-              if (!inBackground) {
-                scaffoldMessengerKey.currentState?.clearSnackBars();
-                scaffoldMessengerKey.currentState?.showSnackBar(
-                  SnackBar(
-                    content: Text(hideSender ? 'New message: $bodyText' : 'New message from ${newLastMsg.senderId == currentUser.uid ? "You" : "Contact"}: $bodyText'),
-                    duration: const Duration(seconds: 3),
-                  ),
+              // Fetch sender name asynchronously and show notification
+              _getSenderName(newLastMsg.senderId).then((senderName) {
+                // Show system notification (works in foreground AND background)
+                NotificationService().showMessageNotification(
+                  id: newLastMsg.id.hashCode,
+                  senderName: senderName,
+                  messageBody: bodyText,
+                  chatRoute: chatRoute,
+                  hideSender: hideSender,
+                  hideMessage: hideMessage,
                 );
-              }
 
-              NotificationService().showCustomNotification(
-                id: newLastMsg.id.hashCode,
-                title: 'New Message',
-                body: bodyText,
-                payload: '/chat/${newLastMsg.senderId}',
-              );
+                // Show in-app snackbar only if in foreground and not in chat
+                if (!inBackground) {
+                  final snackTitle = hideSender ? 'New message' : senderName;
+                  final snackBody = hideMessage ? 'Sent a message' : bodyText;
+                  scaffoldMessengerKey.currentState?.clearSnackBars();
+                  scaffoldMessengerKey.currentState?.showSnackBar(
+                    SnackBar(
+                      content: Text('$snackTitle: $snackBody'),
+                      duration: const Duration(seconds: 3),
+                      behavior: SnackBarBehavior.floating,
+                      action: SnackBarAction(
+                        label: 'View',
+                        onPressed: () => appRouter.go(chatRoute),
+                      ),
+                    ),
+                  );
+                }
+              });
             }
           }
         }
