@@ -73,32 +73,12 @@ class NotificationService {
           .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
           ?.createNotificationChannel(channel);
 
-      // 4. Listen to foreground messages from FCM — show as local notification
+      // 4. Listen to foreground messages from FCM
+      // We do NOT show local notifications directly here because it doesn't know 
+      // which chat screen is active. The listener in main.dart handles foreground 
+      // notifications accurately.
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        dev.log("Foreground FCM message: ${message.messageId}");
-        final notification = message.notification;
-        if (notification != null) {
-          // Build payload for navigation on tap
-          final senderId = message.data['senderId'] ?? '';
-          final payload = senderId.isNotEmpty ? '/chat/$senderId' : null;
-
-          _localNotifications.show(
-            id: notification.hashCode,
-            title: notification.title,
-            body: notification.body,
-            notificationDetails: const NotificationDetails(
-              android: AndroidNotificationDetails(
-                'mechat_channel',
-                'MeChat Messages',
-                channelDescription: 'Notifications for new messages',
-                importance: Importance.max,
-                priority: Priority.high,
-                autoCancel: true,
-              ),
-            ),
-            payload: payload,
-          );
-        }
+        dev.log("Foreground FCM message received: ${message.messageId}");
       });
 
       // 5. Handle notification tap when app was terminated

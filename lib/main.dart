@@ -157,8 +157,8 @@ class _MeChatAppState extends ConsumerState<MeChatApp> with WidgetsBindingObserv
             final lifecycleState = WidgetsBinding.instance.lifecycleState;
             final inBackground = lifecycleState != AppLifecycleState.resumed;
 
-            // Only notify if we are NOT in the chat screen or app is in background
-            if (!isChatScreenActive || inBackground) {
+            // Only show local foreground notification if app is active and NOT in the chat
+            if (!inBackground && !isChatScreenActive) {
               // Read user's notification settings
               final hideSender = currentUser.hideNotificationSender;
               final hideMessage = currentUser.hideNotificationMessage;
@@ -189,7 +189,6 @@ class _MeChatAppState extends ConsumerState<MeChatApp> with WidgetsBindingObserv
 
               // Fetch sender name asynchronously and show notification
               _getSenderName(newLastMsg.senderId).then((senderName) {
-                // Show system notification (works in foreground AND background)
                 NotificationService().showMessageNotification(
                   id: newLastMsg.id.hashCode,
                   senderName: senderName,
@@ -198,24 +197,6 @@ class _MeChatAppState extends ConsumerState<MeChatApp> with WidgetsBindingObserv
                   hideSender: hideSender,
                   hideMessage: hideMessage,
                 );
-
-                // Show in-app snackbar only if in foreground and not in chat
-                if (!inBackground) {
-                  final snackTitle = hideSender ? 'New message' : senderName;
-                  final snackBody = hideMessage ? 'Sent a message' : bodyText;
-                  scaffoldMessengerKey.currentState?.clearSnackBars();
-                  scaffoldMessengerKey.currentState?.showSnackBar(
-                    SnackBar(
-                      content: Text('$snackTitle: $snackBody'),
-                      duration: const Duration(seconds: 3),
-                      behavior: SnackBarBehavior.floating,
-                      action: SnackBarAction(
-                        label: 'View',
-                        onPressed: () => appRouter.go(chatRoute),
-                      ),
-                    ),
-                  );
-                }
               });
             }
           }
