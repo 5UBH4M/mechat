@@ -281,6 +281,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       }
                     },
                   ),
+                  // Always Send HD Media Switch
+                  SwitchListTile(
+                    secondary: Icon(Icons.high_quality_rounded, color: theme.colorScheme.primary),
+                    title: const Text('Always Send HD Media'),
+                    subtitle: const Text('Send images in highest resolution without compression'),
+                    value: user.alwaysSendHD,
+                    onChanged: (val) {
+                      ref.read(profileNotifierProvider.notifier).updatePrivacySettings(
+                            alwaysSendHD: val,
+                            readReceiptsEnabled: user.readReceiptsEnabled,
+                            lastSeenVisible: user.lastSeenVisible,
+                            profilePhotoVisible: user.profilePhotoVisible,
+                          );
+                    },
+                  ),
                   
                   // Blocked Users Screen Link
                   ListTile(

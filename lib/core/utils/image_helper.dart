@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
+import 'package:cached_network_image/cached_network_image.dart';
 
 class ImageHelper {
   /// Compresses the image and converts it to a base64 string.
@@ -45,6 +46,24 @@ Uint8List _decodeBase64(String data) {
   return base64Decode(data);
 }
 
+/// Static in-memory cache for decoded base64 image bytes.
+/// Keyed by the base64 string's hashCode to avoid re-decoding on widget
+/// recreation (which happens every time the message list rebuilds).
+class _Base64Cache {
+  static final Map<int, Uint8List> _cache = {};
+  static const int _maxEntries = 100;
+
+  static Uint8List? get(String key) => _cache[key.hashCode];
+
+  static void put(String key, Uint8List bytes) {
+    final hash = key.hashCode;
+    if (_cache.length >= _maxEntries && !_cache.containsKey(hash)) {
+      _cache.remove(_cache.keys.first);
+    }
+    _cache[hash] = bytes;
+  }
+}
+
 class Base64Image extends StatefulWidget {
   final String base64String;
   final double? width;
@@ -63,61 +82,75 @@ class Base64Image extends StatefulWidget {
   State<Base64Image> createState() => _Base64ImageState();
 }
 
-class _Base64ImageState extends State<Base64Image> {
+class _Base64ImageState extends State<Base64Image>
+    with AutomaticKeepAliveClientMixin {
   Uint8List? _bytes;
   bool _hasError = false;
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   void initState() {
     super.initState();
-    _decodeImage();
+    _loadImage();
   }
 
   @override
   void didUpdateWidget(Base64Image oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.base64String != widget.base64String) {
-      _bytes = null;
       _hasError = false;
-      _decodeImage();
+      _loadImage();
     }
   }
 
-  Future<void> _decodeImage() async {
+  void _loadImage() {
     if (widget.base64String.isEmpty) return;
-    if (widget.base64String.startsWith('data:image')) {
-      final base64Data = widget.base64String.split(',').last;
-      try {
-        final bytes = await compute(_decodeBase64, base64Data);
-        if (mounted) {
-          setState(() {
-            _bytes = bytes;
-          });
-        }
-      } catch (e) {
-        if (mounted) {
-          setState(() {
-            _hasError = true;
-          });
-        }
-      }
+    if (!widget.base64String.startsWith('data:image')) return;
+
+    // Check static cache first — instant, no flicker
+    final cached = _Base64Cache.get(widget.base64String);
+    if (cached != null) {
+      _bytes = cached;
+      return; // Already decoded, no setState needed during build
     }
+
+    // Decode in background isolate
+    final base64Data = widget.base64String.split(',').last;
+    compute(_decodeBase64, base64Data).then((bytes) {
+      _Base64Cache.put(widget.base64String, bytes);
+      if (mounted) {
+        setState(() {
+          _bytes = bytes;
+        });
+      }
+    }).catchError((_) {
+      if (mounted) {
+        setState(() {
+          _hasError = true;
+        });
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required by AutomaticKeepAliveClientMixin
+
     if (widget.base64String.isEmpty) {
       return Icon(Icons.person, size: widget.width ?? 50, color: Colors.grey);
     }
-    
+
     if (widget.base64String.startsWith('data:image')) {
       if (_hasError) {
         return Icon(Icons.error, size: widget.width ?? 50, color: Colors.grey);
       }
       if (_bytes == null) {
+        // Show a fixed-size placeholder so layout doesn't jump
         return SizedBox(
-          width: widget.width ?? 50,
-          height: widget.height ?? 50,
+          width: widget.width ?? 200,
+          height: widget.height ?? 200,
         );
       }
       return Image.memory(
@@ -128,21 +161,34 @@ class _Base64ImageState extends State<Base64Image> {
         gaplessPlayback: true,
       );
     }
-    
-    return Image.network(
-      widget.base64String,
+
+    // Network URL — CachedNetworkImage handles its own disk/memory cache
+    return CachedNetworkImage(
+      imageUrl: widget.base64String,
       width: widget.width,
       height: widget.height,
       fit: widget.fit,
-      errorBuilder: (context, error, stackTrace) => Icon(Icons.error, size: widget.width ?? 50, color: Colors.grey),
+      fadeInDuration: Duration.zero,
+      fadeOutDuration: Duration.zero,
+      placeholder: (context, url) => SizedBox(
+        width: widget.width ?? 200,
+        height: widget.height ?? 200,
+      ),
+      errorWidget: (context, url, error) =>
+          Icon(Icons.error, size: widget.width ?? 50, color: Colors.grey),
     );
   }
 }
 
 ImageProvider getBase64ImageProvider(String base64String) {
   if (base64String.startsWith('data:image')) {
+    // Use cached bytes if available
+    final cached = _Base64Cache.get(base64String);
+    if (cached != null) return MemoryImage(cached);
     final base64Data = base64String.split(',').last;
-    return MemoryImage(base64Decode(base64Data));
+    final bytes = base64Decode(base64Data);
+    _Base64Cache.put(base64String, bytes);
+    return MemoryImage(bytes);
   }
-  return NetworkImage(base64String);
+  return CachedNetworkImageProvider(base64String);
 }

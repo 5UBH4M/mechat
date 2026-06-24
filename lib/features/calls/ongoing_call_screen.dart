@@ -44,10 +44,15 @@ class _OngoingCallScreenState extends ConsumerState<OngoingCallScreen> with Widg
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final callState = ref.watch(callNotifierProvider);
-    final notifier = ref.watch(callNotifierProvider.notifier);
+    final notifier = ref.read(callNotifierProvider.notifier);
     final user = ref.watch(authNotifierProvider).user;
     final disableMute = user?.disableMute ?? false;
     final disableCameraOff = user?.disableCameraOff ?? false;
+
+    // Use theme colors for voice calls, black/white for video calls
+    final bgColor = callState.isVideo ? Colors.black : theme.scaffoldBackgroundColor;
+    final textColor = callState.isVideo ? Colors.white : theme.colorScheme.onSurface;
+    final textMutedColor = callState.isVideo ? Colors.white70 : theme.colorScheme.onSurface.withValues(alpha: 0.7);
 
     // Automatically navigate home if the call is closed
     ref.listen<CallState>(callNotifierProvider, (previous, next) {
@@ -97,7 +102,7 @@ class _OngoingCallScreenState extends ConsumerState<OngoingCallScreen> with Widg
 
     return PipWidget(
       pipChild: Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: bgColor,
         body: Center(
           child: ref.watch(callNotifierProvider).isVideo 
             ? _buildVideoCallStream(ref.watch(callNotifierProvider), ref.watch(callNotifierProvider.notifier))
@@ -107,7 +112,7 @@ class _OngoingCallScreenState extends ConsumerState<OngoingCallScreen> with Widg
       child: Builder(
         builder: (context) {
         return Scaffold(
-          backgroundColor: Colors.black,
+          backgroundColor: bgColor,
           body: SafeArea(
             child: Stack(
               children: [
@@ -127,8 +132,8 @@ class _OngoingCallScreenState extends ConsumerState<OngoingCallScreen> with Widg
                 children: [
                   Text(
                     callState.remoteUserName,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: textColor,
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                     ),
@@ -138,8 +143,8 @@ class _OngoingCallScreenState extends ConsumerState<OngoingCallScreen> with Widg
                     callState.status == 'connected'
                         ? DateFormatter.formatCallTimer(callState.duration)
                         : callState.status.toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white70,
+                    style: TextStyle(
+                      color: textMutedColor,
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
@@ -305,17 +310,17 @@ class _OngoingCallScreenState extends ConsumerState<OngoingCallScreen> with Widg
           CircleAvatar(
             radius: 64,
             backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
-            child: const Icon(
+            child: Icon(
               Icons.person,
               size: 72,
-              color: Colors.white60,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
             ),
           ),
           const SizedBox(height: 48),
-          const Text(
+          Text(
             'Ongoing voice call...',
             style: TextStyle(
-              color: Colors.white60,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
               fontSize: 16,
               fontStyle: FontStyle.italic,
             ),

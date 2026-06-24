@@ -13,8 +13,6 @@ class IncomingCallScreen extends ConsumerStatefulWidget {
 }
 
 class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
-  Timer? _autoAcceptTimer;
-  int _secondsLeft = 5;
 
   @override
   void initState() {
@@ -26,32 +24,10 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final user = ref.read(authNotifierProvider).user;
       if (user?.autoAcceptCalls == true) {
-        _startAutoAcceptTimer();
+        // Immediately answer the call
+        ref.read(callNotifierProvider.notifier).answerCall();
       }
     });
-  }
-
-  void _startAutoAcceptTimer() {
-    _autoAcceptTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-      setState(() {
-        if (_secondsLeft > 1) {
-          _secondsLeft--;
-        } else {
-          timer.cancel();
-          ref.read(callNotifierProvider.notifier).answerCall();
-        }
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    _autoAcceptTimer?.cancel();
-    super.dispose();
   }
 
   @override
@@ -73,7 +49,7 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
     });
 
     return Scaffold(
-      backgroundColor: Colors.black, // Dark overlay for incoming call screen
+      backgroundColor: theme.scaffoldBackgroundColor, // Use theme background instead of black
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 48.0),
@@ -87,17 +63,17 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
                   CircleAvatar(
                     radius: 56,
                     backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
-                    child: const Icon(
+                    child: Icon(
                       Icons.person,
                       size: 64,
-                      color: Colors.white70,
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                     ),
                   ),
                   const SizedBox(height: 24),
                   Text(
                     callState.remoteUserName,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: theme.colorScheme.onSurface,
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
                     ),
@@ -105,8 +81,8 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
                   const SizedBox(height: 12),
                   Text(
                     callState.isVideo ? 'Incoming Video Call...' : 'Incoming Voice Call...',
-                    style: const TextStyle(
-                      color: Colors.white60,
+                    style: TextStyle(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                       fontSize: 16,
                       fontStyle: FontStyle.italic,
                     ),
@@ -115,9 +91,9 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
                     Padding(
                       padding: const EdgeInsets.only(top: 24.0),
                       child: Text(
-                        'Auto-accepting in $_secondsLeft seconds...',
-                        style: const TextStyle(
-                          color: Colors.white70,
+                        'Auto-accepting call...',
+                        style: TextStyle(
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
                         ),
@@ -127,69 +103,55 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
               ),
               
               // Acceptance & Rejection Actions
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  // Reject Button
-                  Column(
-                    children: [
-                      IconButton.filled(
-                        style: IconButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          minimumSize: const Size(72, 72),
-                        ),
-                        icon: const Icon(Icons.call_end, color: Colors.white, size: 32),
-                        onPressed: () {
-                          _autoAcceptTimer?.cancel();
-                          ref.read(callNotifierProvider.notifier).rejectCall();
-                        },
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Decline',
-                        style: TextStyle(color: Colors.white70, fontSize: 14),
-                      )
-                    ],
-                  ),
-                  
-                  // Accept Button
-                  Column(
-                    children: [
-                      Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          if (autoAccept)
-                            SizedBox(
-                              width: 88,
-                              height: 88,
-                              child: CircularProgressIndicator(
-                                value: _secondsLeft / 5,
-                                color: Colors.greenAccent,
-                                strokeWidth: 4,
-                              ),
-                            ),
-                          IconButton.filled(
-                            style: IconButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              minimumSize: const Size(72, 72),
-                            ),
-                            icon: const Icon(Icons.call, color: Colors.white, size: 32),
-                            onPressed: () {
-                              _autoAcceptTimer?.cancel();
-                              ref.read(callNotifierProvider.notifier).answerCall();
-                            },
+              if (!autoAccept)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    // Reject Button
+                    Column(
+                      children: [
+                        IconButton.filled(
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            minimumSize: const Size(72, 72),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Accept',
-                        style: TextStyle(color: Colors.white70, fontSize: 14),
-                      )
-                    ],
-                  ),
-                ],
-              ),
+                          icon: const Icon(Icons.call_end, color: Colors.white, size: 32),
+                          onPressed: () {
+                            ref.read(callNotifierProvider.notifier).rejectCall();
+                          },
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Decline',
+                          style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.7), fontSize: 14),
+                        ),
+                      ],
+                    ),
+                    
+                    // Accept Button
+                    Column(
+                      children: [
+                        IconButton.filled(
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            minimumSize: const Size(72, 72),
+                          ),
+                          icon: Icon(callState.isVideo ? Icons.videocam : Icons.call, color: Colors.white, size: 32),
+                          onPressed: () {
+                            ref.read(callNotifierProvider.notifier).answerCall();
+                          },
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Accept',
+                          style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.7), fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              if (autoAccept)
+                const SizedBox(height: 100), // Placeholder to keep spacing when buttons are hidden
             ],
           ),
         ),

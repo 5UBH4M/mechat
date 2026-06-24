@@ -300,50 +300,40 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   // --- Media Uploading ---
   Future<void> _pickImage() async {
-    final theme = Theme.of(context);
-    
-    // Ask the user for quality preference before picking the image
-    final String? qualityPref = await showDialog<String>(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: theme.colorScheme.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text('Media Quality', style: theme.textTheme.titleLarge),
-          content: Text(
-            'How would you like to send this image?',
-            style: theme.textTheme.bodyMedium,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, 'standard'),
-              child: Text(
-                'Standard (Faster)', 
-                style: TextStyle(color: theme.colorScheme.onSurface),
-              ),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx, 'hd'),
-              style: FilledButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary,
-                foregroundColor: theme.colorScheme.onPrimary,
-              ),
-              child: const Text('HD (Highest Resolution)'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (qualityPref == null) return; // User cancelled
-
     try {
       final picker = ImagePicker();
-      // Use 100 for HD (no compression), 70 for Standard (compressed)
-      final int targetQuality = (qualityPref == 'hd') ? 100 : 70;
+      final user = ref.read(authNotifierProvider).user;
+      final int targetQuality = (user?.alwaysSendHD == true) ? 100 : 70;
+      
+      final pickedList = await picker.pickMultiImage(
+        imageQuality: targetQuality,
+      );
+      
+      for (var picked in pickedList) {
+        final file = File(picked.path);
+        final size = await file.length();
+        await ref.read(chatNotifierProvider.notifier).sendFileMessage(
+              receiverId: widget.receiverId,
+              filePath: picked.path,
+              fileName: picked.name,
+              fileSize: size,
+              type: 'image',
+            );
+      }
+      if (pickedList.isNotEmpty) {
+        _scrollToBottom();
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _takePhoto() async {
+    try {
+      final picker = ImagePicker();
+      final user = ref.read(authNotifierProvider).user;
+      final int targetQuality = (user?.alwaysSendHD == true) ? 100 : 70;
       
       final picked = await picker.pickImage(
-        source: ImageSource.gallery, 
+        source: ImageSource.camera, 
         imageQuality: targetQuality,
       );
       
@@ -364,28 +354,31 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Future<void> _pickGenericFile() async {
     try {
-      final result = await FilePicker.pickFiles(type: FileType.any);
-      if (result != null && result.files.single.path != null) {
-        final file = result.files.single;
-        final size = file.size;
-        final path = file.path!;
-        
-        // Determine type based on extension
-        String type = 'document';
-        final ext = file.extension?.toLowerCase();
-        if (ext == 'mp4' || ext == 'mov' || ext == 'mkv') {
-          type = 'video';
-        } else if (ext == 'mp3' || ext == 'wav' || ext == 'm4a') {
-          type = 'audio';
-        }
+      final result = await FilePicker.pickFiles(type: FileType.any, allowMultiple: true);
+      if (result != null && result.files.isNotEmpty) {
+        for (var file in result.files) {
+          if (file.path != null) {
+            final size = file.size;
+            final path = file.path!;
+            
+            // Determine type based on extension
+            String type = 'document';
+            final ext = file.extension?.toLowerCase();
+            if (ext == 'mp4' || ext == 'mov' || ext == 'mkv') {
+              type = 'video';
+            } else if (ext == 'mp3' || ext == 'wav' || ext == 'm4a') {
+              type = 'audio';
+            }
 
-        await ref.read(chatNotifierProvider.notifier).sendFileMessage(
-              receiverId: widget.receiverId,
-              filePath: path,
-              fileName: file.name,
-              fileSize: size,
-              type: type,
-            );
+            await ref.read(chatNotifierProvider.notifier).sendFileMessage(
+                  receiverId: widget.receiverId,
+                  filePath: path,
+                  fileName: file.name,
+                  fileSize: size,
+                  type: type,
+                );
+          }
+        }
         _scrollToBottom();
       }
     } catch (_) {}
@@ -882,7 +875,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           itemPositionsListener: _itemPositionsListener,
                           itemCount: messagesList.length,
                           padding: const EdgeInsets.all(16),
-                          addAutomaticKeepAlives: false,
                           itemBuilder: (context, index) {
                             final msg = messagesList[index];
                             final isMe = msg.senderId == currentUser?.uid;
@@ -1060,6 +1052,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
 
     return _SwipeToReply(
+      key: ValueKey(msg.id),
       isMe: isMe,
       focusNode: _messageFocusNode,
       onReply: () {
@@ -1143,7 +1136,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         },
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(10),
-                          child: Base64Image(base64String: msg.fileUrl, fit: BoxFit.cover),
+                          child: Base64Image(key: ValueKey(msg.fileUrl), base64String: msg.fileUrl, fit: BoxFit.cover),
                         ),
                       )
                     else if (msg.type == 'audio')
@@ -1457,6 +1450,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _buildMediaButton(
+                  icon: Icons.camera_alt,
+                  color: Colors.pink,
+                  label: 'Camera',
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _takePhoto();
+                  },
+                ),
+                _buildMediaButton(
                   icon: Icons.image,
                   color: Colors.purple,
                   label: 'Gallery',
@@ -1672,6 +1674,7 @@ class _SwipeToReply extends StatefulWidget {
   final FocusNode? focusNode;
 
   const _SwipeToReply({
+    super.key,
     required this.child,
     required this.onReply,
     required this.isMe,

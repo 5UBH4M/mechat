@@ -29,6 +29,7 @@ class UserModel extends UserEntity {
     super.disableCameraOff = true,
     super.hideNotificationSender = false,
     super.hideNotificationMessage = false,
+    super.alwaysSendHD = false,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -65,6 +66,7 @@ class UserModel extends UserEntity {
       disableCameraOff: json['disableCameraOff'] as bool? ?? true,
       hideNotificationSender: json['hideNotificationSender'] as bool? ?? false,
       hideNotificationMessage: json['hideNotificationMessage'] as bool? ?? false,
+      alwaysSendHD: json['alwaysSendHD'] as bool? ?? false,
     );
   }
 
@@ -96,6 +98,7 @@ class UserModel extends UserEntity {
       'disableCameraOff': disableCameraOff,
       'hideNotificationSender': hideNotificationSender,
       'hideNotificationMessage': hideNotificationMessage,
+      'alwaysSendHD': alwaysSendHD,
     };
   }
 
@@ -165,6 +168,7 @@ class UserModel extends UserEntity {
     bool? disableCameraOff,
     bool? hideNotificationSender,
     bool? hideNotificationMessage,
+    bool? alwaysSendHD,
   }) {
     return UserModel(
       uid: uid ?? this.uid,
@@ -193,6 +197,7 @@ class UserModel extends UserEntity {
       disableCameraOff: disableCameraOff ?? this.disableCameraOff,
       hideNotificationSender: hideNotificationSender ?? this.hideNotificationSender,
       hideNotificationMessage: hideNotificationMessage ?? this.hideNotificationMessage,
+      alwaysSendHD: alwaysSendHD ?? this.alwaysSendHD,
     );
   }
 }
