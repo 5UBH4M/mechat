@@ -22,15 +22,21 @@ class AuthRepositoryImpl implements AuthRepository {
         return null;
       }
       
-      // Try to read local cache
+      // Always try local cache first — instant, works offline
       final cached = _hive.getUser();
       if (cached != null) {
+        // Refresh from Firestore in the background (non-blocking)
+        _refreshUserFromFirestore(firebaseUser.uid);
         return UserModel.fromJson(cached);
       }
 
-      // If no cache, fetch from Firestore
+      // No cache — must fetch from Firestore (with timeout for offline safety)
       try {
-        final doc = await _db.collection(AppConstants.usersCollection).doc(firebaseUser.uid).get();
+        final doc = await _db
+            .collection(AppConstants.usersCollection)
+            .doc(firebaseUser.uid)
+            .get(const GetOptions(source: Source.serverAndCache))
+            .timeout(const Duration(seconds: 5));
         if (doc.exists) {
           UserModel model = UserModel.fromJson(doc.data()!);
           
@@ -66,6 +72,28 @@ class AuthRepositoryImpl implements AuthRepository {
     } catch (e) {
       return Stream.value(null);
     }
+  }
+
+  /// Refreshes user data from Firestore and updates local cache (non-blocking)
+  Future<void> _refreshUserFromFirestore(String uid) async {
+    try {
+      final doc = await _db
+          .collection(AppConstants.usersCollection)
+          .doc(uid)
+          .get()
+          .timeout(const Duration(seconds: 10));
+      if (doc.exists) {
+        UserModel model = UserModel.fromJson(doc.data()!);
+        try {
+          final token = await NotificationService().getToken();
+          if (token != null && token != model.pushToken) {
+            await _db.collection(AppConstants.usersCollection).doc(uid).update({'pushToken': token});
+            model = model.copyWith(pushToken: token);
+          }
+        } catch (_) {}
+        await _hive.saveUser(model.toJson());
+      }
+    } catch (_) {}
   }
 
   @override

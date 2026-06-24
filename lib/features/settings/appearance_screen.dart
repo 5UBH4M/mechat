@@ -35,30 +35,6 @@ class AppearanceScreen extends ConsumerWidget {
             themeType: AppThemeType.dark,
             currentTheme: themeMode,
           ),
-          _buildThemeTile(
-            context,
-            ref,
-            title: 'Terminal Theme',
-            icon: Icons.terminal_rounded,
-            themeType: AppThemeType.terminal,
-            currentTheme: themeMode,
-          ),
-          _buildThemeTile(
-            context,
-            ref,
-            title: 'Cyberpunk Theme',
-            icon: Icons.memory_rounded,
-            themeType: AppThemeType.cyberpunk,
-            currentTheme: themeMode,
-          ),
-          _buildThemeTile(
-            context,
-            ref,
-            title: 'Old Phone Theme',
-            icon: Icons.phone_android_rounded,
-            themeType: AppThemeType.oldPhone,
-            currentTheme: themeMode,
-          ),
           const Padding(
             padding: EdgeInsets.all(16.0),
             child: Divider(thickness: 0.5),
@@ -66,11 +42,9 @@ class AppearanceScreen extends ConsumerWidget {
           ListTile(
             leading: Icon(Icons.tune_rounded, color: theme.colorScheme.primary),
             title: const Text('Advanced Customization', style: TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: const Text('Create your own custom theme styles'),
+            subtitle: const Text('Terminal, Cyberpunk, Old Phone & custom themes'),
             trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
             onTap: () {
-              // Ensure we turn off global advanced placeholder so we can edit it if needed,
-              // actually it's fine, we can just push the custom theme screen
               context.push('/custom-theme');
             },
           ),

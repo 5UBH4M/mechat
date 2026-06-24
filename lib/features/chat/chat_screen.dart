@@ -21,6 +21,7 @@ import '../../core/utils/date_formatter.dart';
 import '../../core/utils/image_helper.dart';
 import '../../core/theme/theme_controller.dart';
 import '../../core/theme/theme_provider.dart';
+import '../../core/theme/advanced_theme_model.dart';
 import '../../core/widgets/image_viewer_screen.dart';
 import '../../domain/entities/message_entity.dart';
 import '../../domain/entities/user_entity.dart';
@@ -576,7 +577,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final advTheme = ref.watch(advancedThemeProvider(chatId));
     final globalThemeMode = ref.watch(themeModeProvider);
     final isDark = globalThemeMode == AppThemeType.dark || globalThemeMode == AppThemeType.terminal || globalThemeMode == AppThemeType.cyberpunk || globalThemeMode == AppThemeType.oldPhone;
-    final theme = advTheme.toThemeData(isDark ? Brightness.dark : Brightness.light);
+    
+    final customThemeKeys = ['terminal', 'cyberpunk', 'oldphone', 'material3'];
+    final useAdvancedThemeData = !customThemeKeys.contains(advTheme.id);
+    
+    final theme = useAdvancedThemeData 
+        ? advTheme.toThemeData(isDark ? Brightness.dark : Brightness.light) 
+        : Theme.of(context);
 
     final messagesAsync = ref.watch(chatMessagesProvider(chatId));
     final chatsAsync = ref.watch(recentChatsProvider);
@@ -602,7 +609,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final isBlockedByThem = currentUser != null && _receiverUser != null &&
         _receiverUser!.blockedUsers.contains(currentUser.uid);
     final isChatDisabled = isBlockedByMe || isBlockedByThem;
-    final wallpaperPath = ref.read(hiveServiceProvider).getChatWallpaper();
+    final globalWallpaper = ref.read(hiveServiceProvider).getChatWallpaper();
+    final wallpaperPath = useAdvancedThemeData 
+        ? (advTheme.backgroundTheme.wallpaperUrl ?? globalWallpaper)
+        : globalWallpaper;
     
     final hidePhoto = currentUser?.hideContactPhotoInChat == true && !_isNotesToSelf;
     final hideName = currentUser?.hideContactNameInChat == true && !_isNotesToSelf;
@@ -626,7 +636,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return Theme(
       data: theme,
       child: Scaffold(
-        backgroundColor: theme.colorScheme.surface,
+        backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         leadingWidth: 40,
         leading: Padding(
@@ -879,7 +889,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                             final msg = messagesList[index];
                             final isMe = msg.senderId == currentUser?.uid;
 
-                            return _buildMessageBubble(context, msg, isMe, currentUser, theme, searchState, index);
+                            return _buildMessageBubble(context, msg, isMe, currentUser, theme, advTheme, useAdvancedThemeData, searchState, index);
                           },
                         ),
                       ),
@@ -949,7 +959,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             else if (partnerRequestedDisconnect && isConnectionEstablished)
               _buildDisconnectRequestUI(theme)
             else
-              _buildInputBar(theme),
+              _buildInputBar(theme, advTheme, useAdvancedThemeData),
           ],
         ),
       ),
@@ -1028,26 +1038,58 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   // Message Bubble construction
-  Widget _buildMessageBubble(BuildContext context, MessageEntity msg, bool isMe, UserEntity? currentUser, ThemeData theme, ChatSearchState searchState, int index) {
+  Widget _buildMessageBubble(BuildContext context, MessageEntity msg, bool isMe, UserEntity? currentUser, ThemeData theme, AdvancedThemeModel advTheme, bool useAdvancedThemeData, ChatSearchState searchState, int index) {
     bool isMatch = searchState.isSearching && searchState.matchIndices.contains(index);
     bool isCurrentMatch = isMatch && searchState.matchIndices.isNotEmpty && searchState.currentMatchIndex != -1 && searchState.matchIndices[searchState.currentMatchIndex] == index;
     
-    Color baseBubbleColor = isMe ? theme.colorScheme.primary : theme.colorScheme.secondaryContainer;
+    final bubbleConf = isMe ? advTheme.senderBubble : advTheme.receiverBubble;
+    
+    Color baseBubbleColor;
+    if (useAdvancedThemeData) {
+      baseBubbleColor = Color(bubbleConf.backgroundColor);
+    } else {
+      baseBubbleColor = isMe ? theme.colorScheme.primary : theme.colorScheme.secondaryContainer;
+    }
+    
     if (isMatch && searchState.isFuzzy) {
       baseBubbleColor = isCurrentMatch ? Colors.deepOrange : Colors.orange;
     }
     
     final bubbleColor = baseBubbleColor;
-    final textColor = isMe ? theme.colorScheme.onPrimary : theme.colorScheme.onSecondaryContainer;
+    
+    final textColor;
+    if (useAdvancedThemeData) {
+      // In advanced themes, use the custom text color from the theme model
+      final colorValue = isMe ? advTheme.textTheme.senderMessageColor : advTheme.textTheme.receiverMessageColor;
+      textColor = Color(colorValue);
+    } else {
+      textColor = isMe ? theme.colorScheme.onPrimary : theme.colorScheme.onSecondaryContainer;
+    }
+    
     final alignment = isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start;
     final isTerminal = theme.appBarTheme.titleTextStyle?.fontFamily == 'monospace';
     
     // Extract dynamic bubble radius from theme
-    double bubbleRadius = 16.0;
-    if (theme.cardTheme.shape is RoundedRectangleBorder) {
-      final shape = theme.cardTheme.shape as RoundedRectangleBorder;
-      if (shape.borderRadius is BorderRadius) {
-        bubbleRadius = (shape.borderRadius as BorderRadius).topLeft.x;
+    double radiusTopLeft = 16.0;
+    double radiusTopRight = 16.0;
+    double radiusBottomLeft = isMe ? 16.0 : 0.0;
+    double radiusBottomRight = isMe ? 0.0 : 16.0;
+    
+    if (useAdvancedThemeData) {
+      radiusTopLeft = bubbleConf.radiusTopLeft;
+      radiusTopRight = bubbleConf.radiusTopRight;
+      radiusBottomLeft = bubbleConf.radiusBottomLeft;
+      radiusBottomRight = bubbleConf.radiusBottomRight;
+    } else {
+      if (theme.cardTheme.shape is RoundedRectangleBorder) {
+        final shape = theme.cardTheme.shape as RoundedRectangleBorder;
+        if (shape.borderRadius is BorderRadius) {
+          final rad = (shape.borderRadius as BorderRadius).topLeft.x;
+          radiusTopLeft = rad;
+          radiusTopRight = rad;
+          radiusBottomLeft = isMe ? rad : 0.0;
+          radiusBottomRight = isMe ? 0.0 : rad;
+        }
       }
     }
 
@@ -1076,10 +1118,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   color: bubbleColor,
                   border: isTerminal ? Border.all(color: theme.colorScheme.onSurface, width: 1) : null,
                   borderRadius: isTerminal ? BorderRadius.zero : BorderRadius.only(
-                    topLeft: Radius.circular(bubbleRadius),
-                    topRight: Radius.circular(bubbleRadius),
-                    bottomLeft: isMe ? Radius.circular(bubbleRadius) : const Radius.circular(0),
-                    bottomRight: isMe ? const Radius.circular(0) : Radius.circular(bubbleRadius),
+                    topLeft: Radius.circular(radiusTopLeft),
+                    topRight: Radius.circular(radiusTopRight),
+                    bottomLeft: Radius.circular(radiusBottomLeft),
+                    bottomRight: Radius.circular(radiusBottomRight),
                   ),
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -1345,7 +1387,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  Widget _buildInputBar(ThemeData theme) {
+  Widget _buildInputBar(ThemeData theme, AdvancedThemeModel advTheme, bool useAdvancedThemeData) {
+    final defaultIconColor = useAdvancedThemeData ? Color(advTheme.appAppearance.iconColor) : theme.colorScheme.primary;
+    final defaultInputBg = useAdvancedThemeData ? Color(advTheme.appAppearance.inputBackgroundColor) : theme.colorScheme.surface;
+    final defaultInputText = useAdvancedThemeData ? Color(advTheme.appAppearance.inputTextColor) : theme.colorScheme.onSurface;
+
     return Container(
       key: const ValueKey('input_bar'),
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
@@ -1363,7 +1409,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         children: [
           // Media attachments button
           IconButton(
-            icon: Icon(Icons.add_circle_outline_rounded, color: theme.colorScheme.primary),
+            icon: Icon(Icons.add_circle_outline_rounded, color: defaultIconColor),
             onPressed: () => _showMediaAttachmentOptions(theme),
           ),
           
@@ -1371,7 +1417,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
+                color: defaultInputBg,
                 borderRadius: BorderRadius.circular(24),
               ),
               child: _isRecording
@@ -1381,7 +1427,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         children: [
                           Icon(Icons.mic, color: theme.colorScheme.error, size: 18),
                           const SizedBox(width: 8),
-                          const Text('Recording audio...', style: TextStyle(fontWeight: FontWeight.bold)),
+                          Text('Recording audio...', style: TextStyle(fontWeight: FontWeight.bold, color: defaultInputText)),
                           const Spacer(),
                           TextButton(
                             onPressed: () => _stopRecording(false), // Cancel
@@ -1400,9 +1446,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       },
                       textCapitalization: TextCapitalization.sentences,
                       maxLines: null,
-                      decoration: const InputDecoration(
+                      style: TextStyle(color: defaultInputText),
+                      cursorColor: defaultIconColor,
+                      decoration: InputDecoration(
                         hintText: 'Message',
-                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        hintStyle: TextStyle(color: defaultInputText.withValues(alpha: 0.5)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         fillColor: Colors.transparent,
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
@@ -1421,14 +1470,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             child: IconButton.filled(
               onPressed: _isRecording ? null : _sendText,
               style: IconButton.styleFrom(
+                backgroundColor: useAdvancedThemeData ? Color(advTheme.appAppearance.sendButtonColor) : theme.colorScheme.secondary,
                 shape: const CircleBorder(),
                 minimumSize: const Size(48, 48),
               ),
               icon: _isRecording
-                  ? const Icon(Icons.stop)
+                  ? const Icon(Icons.stop, color: Colors.white)
                   : (_messageController.text.trim().isNotEmpty
-                      ? const Icon(Icons.send)
-                      : const Icon(Icons.mic)),
+                      ? const Icon(Icons.send, color: Colors.white)
+                      : const Icon(Icons.mic, color: Colors.white)),
             ),
           ),
         ],

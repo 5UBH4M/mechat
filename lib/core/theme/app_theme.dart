@@ -188,10 +188,13 @@ class AppTheme {
         primary: fg,
         secondary: fg,
         surface: bg,
-        error: fg,
+        error: Color(0xFFFF3333),
         onPrimary: bg,
         onSecondary: bg,
         onSurface: fg,
+        primaryContainer: Color(0xFF1A1A1A),
+        secondaryContainer: Color(0xFF1A1A1A),
+        onSecondaryContainer: fg,
       ),
       scaffoldBackgroundColor: bg,
       cardTheme: const CardThemeData(
@@ -251,8 +254,13 @@ class AppTheme {
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.zero,
-          borderSide: BorderSide(color: fg, width: 1),
+          borderSide: BorderSide(color: Color(0xFFFF3333), width: 1),
         ),
+      ),
+      textSelectionTheme: const TextSelectionThemeData(
+        cursorColor: fg,
+        selectionColor: Colors.white24,
+        selectionHandleColor: fg,
       ),
       textTheme: const TextTheme(
         headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: fg, fontFamily: 'monospace'),

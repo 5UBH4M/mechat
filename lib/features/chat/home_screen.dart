@@ -91,7 +91,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
               'MeChat',
               style: theme.textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.w900,
-                color: theme.colorScheme.primary,
+                color: theme.appBarTheme.titleTextStyle?.color ?? theme.colorScheme.onSurface,
               ),
             ),
           ],

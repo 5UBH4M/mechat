@@ -22,48 +22,21 @@ void main() async {
   final hiveService = HiveService();
   await hiveService.init();
 
-  // 2. Initialize Firebase (defensively wrapped for development safety)
+  // 2. Initialize Firebase (non-blocking — never delays app start)
   try {
     await Firebase.initializeApp();
-    
-    // Initialize Push Notifications
-    final notificationService = NotificationService();
-    await notificationService.init();
-
-    // Create john_doe test user
-    try {
-      final doc = await FirebaseFirestore.instance.collection('users').doc('test_john_doe').get();
-      if (!doc.exists) {
-        await FirebaseFirestore.instance.collection('users').doc('test_john_doe').set({
-          'uid': 'test_john_doe',
-          'phoneNumber': '+11234567890',
-          'username': 'john_doe',
-          'displayName': 'John Doe',
-          'profilePictureUrl': '',
-          'about': 'Hey there! I am John Doe.',
-          'isOnline': false,
-          'lastSeen': DateTime.now().toIso8601String(),
-          'createdAt': DateTime.now().toIso8601String(),
-          'publicKey': 'fake_public_key',
-          'blockedUsers': [],
-          'pushToken': '',
-          'readReceiptsEnabled': true,
-          'lastSeenVisible': true,
-          'profilePhotoVisible': true,
-          'connectedTo': '',
-          'disconnectRequested': false,
-          'previouslyConnected': [],
-          'showPreviousConnectionsVisible': true,
-          'autoAcceptCalls': true,
-          'disableMute': true,
-          'disableCameraOff': true,
-        });
-      }
-    } catch (_) {}
   } catch (e) {
     dev.log("Firebase Initialization warning: $e");
     dev.log("The application will continue to run with local caching offline support.");
   }
+
+  // 3. Initialize notifications in the background (don't block app start)
+  Future.microtask(() async {
+    try {
+      final notificationService = NotificationService();
+      await notificationService.init();
+    } catch (_) {}
+  });
 
   runApp(
     const ProviderScope(
@@ -206,7 +179,12 @@ class _MeChatAppState extends ConsumerState<MeChatApp> with WidgetsBindingObserv
 
     final advTheme = ref.watch(advancedThemeProvider(null));
     final globalThemeId = ref.watch(themeControllerProvider).globalThemeId;
-    final useAdvancedGlobal = globalThemeId != 'material3';
+    
+    // Built-in full themes have their own ThemeData in AppTheme.
+    // We only use the generic advanced-to-ThemeData fallback for actual custom presets (WhatsApp, etc.)
+    final customThemeKeys = ['terminal', 'cyberpunk', 'oldphone', 'material3'];
+    final useAdvancedGlobal = !customThemeKeys.contains(globalThemeId);
+    
     final themeModeType = ref.watch(themeModeProvider);
 
     ThemeData lightTheme = AppTheme.lightTheme;

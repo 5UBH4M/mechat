@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mechat/core/theme/advanced_theme_model.dart';
 import 'package:mechat/core/theme/theme_controller.dart';
+import 'package:mechat/core/theme/theme_provider.dart';
 
 const List<String> _fontOptions = [
   'Roboto', 'Inter', 'Open Sans', 'Lato', 'Poppins', 'Montserrat',
@@ -71,15 +72,19 @@ class _AdvancedAppearanceScreenState extends ConsumerState<AdvancedAppearanceScr
 
   void _applyTheme() {
     final controller = ref.read(themeControllerProvider.notifier);
-    final isPreset = AdvancedThemeModel.presets.any((p) => p.id == _theme.id);
+    
+    final originalPreset = AdvancedThemeModel.presets.where((p) => p.id == _theme.id).firstOrNull;
+    final isModifiedPreset = originalPreset != null && _theme != originalPreset;
+    final isUnmodifiedPreset = originalPreset != null && !isModifiedPreset;
 
-    if (!isPreset) {
+    if (isModifiedPreset || !isUnmodifiedPreset) {
       final themeState = ref.read(themeControllerProvider);
       final existsAsCustom = themeState.customThemes.any((t) => t.id == _theme.id);
-      if (!existsAsCustom) {
+      
+      if (isModifiedPreset || !existsAsCustom) {
         final customTheme = _theme.copyWith(
           id: 'custom_${DateTime.now().millisecondsSinceEpoch}',
-          name: '${_theme.name} (Custom)',
+          name: isModifiedPreset ? '${_theme.name} (Custom)' : _theme.name,
         );
         controller.saveCustomTheme(customTheme);
         _theme = customTheme;
@@ -92,6 +97,16 @@ class _AdvancedAppearanceScreenState extends ConsumerState<AdvancedAppearanceScr
       controller.setPerChatTheme(widget.chatId!, _theme.id);
     } else {
       controller.setGlobalTheme(_theme.id);
+      
+      // Sync themeModeProvider for special built-in themes
+      final themeId = _theme.id.toLowerCase();
+      if (themeId == 'terminal') {
+        ref.read(themeModeProvider.notifier).setTheme(AppThemeType.terminal);
+      } else if (themeId == 'cyberpunk') {
+        ref.read(themeModeProvider.notifier).setTheme(AppThemeType.cyberpunk);
+      } else if (themeId == 'oldphone') {
+        ref.read(themeModeProvider.notifier).setTheme(AppThemeType.oldPhone);
+      }
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
