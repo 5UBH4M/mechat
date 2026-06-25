@@ -13,9 +13,7 @@ class AppearanceScreen extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Appearance'),
-      ),
+      appBar: AppBar(title: const Text('Appearance')),
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
@@ -41,8 +39,13 @@ class AppearanceScreen extends ConsumerWidget {
           ),
           ListTile(
             leading: Icon(Icons.tune_rounded, color: theme.colorScheme.primary),
-            title: const Text('Advanced Customization', style: TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: const Text('Terminal, Cyberpunk, Old Phone & custom themes'),
+            title: const Text(
+              'Advanced Customization',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            subtitle: const Text(
+              'Terminal, Cyberpunk, Old Phone & custom themes',
+            ),
             trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
             onTap: () {
               context.push('/custom-theme');
@@ -65,7 +68,12 @@ class AppearanceScreen extends ConsumerWidget {
     final isSelected = currentTheme == themeType;
 
     return ListTile(
-      leading: Icon(icon, color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurface.withOpacity(0.6)),
+      leading: Icon(
+        icon,
+        color: isSelected
+            ? theme.colorScheme.primary
+            : theme.colorScheme.onSurface.withOpacity(0.6),
+      ),
       title: Text(
         title,
         style: TextStyle(
@@ -84,16 +92,24 @@ class AppearanceScreen extends ConsumerWidget {
           // Standard full themes (Terminal, Cyberpunk, Old Phone)
           // Set the old theme mode
           ref.read(themeModeProvider.notifier).setTheme(themeType);
-          
+
           // Also try to find a matching advanced theme to keep things perfectly synced
           if (themeType == AppThemeType.terminal) {
-            ref.read(themeControllerProvider.notifier).setGlobalTheme('terminal');
+            ref
+                .read(themeControllerProvider.notifier)
+                .setGlobalTheme('terminal');
           } else if (themeType == AppThemeType.cyberpunk) {
-            ref.read(themeControllerProvider.notifier).setGlobalTheme('cyberpunk');
+            ref
+                .read(themeControllerProvider.notifier)
+                .setGlobalTheme('cyberpunk');
           } else if (themeType == AppThemeType.oldPhone) {
-            ref.read(themeControllerProvider.notifier).setGlobalTheme('oldphone');
+            ref
+                .read(themeControllerProvider.notifier)
+                .setGlobalTheme('oldphone');
           } else {
-            ref.read(themeControllerProvider.notifier).setGlobalTheme('material3');
+            ref
+                .read(themeControllerProvider.notifier)
+                .setGlobalTheme('material3');
           }
         }
       },

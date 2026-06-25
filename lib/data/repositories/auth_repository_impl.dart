@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../../core/constants/app_constants.dart';
 import '../../domain/entities/user_entity.dart';
 import '../../core/services/notification_service.dart';
@@ -11,64 +12,70 @@ import '../models/user_model.dart';
 class AuthRepositoryImpl implements AuthRepository {
   FirebaseAuth get _auth => FirebaseAuth.instance;
   FirebaseFirestore get _db => FirebaseFirestore.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    serverClientId: '1006584668487-cah47qgfekc4endk41d589nb23m2469q.apps.googleusercontent.com',
+  );
   final HiveService _hive = HiveService();
 
   @override
   Stream<UserEntity?> get authStateChanges {
     try {
       return _auth.authStateChanges().asyncMap((firebaseUser) async {
-      if (firebaseUser == null) {
-        await _hive.clearUser();
-        return null;
-      }
-      
-      // Always try local cache first — instant, works offline
-      final cached = _hive.getUser();
-      if (cached != null) {
-        // Refresh from Firestore in the background (non-blocking)
-        _refreshUserFromFirestore(firebaseUser.uid);
-        return UserModel.fromJson(cached);
-      }
-
-      // No cache — must fetch from Firestore (with timeout for offline safety)
-      try {
-        final doc = await _db
-            .collection(AppConstants.usersCollection)
-            .doc(firebaseUser.uid)
-            .get(const GetOptions(source: Source.serverAndCache))
-            .timeout(const Duration(seconds: 5));
-        if (doc.exists) {
-          UserModel model = UserModel.fromJson(doc.data()!);
-          
-          try {
-            final token = await NotificationService().getToken();
-            if (token != null && token != model.pushToken) {
-              await _db.collection(AppConstants.usersCollection).doc(firebaseUser.uid).update({'pushToken': token});
-              model = model.copyWith(pushToken: token);
-            }
-          } catch (_) {}
-
-          await _hive.saveUser(model.toJson());
-          return model;
+        if (firebaseUser == null) {
+          await _hive.clearUser();
+          return null;
         }
-      } catch (_) {}
-      
-      // Return a temporary user for profile creation
-      return UserModel(
-        uid: firebaseUser.uid,
-        phoneNumber: firebaseUser.phoneNumber ?? '',
-        username: '',
-        displayName: '',
-        profilePictureUrl: '',
-        about: AppConstants.defaultAbout,
-        isOnline: true,
-        lastSeen: DateTime.now(),
-        createdAt: DateTime.now(),
-        publicKey: '',
-        blockedUsers: const [],
-        pushToken: '',
-      );
-    });
+
+        // Always try local cache first — instant, works offline
+        final cached = _hive.getUser();
+        if (cached != null) {
+          // Refresh from Firestore in the background (non-blocking)
+          _refreshUserFromFirestore(firebaseUser.uid);
+          return UserModel.fromJson(cached);
+        }
+
+        // No cache — must fetch from Firestore (with timeout for offline safety)
+        try {
+          final doc = await _db
+              .collection(AppConstants.usersCollection)
+              .doc(firebaseUser.uid)
+              .get(const GetOptions(source: Source.serverAndCache))
+              .timeout(const Duration(seconds: 5));
+          if (doc.exists) {
+            UserModel model = UserModel.fromJson(doc.data()!);
+
+            try {
+              final token = await NotificationService().getToken();
+              if (token != null && token != model.pushToken) {
+                await _db
+                    .collection(AppConstants.usersCollection)
+                    .doc(firebaseUser.uid)
+                    .update({'pushToken': token});
+                model = model.copyWith(pushToken: token);
+              }
+            } catch (_) {}
+
+            await _hive.saveUser(model.toJson());
+            return model;
+          }
+        } catch (_) {}
+
+        // Return a temporary user for profile creation
+        return UserModel(
+          uid: firebaseUser.uid,
+          email: firebaseUser.email ?? '',
+          username: '',
+          displayName: '',
+          profilePictureUrl: '',
+          about: AppConstants.defaultAbout,
+          isOnline: true,
+          lastSeen: DateTime.now(),
+          createdAt: DateTime.now(),
+          publicKey: '',
+          blockedUsers: const [],
+          pushToken: '',
+        );
+      });
     } catch (e) {
       return Stream.value(null);
     }
@@ -87,7 +94,9 @@ class AuthRepositoryImpl implements AuthRepository {
         try {
           final token = await NotificationService().getToken();
           if (token != null && token != model.pushToken) {
-            await _db.collection(AppConstants.usersCollection).doc(uid).update({'pushToken': token});
+            await _db.collection(AppConstants.usersCollection).doc(uid).update({
+              'pushToken': token,
+            });
             model = model.copyWith(pushToken: token);
           }
         } catch (_) {}
@@ -106,7 +115,7 @@ class AuthRepositoryImpl implements AuthRepository {
     if (fbUser != null) {
       return UserModel(
         uid: fbUser.uid,
-        phoneNumber: fbUser.phoneNumber ?? '',
+        email: fbUser.email ?? '',
         username: '',
         displayName: '',
         profilePictureUrl: '',
@@ -123,71 +132,62 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<void> verifyPhoneNumber({
-    required String phoneNumber,
-    required void Function(String verificationId, int? resendToken) onCodeSent,
-    required void Function(String error) onVerificationFailed,
-    required void Function(String verificationId) onAutoVerify,
+  Future<void> signInWithGoogle({
+    required void Function(String error) onSignInFailed,
   }) async {
-    await _auth.verifyPhoneNumber(
-      phoneNumber: phoneNumber,
-      verificationCompleted: (PhoneAuthCredential credential) async {
-        if (credential.smsCode != null) {
-          final authResult = await _auth.signInWithCredential(credential);
-          if (authResult.user != null) {
-            onAutoVerify(credential.verificationId ?? '');
-          }
-        }
-      },
-      verificationFailed: (FirebaseAuthException e) {
-        onVerificationFailed(e.message ?? 'Verification failed');
-      },
-      codeSent: (String verificationId, int? resendToken) {
-        onCodeSent(verificationId, resendToken);
-      },
-      codeAutoRetrievalTimeout: (String verificationId) {},
-    );
-  }
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        onSignInFailed('Sign in aborted by user');
+        return;
+      }
 
-  @override
-  Future<UserEntity> signInWithOtp({
-    required String verificationId,
-    required String smsCode,
-  }) async {
-    final credential = PhoneAuthProvider.credential(
-      verificationId: verificationId,
-      smsCode: smsCode,
-    );
-
-    final userCredential = await _auth.signInWithCredential(credential);
-    final firebaseUser = userCredential.user!;
-
-    // Check if user profile already exists
-    final userDoc = await _db.collection(AppConstants.usersCollection).doc(firebaseUser.uid).get();
-    
-    UserModel userModel;
-    if (userDoc.exists) {
-      userModel = UserModel.fromJson(userDoc.data()!);
-    } else {
-      userModel = UserModel(
-        uid: firebaseUser.uid,
-        phoneNumber: firebaseUser.phoneNumber ?? firebaseUser.uid,
-        username: '',
-        displayName: '',
-        profilePictureUrl: '',
-        about: AppConstants.defaultAbout,
-        isOnline: true,
-        lastSeen: DateTime.now(),
-        createdAt: DateTime.now(),
-        publicKey: '',
-        blockedUsers: const [],
-        pushToken: '',
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+      final OAuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
       );
-      // Wait to save to firestore until they complete the profile
-    }
 
-    await _hive.saveUser(userModel.toJson());
-    return userModel;
+      final userCredential = await _auth.signInWithCredential(credential);
+      final firebaseUser = userCredential.user;
+
+      if (firebaseUser == null) {
+        onSignInFailed('Failed to sign in with Google');
+        return;
+      }
+
+      // Check if user profile already exists
+      final userDoc = await _db
+          .collection(AppConstants.usersCollection)
+          .doc(firebaseUser.uid)
+          .get();
+
+      UserModel userModel;
+      if (userDoc.exists) {
+        userModel = UserModel.fromJson(userDoc.data()!);
+      } else {
+        userModel = UserModel(
+          uid: firebaseUser.uid,
+          email: firebaseUser.email ?? '',
+          username: '',
+          displayName: firebaseUser.displayName ?? '',
+          profilePictureUrl: firebaseUser.photoURL ?? '',
+          about: AppConstants.defaultAbout,
+          isOnline: true,
+          lastSeen: DateTime.now(),
+          createdAt: DateTime.now(),
+          publicKey: '',
+          blockedUsers: const [],
+          pushToken: '',
+        );
+        // Wait to save to firestore until they complete the profile
+      }
+
+      await _hive.saveUser(userModel.toJson());
+    } catch (e) {
+      onSignInFailed(e.toString());
+    }
   }
 
   @override
@@ -203,6 +203,7 @@ class AuthRepositoryImpl implements AuthRepository {
       }
     } catch (_) {}
 
+    await _googleSignIn.signOut();
     await _auth.signOut();
     await _hive.clearAllCache();
   }

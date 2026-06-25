@@ -4,14 +4,7 @@ import '../services/hive_service.dart';
 import '../services/service_providers.dart';
 import 'custom_theme_model.dart';
 
-enum AppThemeType {
-  light,
-  dark,
-  terminal,
-  oldPhone,
-  cyberpunk,
-  custom,
-}
+enum AppThemeType { light, dark, terminal, oldPhone, cyberpunk, custom }
 
 class ThemeModeNotifier extends StateNotifier<AppThemeType> {
   final HiveService _hive;
@@ -23,8 +16,8 @@ class ThemeModeNotifier extends StateNotifier<AppThemeType> {
   void _loadTheme() {
     final mode = _hive.getThemeMode();
     state = AppThemeType.values.firstWhere(
-      (e) => e.name == mode, 
-      orElse: () => AppThemeType.dark
+      (e) => e.name == mode,
+      orElse: () => AppThemeType.dark,
     );
   }
 
@@ -54,12 +47,14 @@ class CustomThemeNotifier extends StateNotifier<CustomThemeModel> {
   }
 }
 
-final themeModeProvider = StateNotifierProvider<ThemeModeNotifier, AppThemeType>((ref) {
-  final hive = ref.watch(hiveServiceProvider);
-  return ThemeModeNotifier(hive);
-});
+final themeModeProvider =
+    StateNotifierProvider<ThemeModeNotifier, AppThemeType>((ref) {
+      final hive = ref.watch(hiveServiceProvider);
+      return ThemeModeNotifier(hive);
+    });
 
-final customThemeProvider = StateNotifierProvider<CustomThemeNotifier, CustomThemeModel>((ref) {
-  final hive = ref.watch(hiveServiceProvider);
-  return CustomThemeNotifier(hive);
-});
+final customThemeProvider =
+    StateNotifierProvider<CustomThemeNotifier, CustomThemeModel>((ref) {
+      final hive = ref.watch(hiveServiceProvider);
+      return CustomThemeNotifier(hive);
+    });

@@ -13,7 +13,6 @@ class IncomingCallScreen extends ConsumerStatefulWidget {
 }
 
 class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
-
   @override
   void initState() {
     super.initState();
@@ -49,7 +48,8 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
     });
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor, // Use theme background instead of black
+      backgroundColor: theme
+          .scaffoldBackgroundColor, // Use theme background instead of black
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 48.0),
@@ -62,7 +62,9 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
                   const SizedBox(height: 40),
                   CircleAvatar(
                     radius: 56,
-                    backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+                    backgroundColor: theme.colorScheme.primary.withValues(
+                      alpha: 0.1,
+                    ),
                     child: Icon(
                       Icons.person,
                       size: 64,
@@ -80,7 +82,9 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    callState.isVideo ? 'Incoming Video Call...' : 'Incoming Voice Call...',
+                    callState.isVideo
+                        ? 'Incoming Video Call...'
+                        : 'Incoming Voice Call...',
                     style: TextStyle(
                       color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                       fontSize: 16,
@@ -93,7 +97,9 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
                       child: Text(
                         'Auto-accepting call...',
                         style: TextStyle(
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.7,
+                          ),
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
                         ),
@@ -101,7 +107,7 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
                     ),
                 ],
               ),
-              
+
               // Acceptance & Rejection Actions
               if (!autoAccept)
                 Row(
@@ -115,19 +121,30 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
                             backgroundColor: Colors.red,
                             minimumSize: const Size(72, 72),
                           ),
-                          icon: const Icon(Icons.call_end, color: Colors.white, size: 32),
+                          icon: const Icon(
+                            Icons.call_end,
+                            color: Colors.white,
+                            size: 32,
+                          ),
                           onPressed: () {
-                            ref.read(callNotifierProvider.notifier).rejectCall();
+                            ref
+                                .read(callNotifierProvider.notifier)
+                                .rejectCall();
                           },
                         ),
                         const SizedBox(height: 8),
                         Text(
                           'Decline',
-                          style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.7), fontSize: 14),
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.7,
+                            ),
+                            fontSize: 14,
+                          ),
                         ),
                       ],
                     ),
-                    
+
                     // Accept Button
                     Column(
                       children: [
@@ -136,22 +153,35 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
                             backgroundColor: Colors.green,
                             minimumSize: const Size(72, 72),
                           ),
-                          icon: Icon(callState.isVideo ? Icons.videocam : Icons.call, color: Colors.white, size: 32),
+                          icon: Icon(
+                            callState.isVideo ? Icons.videocam : Icons.call,
+                            color: Colors.white,
+                            size: 32,
+                          ),
                           onPressed: () {
-                            ref.read(callNotifierProvider.notifier).answerCall();
+                            ref
+                                .read(callNotifierProvider.notifier)
+                                .answerCall();
                           },
                         ),
                         const SizedBox(height: 8),
                         Text(
                           'Accept',
-                          style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.7), fontSize: 14),
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.7,
+                            ),
+                            fontSize: 14,
+                          ),
                         ),
                       ],
                     ),
                   ],
                 ),
               if (autoAccept)
-                const SizedBox(height: 100), // Placeholder to keep spacing when buttons are hidden
+                const SizedBox(
+                  height: 100,
+                ), // Placeholder to keep spacing when buttons are hidden
             ],
           ),
         ),

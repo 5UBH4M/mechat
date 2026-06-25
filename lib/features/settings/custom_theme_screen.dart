@@ -70,10 +70,7 @@ class _CustomThemeScreenState extends ConsumerState<CustomThemeScreen> {
       appBar: AppBar(
         title: const Text('Custom Theme Builder'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.check),
-            onPressed: _saveTheme,
-          ),
+          IconButton(icon: const Icon(Icons.check), onPressed: _saveTheme),
         ],
       ),
       body: SingleChildScrollView(
@@ -86,37 +83,49 @@ class _CustomThemeScreenState extends ConsumerState<CustomThemeScreen> {
             _buildSectionHeader('Sender Bubble Color'),
             _buildColorPicker(
               selectedColor: _tempTheme.primaryColor,
-              onColorSelected: (c) => setState(() => _tempTheme = _tempTheme.copyWith(primaryColor: c)),
+              onColorSelected: (c) => setState(
+                () => _tempTheme = _tempTheme.copyWith(primaryColor: c),
+              ),
             ),
             const SizedBox(height: 24),
             _buildSectionHeader('Sender Text Color'),
             _buildColorPicker(
               selectedColor: _tempTheme.senderTextColor,
-              onColorSelected: (c) => setState(() => _tempTheme = _tempTheme.copyWith(senderTextColor: c)),
+              onColorSelected: (c) => setState(
+                () => _tempTheme = _tempTheme.copyWith(senderTextColor: c),
+              ),
             ),
             const SizedBox(height: 24),
             _buildSectionHeader('Accent Color (Switches & Highlights)'),
             _buildColorPicker(
               selectedColor: _tempTheme.secondaryColor,
-              onColorSelected: (c) => setState(() => _tempTheme = _tempTheme.copyWith(secondaryColor: c)),
+              onColorSelected: (c) => setState(
+                () => _tempTheme = _tempTheme.copyWith(secondaryColor: c),
+              ),
             ),
             const SizedBox(height: 24),
             _buildSectionHeader('App Background Color'),
             _buildColorPicker(
               selectedColor: _tempTheme.backgroundColor,
-              onColorSelected: (c) => setState(() => _tempTheme = _tempTheme.copyWith(backgroundColor: c)),
+              onColorSelected: (c) => setState(
+                () => _tempTheme = _tempTheme.copyWith(backgroundColor: c),
+              ),
             ),
             const SizedBox(height: 24),
             _buildSectionHeader('Receiver Bubble Color'),
             _buildColorPicker(
               selectedColor: _tempTheme.receiverBubbleColor,
-              onColorSelected: (c) => setState(() => _tempTheme = _tempTheme.copyWith(receiverBubbleColor: c)),
+              onColorSelected: (c) => setState(
+                () => _tempTheme = _tempTheme.copyWith(receiverBubbleColor: c),
+              ),
             ),
             const SizedBox(height: 24),
             _buildSectionHeader('Receiver Text Color'),
             _buildColorPicker(
               selectedColor: _tempTheme.receiverTextColor,
-              onColorSelected: (c) => setState(() => _tempTheme = _tempTheme.copyWith(receiverTextColor: c)),
+              onColorSelected: (c) => setState(
+                () => _tempTheme = _tempTheme.copyWith(receiverTextColor: c),
+              ),
             ),
             const SizedBox(height: 24),
             _buildSectionHeader('App Font / Text Style'),
@@ -128,14 +137,18 @@ class _CustomThemeScreenState extends ConsumerState<CustomThemeScreen> {
                   selected: _tempTheme.fontFamily == f,
                   onSelected: (selected) {
                     if (selected) {
-                      setState(() => _tempTheme = _tempTheme.copyWith(fontFamily: f));
+                      setState(
+                        () => _tempTheme = _tempTheme.copyWith(fontFamily: f),
+                      );
                     }
                   },
                 );
               }).toList(),
             ),
             const SizedBox(height: 24),
-            _buildSectionHeader('Chat Bubble Radius (${_tempTheme.bubbleRadius.toInt()})'),
+            _buildSectionHeader(
+              'Chat Bubble Radius (${_tempTheme.bubbleRadius.toInt()})',
+            ),
             Slider(
               value: _tempTheme.bubbleRadius,
               min: 0,
@@ -143,7 +156,9 @@ class _CustomThemeScreenState extends ConsumerState<CustomThemeScreen> {
               divisions: 32,
               label: _tempTheme.bubbleRadius.toInt().toString(),
               onChanged: (val) {
-                setState(() => _tempTheme = _tempTheme.copyWith(bubbleRadius: val));
+                setState(
+                  () => _tempTheme = _tempTheme.copyWith(bubbleRadius: val),
+                );
               },
             ),
             const SizedBox(height: 40),
@@ -178,7 +193,9 @@ class _CustomThemeScreenState extends ConsumerState<CustomThemeScreen> {
             'Live Preview',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: _tempTheme.backgroundColor.computeLuminance() > 0.5 ? Colors.black : Colors.white,
+              color: _tempTheme.backgroundColor.computeLuminance() > 0.5
+                  ? Colors.black
+                  : Colors.white,
               fontFamily: _tempTheme.fontFamily,
               fontWeight: FontWeight.bold,
             ),
@@ -234,7 +251,10 @@ class _CustomThemeScreenState extends ConsumerState<CustomThemeScreen> {
     );
   }
 
-  Widget _buildColorPicker({required Color selectedColor, required Function(Color) onColorSelected}) {
+  Widget _buildColorPicker({
+    required Color selectedColor,
+    required Function(Color) onColorSelected,
+  }) {
     return SizedBox(
       height: 50,
       child: ListView.builder(
@@ -253,7 +273,9 @@ class _CustomThemeScreenState extends ConsumerState<CustomThemeScreen> {
                 color: c,
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isSelected ? Colors.white : Colors.grey.withValues(alpha: 0.5),
+                  color: isSelected
+                      ? Colors.white
+                      : Colors.grey.withValues(alpha: 0.5),
                   width: isSelected ? 3 : 1,
                 ),
                 boxShadow: isSelected
@@ -262,12 +284,19 @@ class _CustomThemeScreenState extends ConsumerState<CustomThemeScreen> {
                           color: c.withValues(alpha: 0.5),
                           blurRadius: 8,
                           spreadRadius: 2,
-                        )
+                        ),
                       ]
                     : [],
               ),
               child: isSelected
-                  ? Icon(Icons.check, color: ThemeData.estimateBrightnessForColor(c) == Brightness.dark ? Colors.white : Colors.black)
+                  ? Icon(
+                      Icons.check,
+                      color:
+                          ThemeData.estimateBrightnessForColor(c) ==
+                              Brightness.dark
+                          ? Colors.white
+                          : Colors.black,
+                    )
                   : null,
             ),
           );

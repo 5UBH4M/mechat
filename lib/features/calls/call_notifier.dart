@@ -11,7 +11,8 @@ import '../auth/auth_notifier.dart';
 
 class CallState {
   final String? callId;
-  final String status; // 'idle', 'dialing', 'ringing', 'connected', 'ended', 'rejected', 'missed'
+  final String
+  status; // 'idle', 'dialing', 'ringing', 'connected', 'ended', 'rejected', 'missed'
   final bool isVideo;
   final bool isMicMuted;
   final bool isCameraEnabled;
@@ -41,19 +42,19 @@ class CallState {
   });
 
   factory CallState.idle() => const CallState(
-        status: 'idle',
-        isVideo: false,
-        isMicMuted: false,
-        isCameraEnabled: true,
-        isSpeakerOn: false,
-        duration: 0,
-        remoteUserName: '',
-        remoteUserAvatar: '',
-        callerId: '',
-        receiverId: '',
-        partnerWantsHangup: false,
-        partnerHangupRejected: false,
-      );
+    status: 'idle',
+    isVideo: false,
+    isMicMuted: false,
+    isCameraEnabled: true,
+    isSpeakerOn: false,
+    duration: 0,
+    remoteUserName: '',
+    remoteUserAvatar: '',
+    callerId: '',
+    receiverId: '',
+    partnerWantsHangup: false,
+    partnerHangupRejected: false,
+  );
 
   CallState copyWith({
     String? callId,
@@ -83,7 +84,8 @@ class CallState {
       callerId: callerId ?? this.callerId,
       receiverId: receiverId ?? this.receiverId,
       partnerWantsHangup: partnerWantsHangup ?? this.partnerWantsHangup,
-      partnerHangupRejected: partnerHangupRejected ?? this.partnerHangupRejected,
+      partnerHangupRejected:
+          partnerHangupRejected ?? this.partnerHangupRejected,
     );
   }
 }
@@ -125,7 +127,7 @@ class CallNotifier extends StateNotifier<CallState> {
             if (snapshot.docs.isNotEmpty && state.status == 'idle') {
               final doc = snapshot.docs.first;
               final data = doc.data();
-              
+
               // Set the ringing status locally
               state = CallState(
                 callId: doc.id,
@@ -148,11 +150,13 @@ class CallNotifier extends StateNotifier<CallState> {
               // Show notification if app is in background
               final lifecycleState = WidgetsBinding.instance.lifecycleState;
               if (lifecycleState != AppLifecycleState.resumed) {
-                _ref.read(notificationServiceProvider).showCustomNotification(
-                  id: doc.id.hashCode,
-                  title: 'Incoming Call',
-                  body: '${data['callerName'] ?? 'Someone'} is calling you',
-                );
+                _ref
+                    .read(notificationServiceProvider)
+                    .showCustomNotification(
+                      id: doc.id.hashCode,
+                      title: 'Incoming Call',
+                      body: '${data['callerName'] ?? 'Someone'} is calling you',
+                    );
               }
             }
           });
@@ -161,22 +165,26 @@ class CallNotifier extends StateNotifier<CallState> {
 
   void _setupSignalingCallbacks() {
     final signaling = _ref.read(signalingServiceProvider);
-    
+
     signaling.onCallStatusChanged = (status) {
       state = state.copyWith(status: status);
-      
+
       if (status == 'connected') {
         _startTimer();
-        _ref.read(notificationServiceProvider).showOngoingCallNotification(
-          id: state.callId.hashCode,
-          title: 'Ongoing Call',
-          body: 'Tap to return to call',
-        );
+        _ref
+            .read(notificationServiceProvider)
+            .showOngoingCallNotification(
+              id: state.callId.hashCode,
+              title: 'Ongoing Call',
+              body: 'Tap to return to call',
+            );
       }
 
       if (status == 'ended' || status == 'rejected' || status == 'idle') {
         _stopTimer();
-        _ref.read(notificationServiceProvider).cancelOngoingCallNotification(state.callId.hashCode);
+        _ref
+            .read(notificationServiceProvider)
+            .cancelOngoingCallNotification(state.callId.hashCode);
         state = CallState.idle();
       }
     };
@@ -226,7 +234,7 @@ class CallNotifier extends StateNotifier<CallState> {
     _setupSignalingCallbacks();
 
     final signaling = _ref.read(signalingServiceProvider);
-    
+
     try {
       // Setup local audio/video stream
       final stream = await signaling.getLocalStream(isVideo);
@@ -258,7 +266,7 @@ class CallNotifier extends StateNotifier<CallState> {
     try {
       final stream = await signaling.getLocalStream(state.isVideo);
       localRenderer.srcObject = stream;
-      
+
       await signaling.joinCall(callId);
     } catch (e) {
       dev.log("Error accepting call: $e");
@@ -271,7 +279,7 @@ class CallNotifier extends StateNotifier<CallState> {
   Future<void> rejectCall() async {
     final callId = state.callId;
     if (callId == null) return;
-    
+
     final signaling = _ref.read(signalingServiceProvider);
     await signaling.endCall(callId, isRejected: true);
     state = CallState.idle();
@@ -281,10 +289,10 @@ class CallNotifier extends StateNotifier<CallState> {
   Future<void> rejectHangupRequest() async {
     final callId = state.callId;
     if (callId == null) return;
-    
+
     // Clear local hangup request dialog state
     state = state.copyWith(partnerWantsHangup: false);
-    
+
     final signaling = _ref.read(signalingServiceProvider);
     await signaling.rejectHangup(callId);
   }
@@ -296,7 +304,7 @@ class CallNotifier extends StateNotifier<CallState> {
       state = CallState.idle();
       return;
     }
-    
+
     final signaling = _ref.read(signalingServiceProvider);
     await signaling.endCall(callId);
   }
@@ -346,6 +354,8 @@ class CallNotifier extends StateNotifier<CallState> {
   }
 }
 
-final callNotifierProvider = StateNotifierProvider<CallNotifier, CallState>((ref) {
+final callNotifierProvider = StateNotifierProvider<CallNotifier, CallState>((
+  ref,
+) {
   return CallNotifier(ref);
 });

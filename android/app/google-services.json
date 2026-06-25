@@ -12,7 +12,20 @@
           "package_name": "com.mechat.mechat"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "1006584668487-7b7jbnhntituro83tn996e5rcls73h2h.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mechat.mechat",
+            "certificate_hash": "e386c8175a02ccb1d7f42107e65d25113b0281c2"
+          }
+        },
+        {
+          "client_id": "1006584668487-cah47qgfekc4endk41d589nb23m2469q.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyD5UPuWu5d9URiMy-_TUdN3HgmO5PD7Lrc"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1006584668487-cah47qgfekc4endk41d589nb23m2469q.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

@@ -18,18 +18,20 @@ final recentChatsProvider = StreamProvider.autoDispose<List<ChatEntity>>((ref) {
 });
 
 // 2. Stream Provider for Messages in a specific chat
-final chatMessagesProvider = StreamProvider.autoDispose.family<List<MessageEntity>, String>((ref, chatId) {
-  final chatRepo = ref.watch(chatRepositoryProvider);
+final chatMessagesProvider = StreamProvider.autoDispose
+    .family<List<MessageEntity>, String>((ref, chatId) {
+      final chatRepo = ref.watch(chatRepositoryProvider);
 
-  return chatRepo.getMessages(chatId);
-});
+      return chatRepo.getMessages(chatId);
+    });
 
 // 3. Notifier for sending messages and performing actions
 class ChatNotifier extends StateNotifier<double> {
   final ChatRepository _chatRepository;
   final Ref _ref;
 
-  ChatNotifier(this._chatRepository, this._ref) : super(0.0); // State represents upload progress
+  ChatNotifier(this._chatRepository, this._ref)
+    : super(0.0); // State represents upload progress
 
   // Generate deterministic Chat ID
   String getChatId(String uid1, String uid2) {
@@ -68,7 +70,7 @@ class ChatNotifier extends StateNotifier<double> {
   Future<void> sendMessage(MessageEntity message, String receiverId) async {
     final sender = _ref.read(authNotifierProvider).user;
     if (sender == null) return;
-    
+
     final chatId = getChatId(sender.uid, receiverId);
     await _initializeChatThread(chatId, sender.uid, receiverId);
     await _chatRepository.sendMessage(message, chatId);
@@ -127,7 +129,11 @@ class ChatNotifier extends StateNotifier<double> {
     if (sender == null) return;
 
     final chatId = getChatId(sender.uid, receiverId);
-    await _chatRepository.setTypingStatus(chatId: chatId, uid: sender.uid, isTyping: isTyping);
+    await _chatRepository.setTypingStatus(
+      chatId: chatId,
+      uid: sender.uid,
+      isTyping: isTyping,
+    );
   }
 
   Future<void> markAsRead(String receiverId, String messageId) async {
@@ -135,9 +141,9 @@ class ChatNotifier extends StateNotifier<double> {
     if (sender == null) return;
 
     final chatId = getChatId(sender.uid, receiverId);
-    
+
     final batch = FirebaseFirestore.instance.batch();
-    
+
     // Update message status
     final msgRef = FirebaseFirestore.instance
         .collection('chats')
@@ -145,11 +151,11 @@ class ChatNotifier extends StateNotifier<double> {
         .collection('messages')
         .doc(messageId);
     batch.update(msgRef, {'status': 'read'});
-    
+
     // Reset unread count for current user
     final chatRef = FirebaseFirestore.instance.collection('chats').doc(chatId);
     batch.update(chatRef, {'unreadCounts.${sender.uid}': 0});
-    
+
     await batch.commit();
   }
 
@@ -160,7 +166,7 @@ class ChatNotifier extends StateNotifier<double> {
 
     final chatId = getChatId(sender.uid, receiverId);
     final batch = FirebaseFirestore.instance.batch();
-    
+
     for (var msgId in messageIds) {
       final msgRef = FirebaseFirestore.instance
           .collection('chats')
@@ -169,10 +175,10 @@ class ChatNotifier extends StateNotifier<double> {
           .doc(msgId);
       batch.update(msgRef, {'status': 'read'});
     }
-    
+
     final chatRef = FirebaseFirestore.instance.collection('chats').doc(chatId);
     batch.update(chatRef, {'unreadCounts.${sender.uid}': 0});
-    
+
     await batch.commit();
   }
 
@@ -190,37 +196,44 @@ class ChatNotifier extends StateNotifier<double> {
     if (sender == null) return;
 
     final chatId = getChatId(sender.uid, receiverId);
-    await _chatRepository.deleteMessageForMe(chatId: chatId, messageId: messageId, uid: sender.uid);
+    await _chatRepository.deleteMessageForMe(
+      chatId: chatId,
+      messageId: messageId,
+      uid: sender.uid,
+    );
   }
 
-  Future<void> deleteMessageForEveryone(String receiverId, String messageId) async {
+  Future<void> deleteMessageForEveryone(
+    String receiverId,
+    String messageId,
+  ) async {
     final sender = _ref.read(authNotifierProvider).user;
     if (sender == null) return;
 
     final chatId = getChatId(sender.uid, receiverId);
-    await _chatRepository.deleteMessageForEveryone(chatId: chatId, messageId: messageId);
+    await _chatRepository.deleteMessageForEveryone(
+      chatId: chatId,
+      messageId: messageId,
+    );
   }
 
-
   // Helper to ensure firestore has a chat document ready
-  Future<void> _initializeChatThread(String chatId, String senderId, String receiverId) async {
+  Future<void> _initializeChatThread(
+    String chatId,
+    String senderId,
+    String receiverId,
+  ) async {
     final isNotes = receiverId == 'notes_to_self' || receiverId == senderId;
     final chatDoc = FirebaseFirestore.instance.collection('chats').doc(chatId);
     final snap = await chatDoc.get();
-    
+
     if (!snap.exists) {
       final participants = isNotes ? [senderId] : [senderId, receiverId];
       await chatDoc.set({
         'id': chatId,
         'participants': participants,
-        'unreadCounts': {
-          senderId: 0,
-          if (!isNotes) receiverId: 0,
-        },
-        'typingStatus': {
-          senderId: false,
-          if (!isNotes) receiverId: false,
-        },
+        'unreadCounts': {senderId: 0, if (!isNotes) receiverId: 0},
+        'typingStatus': {senderId: false, if (!isNotes) receiverId: false},
         'isNotesToSelf': isNotes,
         'lastMessage': null,
       });
@@ -231,10 +244,14 @@ class ChatNotifier extends StateNotifier<double> {
     await _chatRepository.syncOfflineMessages();
   }
 
-  Future<void> addReaction(String receiverId, String messageId, String reaction) async {
+  Future<void> addReaction(
+    String receiverId,
+    String messageId,
+    String reaction,
+  ) async {
     final sender = _ref.read(authNotifierProvider).user;
     if (sender == null) return;
-    
+
     final chatId = getChatId(sender.uid, receiverId);
     await _chatRepository.addReaction(
       chatId: chatId,
@@ -244,10 +261,14 @@ class ChatNotifier extends StateNotifier<double> {
     );
   }
 
-  Future<void> toggleStar(String receiverId, String messageId, bool isStarred) async {
+  Future<void> toggleStar(
+    String receiverId,
+    String messageId,
+    bool isStarred,
+  ) async {
     final sender = _ref.read(authNotifierProvider).user;
     if (sender == null) return;
-    
+
     final chatId = getChatId(sender.uid, receiverId);
     await _chatRepository.toggleStar(
       chatId: chatId,
@@ -257,7 +278,10 @@ class ChatNotifier extends StateNotifier<double> {
     );
   }
 
-  Future<void> forwardMessage(MessageEntity originalMessage, String newReceiverId) async {
+  Future<void> forwardMessage(
+    MessageEntity originalMessage,
+    String newReceiverId,
+  ) async {
     final sender = _ref.read(authNotifierProvider).user;
     if (sender == null) return;
 

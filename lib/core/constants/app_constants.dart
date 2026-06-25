@@ -21,6 +21,9 @@ class AppConstants {
   static const String keyE2EPublicKey = 'e2e_public_key';
   static const String keyNotificationSettings = 'notifications_enabled';
 
+  // TODO(security): TURN server credentials should be fetched from a backend
+  // endpoint with short-lived tokens. These hardcoded public relay credentials
+  // could be rate-limited or discontinued at any time.
   static const Map<String, dynamic> iceServers = {
     'iceServers': [
       {
@@ -28,7 +31,7 @@ class AppConstants {
           'stun:stun.l.google.com:19302',
           'stun:stun1.l.google.com:19302',
           'stun:stun2.l.google.com:19302',
-        ]
+        ],
       },
       {
         'urls': [
@@ -37,8 +40,8 @@ class AppConstants {
         ],
         'username': 'openrelayproject',
         'credential': 'openrelayproject',
-      }
-    ]
+      },
+    ],
   };
 
   // UI Default Values

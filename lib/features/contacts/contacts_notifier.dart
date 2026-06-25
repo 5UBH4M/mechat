@@ -1,4 +1,3 @@
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/services/service_providers.dart';
 import '../../domain/entities/user_entity.dart';
@@ -20,7 +19,8 @@ class ContactsState {
     this.errorMessage,
   });
 
-  factory ContactsState.initial() => const ContactsState(status: ContactOpsStatus.initial);
+  factory ContactsState.initial() =>
+      const ContactsState(status: ContactOpsStatus.initial);
 
   ContactsState copyWith({
     ContactOpsStatus? status,
@@ -41,19 +41,32 @@ class ContactsNotifier extends StateNotifier<ContactsState> {
   final ContactRepository _contactRepository;
   final Ref _ref;
 
-  ContactsNotifier(this._contactRepository, this._ref) : super(ContactsState.initial());
+  ContactsNotifier(this._contactRepository, this._ref)
+    : super(ContactsState.initial());
 
   Future<void> searchUser(String username) async {
-    state = state.copyWith(status: ContactOpsStatus.loading, searchResult: null);
+    state = state.copyWith(
+      status: ContactOpsStatus.loading,
+      searchResult: null,
+    );
     try {
       final user = await _contactRepository.searchUserByUsername(username);
       if (user == null) {
-        state = state.copyWith(status: ContactOpsStatus.error, errorMessage: 'User not found.');
+        state = state.copyWith(
+          status: ContactOpsStatus.error,
+          errorMessage: 'User not found.',
+        );
       } else {
-        state = state.copyWith(status: ContactOpsStatus.success, searchResult: user);
+        state = state.copyWith(
+          status: ContactOpsStatus.success,
+          searchResult: user,
+        );
       }
     } catch (e) {
-      state = state.copyWith(status: ContactOpsStatus.error, errorMessage: e.toString());
+      state = state.copyWith(
+        status: ContactOpsStatus.error,
+        errorMessage: e.toString(),
+      );
     }
   }
 
@@ -67,7 +80,10 @@ class ContactsNotifier extends StateNotifier<ContactsState> {
       state = state.copyWith(status: ContactOpsStatus.success);
       loadBlockedUsers();
     } catch (e) {
-      state = state.copyWith(status: ContactOpsStatus.error, errorMessage: e.toString());
+      state = state.copyWith(
+        status: ContactOpsStatus.error,
+        errorMessage: e.toString(),
+      );
     }
   }
 
@@ -81,7 +97,10 @@ class ContactsNotifier extends StateNotifier<ContactsState> {
       state = state.copyWith(status: ContactOpsStatus.success);
       loadBlockedUsers();
     } catch (e) {
-      state = state.copyWith(status: ContactOpsStatus.error, errorMessage: e.toString());
+      state = state.copyWith(
+        status: ContactOpsStatus.error,
+        errorMessage: e.toString(),
+      );
     }
   }
 
@@ -98,7 +117,10 @@ class ContactsNotifier extends StateNotifier<ContactsState> {
       );
       state = state.copyWith(status: ContactOpsStatus.success);
     } catch (e) {
-      state = state.copyWith(status: ContactOpsStatus.error, errorMessage: e.toString());
+      state = state.copyWith(
+        status: ContactOpsStatus.error,
+        errorMessage: e.toString(),
+      );
     }
   }
 
@@ -108,9 +130,12 @@ class ContactsNotifier extends StateNotifier<ContactsState> {
 
     try {
       // Reload current user to get fresh blocked list
-      final freshProfile = await _ref.read(profileRepositoryProvider).getUserProfile(currentUser.uid);
-      final blockedUids = freshProfile?.blockedUsers ?? currentUser.blockedUsers;
-      
+      final freshProfile = await _ref
+          .read(profileRepositoryProvider)
+          .getUserProfile(currentUser.uid);
+      final blockedUids =
+          freshProfile?.blockedUsers ?? currentUser.blockedUsers;
+
       final list = await _contactRepository.getBlockedUsers(blockedUids);
       state = state.copyWith(blockedUsers: list);
     } catch (_) {}
@@ -122,15 +147,18 @@ class ContactsNotifier extends StateNotifier<ContactsState> {
 
     state = state.copyWith(status: ContactOpsStatus.loading);
     try {
-      
       state = state.copyWith(status: ContactOpsStatus.success);
     } catch (e) {
-      state = state.copyWith(status: ContactOpsStatus.error, errorMessage: e.toString());
+      state = state.copyWith(
+        status: ContactOpsStatus.error,
+        errorMessage: e.toString(),
+      );
     }
   }
 }
 
-final contactsNotifierProvider = StateNotifierProvider<ContactsNotifier, ContactsState>((ref) {
-  final repo = ref.watch(contactRepositoryProvider);
-  return ContactsNotifier(repo, ref);
-});
+final contactsNotifierProvider =
+    StateNotifierProvider<ContactsNotifier, ContactsState>((ref) {
+      final repo = ref.watch(contactRepositoryProvider);
+      return ContactsNotifier(repo, ref);
+    });

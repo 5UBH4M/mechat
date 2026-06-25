@@ -11,19 +11,18 @@ class ProfileState {
   final ProfileStatus status;
   final String? errorMessage;
 
-  const ProfileState({
-    required this.status,
-    this.errorMessage,
-  });
+  const ProfileState({required this.status, this.errorMessage});
 
-  factory ProfileState.initial() => const ProfileState(status: ProfileStatus.initial);
+  factory ProfileState.initial() =>
+      const ProfileState(status: ProfileStatus.initial);
 }
 
 class ProfileNotifier extends StateNotifier<ProfileState> {
   final ProfileRepository _profileRepository;
   final Ref _ref;
 
-  ProfileNotifier(this._profileRepository, this._ref) : super(ProfileState.initial());
+  ProfileNotifier(this._profileRepository, this._ref)
+    : super(ProfileState.initial());
 
   Future<void> saveProfile({
     required String username,
@@ -36,7 +35,10 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       final authState = _ref.read(authNotifierProvider);
       final currentUser = authState.user;
       if (currentUser == null) {
-        state = const ProfileState(status: ProfileStatus.error, errorMessage: 'User session not found.');
+        state = const ProfileState(
+          status: ProfileStatus.error,
+          errorMessage: 'User session not found.',
+        );
         return;
       }
 
@@ -47,7 +49,8 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       if (!usernameRegex.hasMatch(trimmedUsername)) {
         state = const ProfileState(
           status: ProfileStatus.error,
-          errorMessage: 'Username can only contain letters, numbers, underscores, hyphens, and dots.',
+          errorMessage:
+              'Username can only contain letters, numbers, underscores, hyphens, and dots.',
         );
         return;
       }
@@ -75,24 +78,32 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
 
       // Check for username uniqueness (case-sensitive)
       final db = FirebaseFirestore.instance;
-      final existingUsers = await db.collection('users')
+      final existingUsers = await db
+          .collection('users')
           .where('username', isEqualTo: effectiveUsername)
           .limit(1)
           .get();
-          
-      if (existingUsers.docs.isNotEmpty && existingUsers.docs.first.id != currentUser.uid) {
-        state = const ProfileState(status: ProfileStatus.error, errorMessage: 'Username is already taken.');
+
+      if (existingUsers.docs.isNotEmpty &&
+          existingUsers.docs.first.id != currentUser.uid) {
+        state = const ProfileState(
+          status: ProfileStatus.error,
+          errorMessage: 'Username is already taken.',
+        );
         return;
       }
 
       String profilePicUrl = currentUser.profilePictureUrl;
       if (localImagePath != null && localImagePath.isNotEmpty) {
-        profilePicUrl = await _profileRepository.uploadProfilePicture(localImagePath, currentUser.uid);
+        profilePicUrl = await _profileRepository.uploadProfilePicture(
+          localImagePath,
+          currentUser.uid,
+        );
       }
 
       final updatedUser = UserEntity(
         uid: currentUser.uid,
-        phoneNumber: currentUser.phoneNumber,
+        email: currentUser.email,
         username: effectiveUsername,
         displayName: displayName,
         profilePictureUrl: profilePicUrl,
@@ -109,7 +120,8 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
         connectedTo: currentUser.connectedTo,
         disconnectRequested: currentUser.disconnectRequested,
         previouslyConnected: currentUser.previouslyConnected,
-        showPreviousConnectionsVisible: currentUser.showPreviousConnectionsVisible,
+        showPreviousConnectionsVisible:
+            currentUser.showPreviousConnectionsVisible,
         hideContactPhotoInChat: currentUser.hideContactPhotoInChat,
         hideContactNameInChat: currentUser.hideContactNameInChat,
         autoAcceptCalls: currentUser.autoAcceptCalls,
@@ -118,13 +130,16 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       );
 
       await _profileRepository.createUserProfile(updatedUser);
-      
+
       // Refresh auth state details
       _ref.read(authNotifierProvider.notifier).updateUser(updatedUser);
-      
+
       state = const ProfileState(status: ProfileStatus.success);
     } catch (e) {
-      state = ProfileState(status: ProfileStatus.error, errorMessage: e.toString());
+      state = ProfileState(
+        status: ProfileStatus.error,
+        errorMessage: e.toString(),
+      );
     }
   }
 
@@ -157,7 +172,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
 
       final updatedUser = UserEntity(
         uid: currentUser.uid,
-        phoneNumber: currentUser.phoneNumber,
+        email: currentUser.email,
         username: currentUser.username,
         displayName: currentUser.displayName,
         profilePictureUrl: currentUser.profilePictureUrl,
@@ -174,24 +189,36 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
         connectedTo: currentUser.connectedTo,
         disconnectRequested: currentUser.disconnectRequested,
         previouslyConnected: currentUser.previouslyConnected,
-        showPreviousConnectionsVisible: showPreviousConnectionsVisible ?? currentUser.showPreviousConnectionsVisible,
-        hideContactPhotoInChat: hideContactPhotoInChat ?? currentUser.hideContactPhotoInChat,
-        hideContactNameInChat: hideContactNameInChat ?? currentUser.hideContactNameInChat,
+        showPreviousConnectionsVisible:
+            showPreviousConnectionsVisible ??
+            currentUser.showPreviousConnectionsVisible,
+        hideContactPhotoInChat:
+            hideContactPhotoInChat ?? currentUser.hideContactPhotoInChat,
+        hideContactNameInChat:
+            hideContactNameInChat ?? currentUser.hideContactNameInChat,
         autoAcceptCalls: autoAcceptCalls ?? currentUser.autoAcceptCalls,
         disableMute: disableMute ?? currentUser.disableMute,
         disableCameraOff: disableCameraOff ?? currentUser.disableCameraOff,
-        hideNotificationSender: hideNotificationSender ?? currentUser.hideNotificationSender,
-        hideNotificationMessage: hideNotificationMessage ?? currentUser.hideNotificationMessage,
+        hideNotificationSender:
+            hideNotificationSender ?? currentUser.hideNotificationSender,
+        hideNotificationMessage:
+            hideNotificationMessage ?? currentUser.hideNotificationMessage,
         alwaysSendHD: alwaysSendHD ?? currentUser.alwaysSendHD,
       );
 
       await _profileRepository.createUserProfile(updatedUser);
       _ref.read(authNotifierProvider.notifier).updateUser(updatedUser);
-    } catch (_) {}
+    } catch (e) {
+      state = ProfileState(
+        status: ProfileStatus.error,
+        errorMessage: 'Failed to update privacy settings: ${e.toString()}',
+      );
+    }
   }
 }
 
-final profileNotifierProvider = StateNotifierProvider<ProfileNotifier, ProfileState>((ref) {
-  final repo = ref.watch(profileRepositoryProvider);
-  return ProfileNotifier(repo, ref);
-});
+final profileNotifierProvider =
+    StateNotifierProvider<ProfileNotifier, ProfileState>((ref) {
+      final repo = ref.watch(profileRepositoryProvider);
+      return ProfileNotifier(repo, ref);
+    });

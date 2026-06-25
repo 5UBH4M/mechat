@@ -6,7 +6,8 @@ class CallEntity extends Equatable {
   final String callerName;
   final String receiverId;
   final String type; // 'voice', 'video'
-  final String status; // 'dialing', 'ringing', 'connected', 'ended', 'rejected', 'missed'
+  final String
+  status; // 'dialing', 'ringing', 'connected', 'ended', 'rejected', 'missed'
   final DateTime createdAt;
 
   const CallEntity({
@@ -21,12 +22,12 @@ class CallEntity extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        callerId,
-        callerName,
-        receiverId,
-        type,
-        status,
-        createdAt,
-      ];
+    id,
+    callerId,
+    callerName,
+    receiverId,
+    type,
+    status,
+    createdAt,
+  ];
 }

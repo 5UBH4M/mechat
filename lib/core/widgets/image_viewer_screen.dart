@@ -33,7 +33,10 @@ class _ImageViewerScreenState extends State<ImageViewerScreen>
       vsync: this,
       duration: const Duration(milliseconds: 200),
     );
-    _fadeAnim = CurvedAnimation(parent: _animController, curve: Curves.easeInOut);
+    _fadeAnim = CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeInOut,
+    );
     _animController.forward();
     _decodeImage();
   }
@@ -110,11 +113,17 @@ class _ImageViewerScreenState extends State<ImageViewerScreen>
                 child: SafeArea(
                   bottom: false,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 8,
+                    ),
                     child: Row(
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.arrow_back, color: Colors.white),
+                          icon: const Icon(
+                            Icons.arrow_back,
+                            color: Colors.white,
+                          ),
                           onPressed: () => Navigator.pop(context),
                         ),
                         const SizedBox(width: 8),
@@ -136,7 +145,9 @@ class _ImageViewerScreenState extends State<ImageViewerScreen>
                                   Text(
                                     _formatTimestamp(widget.timestamp!),
                                     style: TextStyle(
-                                      color: Colors.white.withValues(alpha: 0.7),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.7,
+                                      ),
                                       fontSize: 12,
                                     ),
                                   ),

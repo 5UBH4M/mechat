@@ -1,6 +1,5 @@
 import 'package:go_router/go_router.dart';
 import '../../features/auth/login_screen.dart';
-import '../../features/auth/otp_verification_screen.dart';
 import '../../features/auth/splash_screen.dart';
 import '../../features/calls/incoming_call_screen.dart';
 import '../../features/calls/ongoing_call_screen.dart';
@@ -18,26 +17,13 @@ import '../../features/profile/notification_settings_screen.dart';
 final appRouter = GoRouter(
   initialLocation: '/splash',
   routes: [
-    GoRoute(
-      path: '/splash',
-      builder: (context, state) => const SplashScreen(),
-    ),
-    GoRoute(
-      path: '/login',
-      builder: (context, state) => const LoginScreen(),
-    ),
-    GoRoute(
-      path: '/otp',
-      builder: (context, state) => const OtpVerificationScreen(),
-    ),
+    GoRoute(path: '/splash', builder: (context, state) => const SplashScreen()),
+    GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
     GoRoute(
       path: '/create-profile',
       builder: (context, state) => const CreateProfileScreen(),
     ),
-    GoRoute(
-      path: '/home',
-      builder: (context, state) => const HomeScreen(),
-    ),
+    GoRoute(path: '/home', builder: (context, state) => const HomeScreen()),
     GoRoute(
       path: '/contacts',
       builder: (context, state) => const ContactsScreen(),

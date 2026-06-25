@@ -19,7 +19,8 @@ class ContactRepositoryImpl implements ContactRepository {
           .limit(1)
           .get();
 
-      if (snap.docs.isEmpty && username.trim() != username.toLowerCase().trim()) {
+      if (snap.docs.isEmpty &&
+          username.trim() != username.toLowerCase().trim()) {
         // Fallback to lowercase match if exact match fails
         snap = await _db
             .collection(AppConstants.usersCollection)
@@ -45,7 +46,8 @@ class ContactRepositoryImpl implements ContactRepository {
     final localUser = _hive.getUser();
     if (localUser != null) {
       final model = UserModel.fromJson(localUser);
-      final List<String> updatedBlocks = List.from(model.blockedUsers)..add(blockUid);
+      final List<String> updatedBlocks = List.from(model.blockedUsers)
+        ..add(blockUid);
       final updatedModel = model.copyWith(blockedUsers: updatedBlocks);
       await _hive.saveUser(updatedModel.toJson());
     }
@@ -61,7 +63,8 @@ class ContactRepositoryImpl implements ContactRepository {
     final localUser = _hive.getUser();
     if (localUser != null) {
       final model = UserModel.fromJson(localUser);
-      final List<String> updatedBlocks = List.from(model.blockedUsers)..remove(unblockUid);
+      final List<String> updatedBlocks = List.from(model.blockedUsers)
+        ..remove(unblockUid);
       final updatedModel = model.copyWith(blockedUsers: updatedBlocks);
       await _hive.saveUser(updatedModel.toJson());
     }
@@ -84,13 +87,16 @@ class ContactRepositoryImpl implements ContactRepository {
   @override
   Future<List<UserEntity>> getBlockedUsers(List<String> blockedUids) async {
     if (blockedUids.isEmpty) return [];
-    
+
     final List<UserEntity> blockedUsers = [];
     // Firestore whereIn has a limit of 10 items, but for general messaging list it is fine.
     // Let's do chunking or fetch individually to make it fully production-grade.
     for (final uid in blockedUids) {
       try {
-        final doc = await _db.collection(AppConstants.usersCollection).doc(uid).get();
+        final doc = await _db
+            .collection(AppConstants.usersCollection)
+            .doc(uid)
+            .get();
         if (doc.exists && doc.data() != null) {
           blockedUsers.add(UserModel.fromJson(doc.data()!));
         }

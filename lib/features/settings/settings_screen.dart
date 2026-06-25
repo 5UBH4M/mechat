@@ -48,7 +48,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (!_isEditing) return;
     try {
       final picker = ImagePicker();
-      final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+      final picked = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 70,
+      );
       if (picked != null) {
         if (!mounted) return;
         final croppedPath = await Navigator.push<String>(
@@ -67,7 +70,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _saveProfile() async {
-    await ref.read(profileNotifierProvider.notifier).saveProfile(
+    await ref
+        .read(profileNotifierProvider.notifier)
+        .saveProfile(
           username: _usernameController.text.trim(),
           displayName: _nameController.text.trim(),
           about: _bioController.text.trim(),
@@ -102,9 +107,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           if (_isEditing)
             IconButton(
               icon: profileState.status == ProfileStatus.loading
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : const Icon(Icons.check_rounded, color: Colors.green),
-              onPressed: profileState.status == ProfileStatus.loading ? null : _saveProfile,
+              onPressed: profileState.status == ProfileStatus.loading
+                  ? null
+                  : _saveProfile,
             )
           else
             IconButton(
@@ -139,10 +150,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       backgroundImage: _localImagePath != null
                           ? FileImage(File(_localImagePath!)) as ImageProvider
                           : (user.profilePictureUrl.isNotEmpty
-                              ? getBase64ImageProvider(user.profilePictureUrl)
-                              : null),
-                      child: _localImagePath == null && user.profilePictureUrl.isEmpty
-                          ? const Icon(Icons.person, size: 48, color: Colors.grey)
+                                ? getBase64ImageProvider(user.profilePictureUrl)
+                                : null),
+                      child:
+                          _localImagePath == null &&
+                              user.profilePictureUrl.isEmpty
+                          ? const Icon(
+                              Icons.person,
+                              size: 48,
+                              color: Colors.grey,
+                            )
                           : null,
                     ),
                     if (_isEditing)
@@ -155,14 +172,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             color: theme.colorScheme.primary,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.camera_alt_rounded, size: 16, color: Colors.white),
+                          child: const Icon(
+                            Icons.camera_alt_rounded,
+                            size: 16,
+                            color: Colors.white,
+                          ),
                         ),
-                      )
+                      ),
                   ],
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 24),
 
             // Profile Fields
@@ -175,7 +196,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   suffixIcon: const Icon(Icons.lock_outline, size: 18),
                   helperText: 'Username cannot be changed',
                   helperStyle: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.5),
                     fontSize: 11,
                   ),
                 ),
@@ -193,22 +216,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ] else ...[
               Text(
                 user.displayName,
-                style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               Text(
                 '@${user.username}',
-                style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.primary),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: theme.colorScheme.primary,
+                ),
               ),
               const SizedBox(height: 4),
-              Text(
-                user.phoneNumber,
-                style: theme.textTheme.bodyMedium,
-              ),
+              Text(user.email, style: theme.textTheme.bodyMedium),
               const SizedBox(height: 12),
               Text(
                 user.about,
                 textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontStyle: FontStyle.italic,
+                ),
               ),
             ],
 
@@ -223,40 +249,72 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   // Dark Mode Switch Option
                   // Appearance Settings Link
                   ListTile(
-                    leading: Icon(Icons.palette_rounded, color: theme.colorScheme.primary),
+                    leading: Icon(
+                      Icons.palette_rounded,
+                      color: theme.colorScheme.primary,
+                    ),
                     title: const Text('Appearance'),
-                    trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+                    trailing: const Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 16,
+                    ),
                     onTap: () => context.push('/appearance'),
                   ),
-                  
+
                   // Privacy Settings Link
                   ListTile(
-                    leading: Icon(Icons.privacy_tip_rounded, color: theme.colorScheme.primary),
+                    leading: Icon(
+                      Icons.privacy_tip_rounded,
+                      color: theme.colorScheme.primary,
+                    ),
                     title: const Text('Privacy'),
-                    trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+                    trailing: const Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 16,
+                    ),
                     onTap: () => context.push('/privacy-settings'),
                   ),
-                  
+
                   // Notification Settings Link
                   ListTile(
-                    leading: Icon(Icons.notifications_rounded, color: theme.colorScheme.primary),
+                    leading: Icon(
+                      Icons.notifications_rounded,
+                      color: theme.colorScheme.primary,
+                    ),
                     title: const Text('Notification Settings'),
-                    trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+                    trailing: const Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 16,
+                    ),
                     onTap: () => context.push('/notification-settings'),
                   ),
-                  
+
                   // Wallpaper Settings Link
                   ListTile(
-                    leading: Icon(Icons.wallpaper_rounded, color: theme.colorScheme.primary),
+                    leading: Icon(
+                      Icons.wallpaper_rounded,
+                      color: theme.colorScheme.primary,
+                    ),
                     title: const Text('Chat Wallpaper'),
-                    trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+                    trailing: const Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 16,
+                    ),
                     onTap: () async {
                       final picker = ImagePicker();
-                      final picked = await picker.pickImage(source: ImageSource.gallery);
+                      final picked = await picker.pickImage(
+                        source: ImageSource.gallery,
+                      );
                       if (picked != null) {
-                        await ref.read(hiveServiceProvider).saveChatWallpaper(picked.path);
+                        await ref
+                            .read(hiveServiceProvider)
+                            .saveChatWallpaper(picked.path);
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Wallpaper updated successfully')));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Wallpaper updated successfully'),
+                            ),
+                          );
                         }
                       }
                     },
@@ -266,29 +324,48 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         context: context,
                         builder: (ctx) => AlertDialog(
                           title: const Text('Remove Wallpaper'),
-                          content: const Text('Remove the custom chat wallpaper?'),
+                          content: const Text(
+                            'Remove the custom chat wallpaper?',
+                          ),
                           actions: [
-                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CANCEL')),
-                            TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('REMOVE')),
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: const Text('CANCEL'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('REMOVE'),
+                            ),
                           ],
-                        )
+                        ),
                       );
                       if (confirm == true) {
-                        await ref.read(hiveServiceProvider).removeChatWallpaper();
+                        await ref
+                            .read(hiveServiceProvider)
+                            .removeChatWallpaper();
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Wallpaper removed')));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Wallpaper removed')),
+                          );
                         }
                       }
                     },
                   ),
                   // Always Send HD Media Switch
                   SwitchListTile(
-                    secondary: Icon(Icons.high_quality_rounded, color: theme.colorScheme.primary),
+                    secondary: Icon(
+                      Icons.high_quality_rounded,
+                      color: theme.colorScheme.primary,
+                    ),
                     title: const Text('Always Send HD Media'),
-                    subtitle: const Text('Send images in highest resolution without compression'),
+                    subtitle: const Text(
+                      'Send images in highest resolution without compression',
+                    ),
                     value: user.alwaysSendHD,
                     onChanged: (val) {
-                      ref.read(profileNotifierProvider.notifier).updatePrivacySettings(
+                      ref
+                          .read(profileNotifierProvider.notifier)
+                          .updatePrivacySettings(
                             alwaysSendHD: val,
                             readReceiptsEnabled: user.readReceiptsEnabled,
                             lastSeenVisible: user.lastSeenVisible,
@@ -296,20 +373,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           );
                     },
                   ),
-                  
+
                   // Blocked Users Screen Link
                   ListTile(
-                    leading: Icon(Icons.block_rounded, color: theme.colorScheme.error),
+                    leading: Icon(
+                      Icons.block_rounded,
+                      color: theme.colorScheme.error,
+                    ),
                     title: const Text('Blocked Contacts'),
-                    trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+                    trailing: const Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 16,
+                    ),
                     onTap: () => context.push('/blocked-users'),
                   ),
-                  
+
                   // Security info tile
                   ListTile(
-                    leading: Icon(Icons.lock_rounded, color: theme.colorScheme.secondary),
+                    leading: Icon(
+                      Icons.lock_rounded,
+                      color: theme.colorScheme.secondary,
+                    ),
                     title: const Text('Encryption Status'),
-                    subtitle: const Text('All messaging streams are end-to-end encrypted'),
+                    subtitle: const Text(
+                      'All messaging streams are end-to-end encrypted',
+                    ),
                     onTap: () {
                       showDialog(
                         context: context,
@@ -318,13 +406,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           content: const Text(
                             'MeChat uses industry standard AES-256 GCM symmetric keys. '
                             'Your messages are encrypted before sending and stored as ciphertext on Firestore. '
-                            'Decryption occurs locally on device. No intermediates can read your conversations.'
+                            'Decryption occurs locally on device. No intermediates can read your conversations.',
                           ),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(ctx),
                               child: const Text('OK'),
-                            )
+                            ),
                           ],
                         ),
                       );
@@ -333,9 +421,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 32),
-            
+
             // Logout Action Button
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -347,12 +435,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   context: context,
                   builder: (ctx) => AlertDialog(
                     title: const Text('Logout'),
-                    content: const Text('Are you sure you want to sign out from MeChat?'),
+                    content: const Text(
+                      'Are you sure you want to sign out from MeChat?',
+                    ),
                     actions: [
-                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CANCEL')),
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('CANCEL'),
+                      ),
                       TextButton(
                         onPressed: () => Navigator.pop(ctx, true),
-                        style: TextButton.styleFrom(foregroundColor: Colors.red),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.red,
+                        ),
                         child: const Text('LOGOUT'),
                       ),
                     ],

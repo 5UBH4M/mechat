@@ -8,26 +8,66 @@ import 'package:mechat/core/theme/theme_controller.dart';
 import 'package:mechat/core/theme/theme_provider.dart';
 
 const List<String> _fontOptions = [
-  'Roboto', 'Inter', 'Open Sans', 'Lato', 'Poppins', 'Montserrat',
-  'Oswald', 'Raleway', 'Ubuntu', 'Nunito', 'Playfair Display',
-  'Source Code Pro', 'Fira Code', 'JetBrains Mono', 'Courier Prime',
+  'Roboto',
+  'Inter',
+  'Open Sans',
+  'Lato',
+  'Poppins',
+  'Montserrat',
+  'Oswald',
+  'Raleway',
+  'Ubuntu',
+  'Nunito',
+  'Playfair Display',
+  'Source Code Pro',
+  'Fira Code',
+  'JetBrains Mono',
+  'Courier Prime',
 ];
 
 const List<Color> _presetColors = [
-  Colors.transparent, Colors.white, Colors.black,
-  Color(0xFF9E9E9E), Color(0xFFF44336), Color(0xFFE91E63),
-  Color(0xFF9C27B0), Color(0xFF673AB7), Color(0xFF3F51B5),
-  Color(0xFF2196F3), Color(0xFF03A9F4), Color(0xFF00BCD4),
-  Color(0xFF009688), Color(0xFF4CAF50), Color(0xFF8BC34A),
-  Color(0xFFCDDC39), Color(0xFFFFEB3B), Color(0xFFFFC107),
-  Color(0xFFFF9800), Color(0xFFFF5722), Color(0xFF795548),
-  Color(0xFF075E54), Color(0xFF128C7E), Color(0xFF25D366), Color(0xFFE7FFDB),
-  Color(0xFF0088CC), Color(0xFF517DA2), Color(0xFFEEFFDE),
-  Color(0xFF007AFF), Color(0xFFE5E5EA),
-  Color(0xFF5865F2), Color(0xFF36393F), Color(0xFF40444B),
-  Color(0xFF1A1A1A), Color(0xFF333333), Color(0xFF0D0D0D),
-  Color(0xFF00FFFF), Color(0xFFFF00FF), Color(0xFF39FF14),
-  Color(0xFFFFB3BA), Color(0xFFBAE1FF), Color(0xFFBFFFBA),
+  Colors.transparent,
+  Colors.white,
+  Colors.black,
+  Color(0xFF9E9E9E),
+  Color(0xFFF44336),
+  Color(0xFFE91E63),
+  Color(0xFF9C27B0),
+  Color(0xFF673AB7),
+  Color(0xFF3F51B5),
+  Color(0xFF2196F3),
+  Color(0xFF03A9F4),
+  Color(0xFF00BCD4),
+  Color(0xFF009688),
+  Color(0xFF4CAF50),
+  Color(0xFF8BC34A),
+  Color(0xFFCDDC39),
+  Color(0xFFFFEB3B),
+  Color(0xFFFFC107),
+  Color(0xFFFF9800),
+  Color(0xFFFF5722),
+  Color(0xFF795548),
+  Color(0xFF075E54),
+  Color(0xFF128C7E),
+  Color(0xFF25D366),
+  Color(0xFFE7FFDB),
+  Color(0xFF0088CC),
+  Color(0xFF517DA2),
+  Color(0xFFEEFFDE),
+  Color(0xFF007AFF),
+  Color(0xFFE5E5EA),
+  Color(0xFF5865F2),
+  Color(0xFF36393F),
+  Color(0xFF40444B),
+  Color(0xFF1A1A1A),
+  Color(0xFF333333),
+  Color(0xFF0D0D0D),
+  Color(0xFF00FFFF),
+  Color(0xFFFF00FF),
+  Color(0xFF39FF14),
+  Color(0xFFFFB3BA),
+  Color(0xFFBAE1FF),
+  Color(0xFFBFFFBA),
 ];
 
 class AdvancedAppearanceScreen extends ConsumerStatefulWidget {
@@ -36,10 +76,12 @@ class AdvancedAppearanceScreen extends ConsumerStatefulWidget {
   const AdvancedAppearanceScreen({super.key, this.chatId});
 
   @override
-  ConsumerState<AdvancedAppearanceScreen> createState() => _AdvancedAppearanceScreenState();
+  ConsumerState<AdvancedAppearanceScreen> createState() =>
+      _AdvancedAppearanceScreenState();
 }
 
-class _AdvancedAppearanceScreenState extends ConsumerState<AdvancedAppearanceScreen> {
+class _AdvancedAppearanceScreenState
+    extends ConsumerState<AdvancedAppearanceScreen> {
   late AdvancedThemeModel _theme;
   late AdvancedThemeModel _originalTheme;
   int _selectedIndex = 0;
@@ -72,15 +114,19 @@ class _AdvancedAppearanceScreenState extends ConsumerState<AdvancedAppearanceScr
 
   void _applyTheme() {
     final controller = ref.read(themeControllerProvider.notifier);
-    
-    final originalPreset = AdvancedThemeModel.presets.where((p) => p.id == _theme.id).firstOrNull;
+
+    final originalPreset = AdvancedThemeModel.presets
+        .where((p) => p.id == _theme.id)
+        .firstOrNull;
     final isModifiedPreset = originalPreset != null && _theme != originalPreset;
     final isUnmodifiedPreset = originalPreset != null && !isModifiedPreset;
 
     if (isModifiedPreset || !isUnmodifiedPreset) {
       final themeState = ref.read(themeControllerProvider);
-      final existsAsCustom = themeState.customThemes.any((t) => t.id == _theme.id);
-      
+      final existsAsCustom = themeState.customThemes.any(
+        (t) => t.id == _theme.id,
+      );
+
       if (isModifiedPreset || !existsAsCustom) {
         final customTheme = _theme.copyWith(
           id: 'custom_${DateTime.now().millisecondsSinceEpoch}',
@@ -97,7 +143,7 @@ class _AdvancedAppearanceScreenState extends ConsumerState<AdvancedAppearanceScr
       controller.setPerChatTheme(widget.chatId!, _theme.id);
     } else {
       controller.setGlobalTheme(_theme.id);
-      
+
       // Sync themeModeProvider for special built-in themes
       final themeId = _theme.id.toLowerCase();
       if (themeId == 'terminal') {
@@ -123,9 +169,13 @@ class _AdvancedAppearanceScreenState extends ConsumerState<AdvancedAppearanceScr
     Navigator.of(context).pop();
   }
 
-  void _showColorPicker(Color initialColor, ValueChanged<Color> onColorChanged) {
+  void _showColorPicker(
+    Color initialColor,
+    ValueChanged<Color> onColorChanged,
+  ) {
     final hexController = TextEditingController(
-      text: '#${initialColor.value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}',
+      text:
+          '#${initialColor.value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}',
     );
     showDialog(
       context: context,
@@ -177,8 +227,18 @@ class _AdvancedAppearanceScreenState extends ConsumerState<AdvancedAppearanceScr
                           ),
                         ),
                         child: c == Colors.transparent
-                            ? Icon(Icons.block, size: 16, color: Colors.grey.shade400)
-                            : (isSelected ? const Icon(Icons.check, size: 16, color: Colors.white) : null),
+                            ? Icon(
+                                Icons.block,
+                                size: 16,
+                                color: Colors.grey.shade400,
+                              )
+                            : (isSelected
+                                  ? const Icon(
+                                      Icons.check,
+                                      size: 16,
+                                      color: Colors.white,
+                                    )
+                                  : null),
                       ),
                     );
                   },
@@ -191,7 +251,9 @@ class _AdvancedAppearanceScreenState extends ConsumerState<AdvancedAppearanceScr
                   labelText: 'Hex Color',
                   hintText: '#RRGGBB',
                   prefixIcon: const Icon(Icons.color_lens_outlined),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 onSubmitted: (value) {
                   final hex = value.replaceAll('#', '').trim();
@@ -283,7 +345,9 @@ class _AdvancedAppearanceScreenState extends ConsumerState<AdvancedAppearanceScr
                       Tab(text: 'Customize'),
                     ],
                     labelColor: colorScheme.primary,
-                    unselectedLabelColor: colorScheme.onSurface.withOpacity(0.5),
+                    unselectedLabelColor: colorScheme.onSurface.withOpacity(
+                      0.5,
+                    ),
                     indicatorColor: colorScheme.primary,
                   ),
                   Expanded(
@@ -301,10 +365,14 @@ class _AdvancedAppearanceScreenState extends ConsumerState<AdvancedAppearanceScr
                                 width: 40,
                                 height: 40,
                                 decoration: BoxDecoration(
-                                  color: Color(theme.senderBubble.backgroundColor),
+                                  color: Color(
+                                    theme.senderBubble.backgroundColor,
+                                  ),
                                   borderRadius: BorderRadius.circular(10),
                                   border: Border.all(
-                                    color: isSelected ? colorScheme.primary : Colors.grey.shade300,
+                                    color: isSelected
+                                        ? colorScheme.primary
+                                        : Colors.grey.shade300,
                                     width: isSelected ? 2 : 1,
                                   ),
                                 ),
@@ -313,7 +381,9 @@ class _AdvancedAppearanceScreenState extends ConsumerState<AdvancedAppearanceScr
                                     width: 18,
                                     height: 12,
                                     decoration: BoxDecoration(
-                                      color: Color(theme.receiverBubble.backgroundColor),
+                                      color: Color(
+                                        theme.receiverBubble.backgroundColor,
+                                      ),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                   ),
@@ -322,12 +392,19 @@ class _AdvancedAppearanceScreenState extends ConsumerState<AdvancedAppearanceScr
                               title: Text(
                                 theme.name,
                                 style: TextStyle(
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                  color: isSelected ? colorScheme.primary : null,
+                                  fontWeight: isSelected
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                  color: isSelected
+                                      ? colorScheme.primary
+                                      : null,
                                 ),
                               ),
                               trailing: isSelected
-                                  ? Icon(Icons.check_circle_rounded, color: colorScheme.primary)
+                                  ? Icon(
+                                      Icons.check_circle_rounded,
+                                      color: colorScheme.primary,
+                                    )
                                   : null,
                               onTap: () => _selectTheme(index),
                             );
@@ -373,7 +450,11 @@ class _AdvancedAppearanceScreenState extends ConsumerState<AdvancedAppearanceScr
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 8, offset: const Offset(0, 3)),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
         ],
       ),
       child: Column(
@@ -387,7 +468,11 @@ class _AdvancedAppearanceScreenState extends ConsumerState<AdvancedAppearanceScr
               child: Row(
                 children: [
                   const SizedBox(width: 12),
-                  Icon(Icons.arrow_back, color: Color(_theme.appAppearance.appBarIconColor), size: 20),
+                  Icon(
+                    Icons.arrow_back,
+                    color: Color(_theme.appAppearance.appBarIconColor),
+                    size: 20,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -400,7 +485,11 @@ class _AdvancedAppearanceScreenState extends ConsumerState<AdvancedAppearanceScr
                       ),
                     ),
                   ),
-                  Icon(Icons.more_vert, color: Color(_theme.appAppearance.appBarIconColor), size: 20),
+                  Icon(
+                    Icons.more_vert,
+                    color: Color(_theme.appAppearance.appBarIconColor),
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
                 ],
               ),
@@ -425,43 +514,86 @@ class _AdvancedAppearanceScreenState extends ConsumerState<AdvancedAppearanceScr
                       ),
                     ),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     child: Column(
                       children: [
-                        _buildPreviewBubble(isSender: false, text: "Hey! How's the new theme?", time: '10:28 AM'),
+                        _buildPreviewBubble(
+                          isSender: false,
+                          text: "Hey! How's the new theme?",
+                          time: '10:28 AM',
+                        ),
                         const SizedBox(height: 4),
-                        _buildPreviewBubble(isSender: true, text: 'It looks incredible! 🚀', time: '10:29 AM'),
+                        _buildPreviewBubble(
+                          isSender: true,
+                          text: 'It looks incredible! 🚀',
+                          time: '10:29 AM',
+                        ),
                         const SizedBox(height: 4),
-                        _buildPreviewBubble(isSender: false, text: 'Try dark mode too 😎', time: '10:30 AM'),
+                        _buildPreviewBubble(
+                          isSender: false,
+                          text: 'Try dark mode too 😎',
+                          time: '10:30 AM',
+                        ),
                       ],
                     ),
                   ),
 
                   // Fake input field
                   Positioned(
-                    bottom: 0, left: 0, right: 0,
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 300),
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      color: Color(_theme.appAppearance.appBarColor).withOpacity(0.95),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      color: Color(
+                        _theme.appAppearance.appBarColor,
+                      ).withOpacity(0.95),
                       child: Row(
                         children: [
-                          Icon(Icons.add, color: Color(_theme.appAppearance.iconColor), size: 20),
+                          Icon(
+                            Icons.add,
+                            color: Color(_theme.appAppearance.iconColor),
+                            size: 20,
+                          ),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
                               decoration: BoxDecoration(
-                                color: Color(_theme.appAppearance.inputBackgroundColor),
-                                borderRadius: BorderRadius.circular(_theme.appAppearance.inputBorderRadius),
-                                border: _theme.appAppearance.inputBorderColor != 0
-                                    ? Border.all(color: Color(_theme.appAppearance.inputBorderColor))
+                                color: Color(
+                                  _theme.appAppearance.inputBackgroundColor,
+                                ),
+                                borderRadius: BorderRadius.circular(
+                                  _theme.appAppearance.inputBorderRadius,
+                                ),
+                                border:
+                                    _theme.appAppearance.inputBorderColor != 0
+                                    ? Border.all(
+                                        color: Color(
+                                          _theme.appAppearance.inputBorderColor,
+                                        ),
+                                      )
                                     : null,
                               ),
-                              child: Text('Message', style: TextStyle(
-                                color: Color(_theme.appAppearance.inputHintColor),
-                                fontSize: 13,
-                              )),
+                              child: Text(
+                                'Message',
+                                style: TextStyle(
+                                  color: Color(
+                                    _theme.appAppearance.inputHintColor,
+                                  ),
+                                  fontSize: 13,
+                                ),
+                              ),
                             ),
                           ),
                           const SizedBox(width: 6),
@@ -469,10 +601,16 @@ class _AdvancedAppearanceScreenState extends ConsumerState<AdvancedAppearanceScr
                             width: 32,
                             height: 32,
                             decoration: BoxDecoration(
-                              color: Color(_theme.appAppearance.sendButtonColor),
+                              color: Color(
+                                _theme.appAppearance.sendButtonColor,
+                              ),
                               borderRadius: BorderRadius.circular(16),
                             ),
-                            child: const Icon(Icons.send, color: Colors.white, size: 14),
+                            child: const Icon(
+                              Icons.send,
+                              color: Colors.white,
+                              size: 14,
+                            ),
                           ),
                         ],
                       ),
@@ -487,9 +625,16 @@ class _AdvancedAppearanceScreenState extends ConsumerState<AdvancedAppearanceScr
     );
   }
 
-  Widget _buildPreviewBubble({required bool isSender, required String text, required String time, bool isEmoji = false}) {
+  Widget _buildPreviewBubble({
+    required bool isSender,
+    required String text,
+    required String time,
+    bool isEmoji = false,
+  }) {
     final bubble = isSender ? _theme.senderBubble : _theme.receiverBubble;
-    final textColor = isSender ? _theme.textTheme.senderMessageColor : _theme.textTheme.receiverMessageColor;
+    final textColor = isSender
+        ? _theme.textTheme.senderMessageColor
+        : _theme.textTheme.receiverMessageColor;
 
     return Align(
       alignment: isSender ? Alignment.centerRight : Alignment.centerLeft,
@@ -503,7 +648,10 @@ class _AdvancedAppearanceScreenState extends ConsumerState<AdvancedAppearanceScr
         decoration: BoxDecoration(
           color: Color(bubble.backgroundColor).withOpacity(bubble.opacity),
           border: bubble.borderWidth > 0
-              ? Border.all(color: Color(bubble.borderColor), width: bubble.borderWidth)
+              ? Border.all(
+                  color: Color(bubble.borderColor),
+                  width: bubble.borderWidth,
+                )
               : null,
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(bubble.radiusTopLeft),
@@ -513,7 +661,9 @@ class _AdvancedAppearanceScreenState extends ConsumerState<AdvancedAppearanceScr
           ),
         ),
         child: Column(
-          crossAxisAlignment: isSender ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          crossAxisAlignment: isSender
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
@@ -521,8 +671,11 @@ class _AdvancedAppearanceScreenState extends ConsumerState<AdvancedAppearanceScr
               style: AdvancedThemeModel.safeGetFont(
                 _theme.textTheme.fontFamily,
                 color: Color(textColor),
-                fontSize: isEmoji ? _theme.textTheme.emojiSize : _theme.textTheme.fontSize - 1,
-                fontWeight: FontWeight.values[(_theme.textTheme.fontWeight ~/ 100).clamp(0, 8)],
+                fontSize: isEmoji
+                    ? _theme.textTheme.emojiSize
+                    : _theme.textTheme.fontSize - 1,
+                fontWeight: FontWeight
+                    .values[(_theme.textTheme.fontWeight ~/ 100).clamp(0, 8)],
               ),
             ),
             const SizedBox(height: 2),
@@ -544,14 +697,21 @@ class _AdvancedAppearanceScreenState extends ConsumerState<AdvancedAppearanceScr
   // CUSTOMIZATION PANELS
   // ══════════════════════════════════════════════════
 
-  Widget _buildCustomizationCard({required String title, required IconData icon, required List<Widget> children}) {
+  Widget _buildCustomizationCard({
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
     return Card(
       elevation: 0.5,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       clipBehavior: Clip.antiAlias,
       child: ExpansionTile(
         leading: Icon(icon, size: 20),
-        title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+        title: Text(
+          title,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+        ),
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         expandedCrossAxisAlignment: CrossAxisAlignment.start,
         children: children,
@@ -559,7 +719,11 @@ class _AdvancedAppearanceScreenState extends ConsumerState<AdvancedAppearanceScr
     );
   }
 
-  Widget _buildColorRow(String label, int colorValue, ValueChanged<int> onChanged) {
+  Widget _buildColorRow(
+    String label,
+    int colorValue,
+    ValueChanged<int> onChanged,
+  ) {
     return InkWell(
       onTap: () => _showColorPicker(Color(colorValue), (c) {
         onChanged(c.value);
@@ -572,7 +736,8 @@ class _AdvancedAppearanceScreenState extends ConsumerState<AdvancedAppearanceScr
           children: [
             Expanded(child: Text(label, style: const TextStyle(fontSize: 14))),
             Container(
-              width: 28, height: 28,
+              width: 28,
+              height: 28,
               decoration: BoxDecoration(
                 color: Color(colorValue),
                 shape: BoxShape.circle,
@@ -585,7 +750,14 @@ class _AdvancedAppearanceScreenState extends ConsumerState<AdvancedAppearanceScr
     );
   }
 
-  Widget _buildSlider(String label, double value, double min, double max, ValueChanged<double> onChanged, {int? divisions}) {
+  Widget _buildSlider(
+    String label,
+    double value,
+    double min,
+    double max,
+    ValueChanged<double> onChanged, {
+    int? divisions,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -593,7 +765,10 @@ class _AdvancedAppearanceScreenState extends ConsumerState<AdvancedAppearanceScr
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(label, style: const TextStyle(fontSize: 14)),
-            Text(value.toStringAsFixed(1), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+            Text(
+              value.toStringAsFixed(1),
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+            ),
           ],
         ),
         Slider(
@@ -613,23 +788,51 @@ class _AdvancedAppearanceScreenState extends ConsumerState<AdvancedAppearanceScr
       title: 'Sender Bubble',
       icon: Icons.chat_bubble,
       children: [
-        _buildColorRow('Background Color', _theme.senderBubble.backgroundColor, (c) {
-          _updateTheme(_theme.copyWith(senderBubble: _theme.senderBubble.copyWith(backgroundColor: c)));
-        }),
+        _buildColorRow(
+          'Background Color',
+          _theme.senderBubble.backgroundColor,
+          (c) {
+            _updateTheme(
+              _theme.copyWith(
+                senderBubble: _theme.senderBubble.copyWith(backgroundColor: c),
+              ),
+            );
+          },
+        ),
         _buildColorRow('Border Color', _theme.senderBubble.borderColor, (c) {
-          _updateTheme(_theme.copyWith(senderBubble: _theme.senderBubble.copyWith(borderColor: c)));
+          _updateTheme(
+            _theme.copyWith(
+              senderBubble: _theme.senderBubble.copyWith(borderColor: c),
+            ),
+          );
         }),
-        _buildSlider('Border Width', _theme.senderBubble.borderWidth, 0, 5, (v) {
-          _updateTheme(_theme.copyWith(senderBubble: _theme.senderBubble.copyWith(borderWidth: v)));
+        _buildSlider('Border Width', _theme.senderBubble.borderWidth, 0, 5, (
+          v,
+        ) {
+          _updateTheme(
+            _theme.copyWith(
+              senderBubble: _theme.senderBubble.copyWith(borderWidth: v),
+            ),
+          );
         }),
-        _buildSlider('Bubble Radius', _theme.senderBubble.radiusTopLeft, 0, 32, (v) {
-          _updateTheme(_theme.copyWith(senderBubble: _theme.senderBubble.copyWith(
-            radiusTopLeft: v,
-            radiusTopRight: v,
-            radiusBottomLeft: v,
-            radiusBottomRight: v,
-          )));
-        }),
+        _buildSlider(
+          'Bubble Radius',
+          _theme.senderBubble.radiusTopLeft,
+          0,
+          32,
+          (v) {
+            _updateTheme(
+              _theme.copyWith(
+                senderBubble: _theme.senderBubble.copyWith(
+                  radiusTopLeft: v,
+                  radiusTopRight: v,
+                  radiusBottomLeft: v,
+                  radiusBottomRight: v,
+                ),
+              ),
+            );
+          },
+        ),
       ],
     );
   }
@@ -640,23 +843,53 @@ class _AdvancedAppearanceScreenState extends ConsumerState<AdvancedAppearanceScr
       title: 'Receiver Bubble',
       icon: Icons.chat_bubble_outline,
       children: [
-        _buildColorRow('Background Color', _theme.receiverBubble.backgroundColor, (c) {
-          _updateTheme(_theme.copyWith(receiverBubble: _theme.receiverBubble.copyWith(backgroundColor: c)));
-        }),
+        _buildColorRow(
+          'Background Color',
+          _theme.receiverBubble.backgroundColor,
+          (c) {
+            _updateTheme(
+              _theme.copyWith(
+                receiverBubble: _theme.receiverBubble.copyWith(
+                  backgroundColor: c,
+                ),
+              ),
+            );
+          },
+        ),
         _buildColorRow('Border Color', _theme.receiverBubble.borderColor, (c) {
-          _updateTheme(_theme.copyWith(receiverBubble: _theme.receiverBubble.copyWith(borderColor: c)));
+          _updateTheme(
+            _theme.copyWith(
+              receiverBubble: _theme.receiverBubble.copyWith(borderColor: c),
+            ),
+          );
         }),
-        _buildSlider('Border Width', _theme.receiverBubble.borderWidth, 0, 5, (v) {
-          _updateTheme(_theme.copyWith(receiverBubble: _theme.receiverBubble.copyWith(borderWidth: v)));
+        _buildSlider('Border Width', _theme.receiverBubble.borderWidth, 0, 5, (
+          v,
+        ) {
+          _updateTheme(
+            _theme.copyWith(
+              receiverBubble: _theme.receiverBubble.copyWith(borderWidth: v),
+            ),
+          );
         }),
-        _buildSlider('Bubble Radius', _theme.receiverBubble.radiusTopLeft, 0, 32, (v) {
-          _updateTheme(_theme.copyWith(receiverBubble: _theme.receiverBubble.copyWith(
-            radiusTopLeft: v,
-            radiusTopRight: v,
-            radiusBottomLeft: v,
-            radiusBottomRight: v,
-          )));
-        }),
+        _buildSlider(
+          'Bubble Radius',
+          _theme.receiverBubble.radiusTopLeft,
+          0,
+          32,
+          (v) {
+            _updateTheme(
+              _theme.copyWith(
+                receiverBubble: _theme.receiverBubble.copyWith(
+                  radiusTopLeft: v,
+                  radiusTopRight: v,
+                  radiusBottomLeft: v,
+                  radiusBottomRight: v,
+                ),
+              ),
+            );
+          },
+        ),
       ],
     );
   }
@@ -682,23 +915,50 @@ class _AdvancedAppearanceScreenState extends ConsumerState<AdvancedAppearanceScr
             } catch (_) {
               style = TextStyle(fontFamily: f, fontSize: 14);
             }
-            return DropdownMenuItem(value: f, child: Text(f, style: style));
+            return DropdownMenuItem(
+              value: f,
+              child: Text(f, style: style),
+            );
           }).toList(),
           onChanged: (f) {
             if (f != null) {
-              _updateTheme(_theme.copyWith(textTheme: _theme.textTheme.copyWith(fontFamily: f)));
+              _updateTheme(
+                _theme.copyWith(
+                  textTheme: _theme.textTheme.copyWith(fontFamily: f),
+                ),
+              );
             }
           },
         ),
         const SizedBox(height: 8),
-        _buildColorRow('Sender Text Color', _theme.textTheme.senderMessageColor, (c) {
-          _updateTheme(_theme.copyWith(textTheme: _theme.textTheme.copyWith(senderMessageColor: c)));
-        }),
-        _buildColorRow('Receiver Text Color', _theme.textTheme.receiverMessageColor, (c) {
-          _updateTheme(_theme.copyWith(textTheme: _theme.textTheme.copyWith(receiverMessageColor: c)));
-        }),
+        _buildColorRow(
+          'Sender Text Color',
+          _theme.textTheme.senderMessageColor,
+          (c) {
+            _updateTheme(
+              _theme.copyWith(
+                textTheme: _theme.textTheme.copyWith(senderMessageColor: c),
+              ),
+            );
+          },
+        ),
+        _buildColorRow(
+          'Receiver Text Color',
+          _theme.textTheme.receiverMessageColor,
+          (c) {
+            _updateTheme(
+              _theme.copyWith(
+                textTheme: _theme.textTheme.copyWith(receiverMessageColor: c),
+              ),
+            );
+          },
+        ),
         _buildColorRow('Timestamp Color', _theme.textTheme.timestampColor, (c) {
-          _updateTheme(_theme.copyWith(textTheme: _theme.textTheme.copyWith(timestampColor: c)));
+          _updateTheme(
+            _theme.copyWith(
+              textTheme: _theme.textTheme.copyWith(timestampColor: c),
+            ),
+          );
         }),
       ],
     );
@@ -710,8 +970,14 @@ class _AdvancedAppearanceScreenState extends ConsumerState<AdvancedAppearanceScr
       title: 'Chat Background',
       icon: Icons.wallpaper,
       children: [
-        _buildColorRow('Background Color', _theme.backgroundTheme.solidColor, (c) {
-          _updateTheme(_theme.copyWith(backgroundTheme: _theme.backgroundTheme.copyWith(solidColor: c)));
+        _buildColorRow('Background Color', _theme.backgroundTheme.solidColor, (
+          c,
+        ) {
+          _updateTheme(
+            _theme.copyWith(
+              backgroundTheme: _theme.backgroundTheme.copyWith(solidColor: c),
+            ),
+          );
         }),
       ],
     );

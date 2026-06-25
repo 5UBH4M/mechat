@@ -16,23 +16,31 @@ class ChatModel extends ChatEntity {
 
   factory ChatModel.fromJson(Map<String, dynamic> json) {
     final lastMsgData = json['lastMessage'] as Map<String, dynamic>?;
-    
+
     // Parse maps defensively
     final unreadMap = json['unreadCounts'] as Map<dynamic, dynamic>? ?? {};
     final typingMap = json['typingStatus'] as Map<dynamic, dynamic>? ?? {};
 
     return ChatModel(
       id: json['id'] as String? ?? '',
-      participants: (json['participants'] as List<dynamic>?)
+      participants:
+          (json['participants'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           [],
-      lastMessage: lastMsgData != null ? MessageModel.fromJson(lastMsgData) : null,
-      unreadCounts: unreadMap.map((key, value) => MapEntry(key.toString(), value as int)),
-      typingStatus: typingMap.map((key, value) => MapEntry(key.toString(), value as bool)),
+      lastMessage: lastMsgData != null
+          ? MessageModel.fromJson(lastMsgData)
+          : null,
+      unreadCounts: unreadMap.map(
+        (key, value) => MapEntry(key.toString(), value as int),
+      ),
+      typingStatus: typingMap.map(
+        (key, value) => MapEntry(key.toString(), value as bool),
+      ),
       isNotesToSelf: json['isNotesToSelf'] as bool? ?? false,
       disappearingTimer: json['disappearingTimer'] as int? ?? 0,
-      isConnectionEstablished: json['isConnectionEstablished'] as bool? ?? false,
+      isConnectionEstablished:
+          json['isConnectionEstablished'] as bool? ?? false,
       connectionRequestedBy: json['connectionRequestedBy'] as String? ?? '',
     );
   }
@@ -41,7 +49,9 @@ class ChatModel extends ChatEntity {
     return {
       'id': id,
       'participants': participants,
-      'lastMessage': lastMessage != null ? (lastMessage as MessageModel).toJson() : null,
+      'lastMessage': lastMessage != null
+          ? (lastMessage as MessageModel).toJson()
+          : null,
       'unreadCounts': unreadCounts,
       'typingStatus': typingStatus,
       'isNotesToSelf': isNotesToSelf,
@@ -55,7 +65,9 @@ class ChatModel extends ChatEntity {
     return {
       'id': id,
       'participants': participants,
-      'lastMessage': lastMessage != null ? (lastMessage as MessageModel).toFirestore() : null,
+      'lastMessage': lastMessage != null
+          ? (lastMessage as MessageModel).toFirestore()
+          : null,
       'unreadCounts': unreadCounts,
       'typingStatus': typingStatus,
       'isNotesToSelf': isNotesToSelf,
@@ -84,8 +96,10 @@ class ChatModel extends ChatEntity {
       typingStatus: typingStatus ?? this.typingStatus,
       isNotesToSelf: isNotesToSelf ?? this.isNotesToSelf,
       disappearingTimer: disappearingTimer ?? this.disappearingTimer,
-      isConnectionEstablished: isConnectionEstablished ?? this.isConnectionEstablished,
-      connectionRequestedBy: connectionRequestedBy ?? this.connectionRequestedBy,
+      isConnectionEstablished:
+          isConnectionEstablished ?? this.isConnectionEstablished,
+      connectionRequestedBy:
+          connectionRequestedBy ?? this.connectionRequestedBy,
     );
   }
 }

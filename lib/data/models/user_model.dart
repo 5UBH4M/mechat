@@ -4,7 +4,7 @@ import '../../domain/entities/user_entity.dart';
 class UserModel extends UserEntity {
   const UserModel({
     required super.uid,
-    required super.phoneNumber,
+    required super.email,
     required super.username,
     required super.displayName,
     required super.profilePictureUrl,
@@ -35,7 +35,7 @@ class UserModel extends UserEntity {
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
       uid: json['uid'] as String? ?? '',
-      phoneNumber: json['phoneNumber'] as String? ?? '',
+      email: json['email'] as String? ?? '',
       username: json['username'] as String? ?? '',
       displayName: json['displayName'] as String? ?? '',
       profilePictureUrl: json['profilePictureUrl'] as String? ?? '',
@@ -44,7 +44,8 @@ class UserModel extends UserEntity {
       lastSeen: _parseDateTime(json['lastSeen']),
       createdAt: _parseDateTime(json['createdAt']),
       publicKey: json['publicKey'] as String? ?? '',
-      blockedUsers: (json['blockedUsers'] as List<dynamic>?)
+      blockedUsers:
+          (json['blockedUsers'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           [],
@@ -54,18 +55,21 @@ class UserModel extends UserEntity {
       profilePhotoVisible: json['profilePhotoVisible'] as bool? ?? true,
       connectedTo: json['connectedTo'] as String? ?? '',
       disconnectRequested: json['disconnectRequested'] as bool? ?? false,
-      previouslyConnected: (json['previouslyConnected'] as List<dynamic>?)
+      previouslyConnected:
+          (json['previouslyConnected'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           [],
-      showPreviousConnectionsVisible: json['showPreviousConnectionsVisible'] as bool? ?? true,
+      showPreviousConnectionsVisible:
+          json['showPreviousConnectionsVisible'] as bool? ?? true,
       hideContactPhotoInChat: json['hideContactPhotoInChat'] as bool? ?? false,
       hideContactNameInChat: json['hideContactNameInChat'] as bool? ?? false,
       autoAcceptCalls: json['autoAcceptCalls'] as bool? ?? true,
       disableMute: json['disableMute'] as bool? ?? true,
       disableCameraOff: json['disableCameraOff'] as bool? ?? true,
       hideNotificationSender: json['hideNotificationSender'] as bool? ?? false,
-      hideNotificationMessage: json['hideNotificationMessage'] as bool? ?? false,
+      hideNotificationMessage:
+          json['hideNotificationMessage'] as bool? ?? false,
       alwaysSendHD: json['alwaysSendHD'] as bool? ?? false,
     );
   }
@@ -73,7 +77,7 @@ class UserModel extends UserEntity {
   Map<String, dynamic> toJson() {
     return {
       'uid': uid,
-      'phoneNumber': phoneNumber,
+      'email': email,
       'username': username,
       'displayName': displayName,
       'profilePictureUrl': profilePictureUrl,
@@ -105,7 +109,7 @@ class UserModel extends UserEntity {
   Map<String, dynamic> toFirestore() {
     return {
       'uid': uid,
-      'phoneNumber': phoneNumber,
+      'email': email,
       'username': username,
       'displayName': displayName,
       'profilePictureUrl': profilePictureUrl,
@@ -143,7 +147,7 @@ class UserModel extends UserEntity {
 
   UserModel copyWith({
     String? uid,
-    String? phoneNumber,
+    String? email,
     String? username,
     String? displayName,
     String? profilePictureUrl,
@@ -172,7 +176,7 @@ class UserModel extends UserEntity {
   }) {
     return UserModel(
       uid: uid ?? this.uid,
-      phoneNumber: phoneNumber ?? this.phoneNumber,
+      email: email ?? this.email,
       username: username ?? this.username,
       displayName: displayName ?? this.displayName,
       profilePictureUrl: profilePictureUrl ?? this.profilePictureUrl,
@@ -189,14 +193,19 @@ class UserModel extends UserEntity {
       connectedTo: connectedTo ?? this.connectedTo,
       disconnectRequested: disconnectRequested ?? this.disconnectRequested,
       previouslyConnected: previouslyConnected ?? this.previouslyConnected,
-      showPreviousConnectionsVisible: showPreviousConnectionsVisible ?? this.showPreviousConnectionsVisible,
-      hideContactPhotoInChat: hideContactPhotoInChat ?? this.hideContactPhotoInChat,
-      hideContactNameInChat: hideContactNameInChat ?? this.hideContactNameInChat,
+      showPreviousConnectionsVisible:
+          showPreviousConnectionsVisible ?? this.showPreviousConnectionsVisible,
+      hideContactPhotoInChat:
+          hideContactPhotoInChat ?? this.hideContactPhotoInChat,
+      hideContactNameInChat:
+          hideContactNameInChat ?? this.hideContactNameInChat,
       autoAcceptCalls: autoAcceptCalls ?? this.autoAcceptCalls,
       disableMute: disableMute ?? this.disableMute,
       disableCameraOff: disableCameraOff ?? this.disableCameraOff,
-      hideNotificationSender: hideNotificationSender ?? this.hideNotificationSender,
-      hideNotificationMessage: hideNotificationMessage ?? this.hideNotificationMessage,
+      hideNotificationSender:
+          hideNotificationSender ?? this.hideNotificationSender,
+      hideNotificationMessage:
+          hideNotificationMessage ?? this.hideNotificationMessage,
       alwaysSendHD: alwaysSendHD ?? this.alwaysSendHD,
     );
   }

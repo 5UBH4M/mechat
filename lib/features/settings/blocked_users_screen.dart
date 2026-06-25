@@ -36,7 +36,8 @@ class _BlockedUsersScreenState extends ConsumerState<BlockedUsersScreen> {
       ),
       body: Builder(
         builder: (context) {
-          if (state.status == ContactOpsStatus.loading && state.blockedUsers.isEmpty) {
+          if (state.status == ContactOpsStatus.loading &&
+              state.blockedUsers.isEmpty) {
             return const Center(child: CircularProgressIndicator());
           }
 
@@ -84,15 +85,22 @@ class _BlockedUsersScreenState extends ConsumerState<BlockedUsersScreen> {
                     user.displayName,
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  subtitle: Text(user.phoneNumber),
+                  subtitle: Text(user.email),
                   trailing: TextButton(
                     onPressed: () {
-                      ref.read(contactsNotifierProvider.notifier).unblockUser(user.uid);
+                      ref
+                          .read(contactsNotifierProvider.notifier)
+                          .unblockUser(user.uid);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Unblocked ${user.displayName}')),
+                        SnackBar(
+                          content: Text('Unblocked ${user.displayName}'),
+                        ),
                       );
                     },
-                    child: const Text('UNBLOCK', style: TextStyle(fontWeight: FontWeight.bold)),
+                    child: const Text(
+                      'UNBLOCK',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
               );

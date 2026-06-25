@@ -11,13 +11,16 @@ class CreateProfileScreen extends ConsumerStatefulWidget {
   const CreateProfileScreen({super.key});
 
   @override
-  ConsumerState<CreateProfileScreen> createState() => _CreateProfileScreenState();
+  ConsumerState<CreateProfileScreen> createState() =>
+      _CreateProfileScreenState();
 }
 
 class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _usernameController = TextEditingController();
-  final TextEditingController _bioController = TextEditingController(text: AppConstants.defaultAbout);
+  final TextEditingController _bioController = TextEditingController(
+    text: AppConstants.defaultAbout,
+  );
   final _formKey = GlobalKey<FormState>();
   String? _localImagePath;
 
@@ -32,7 +35,10 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
   Future<void> _pickImage() async {
     try {
       final picker = ImagePicker();
-      final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+      final picked = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 70,
+      );
       if (picked != null) {
         if (!mounted) return;
         final croppedPath = await Navigator.push<String>(
@@ -52,8 +58,10 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
-    
-    ref.read(profileNotifierProvider.notifier).saveProfile(
+
+    ref
+        .read(profileNotifierProvider.notifier)
+        .saveProfile(
           username: _usernameController.text.trim(),
           displayName: _nameController.text.trim(),
           about: _bioController.text.trim(),
@@ -71,7 +79,8 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
     ref.listen<ProfileState>(profileNotifierProvider, (previous, next) {
       if (next.status == ProfileStatus.success) {
         context.go('/home');
-      } else if (next.status == ProfileStatus.error && next.errorMessage != null) {
+      } else if (next.status == ProfileStatus.error &&
+          next.errorMessage != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(next.errorMessage!),
@@ -83,10 +92,7 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      appBar: AppBar(
-        title: const Text('Create Profile'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('Create Profile'), centerTitle: true),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -95,7 +101,7 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
             child: Column(
               children: [
                 const SizedBox(height: 20),
-                
+
                 // Beautiful Profile Avatar Picker
                 GestureDetector(
                   onTap: _pickImage,
@@ -108,8 +114,11 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                             ? FileImage(File(_localImagePath!))
                             : null,
                         child: _localImagePath == null
-                            ? Icon(Icons.add_photo_alternate_rounded,
-                                size: 40, color: theme.colorScheme.primary)
+                            ? Icon(
+                                Icons.add_photo_alternate_rounded,
+                                size: 40,
+                                color: theme.colorScheme.primary,
+                              )
                             : null,
                       ),
                       Positioned(
@@ -120,7 +129,10 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                           decoration: BoxDecoration(
                             color: theme.colorScheme.primary,
                             shape: BoxShape.circle,
-                            border: Border.all(color: theme.colorScheme.surface, width: 2),
+                            border: Border.all(
+                              color: theme.colorScheme.surface,
+                              width: 2,
+                            ),
                           ),
                           child: const Icon(
                             Icons.edit,
@@ -128,13 +140,13 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                             color: Colors.white,
                           ),
                         ),
-                      )
+                      ),
                     ],
                   ),
                 ),
-                
+
                 const SizedBox(height: 40),
-                
+
                 // Username Text Field
                 TextFormField(
                   controller: _usernameController,
@@ -162,7 +174,7 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                     prefixIcon: Icon(Icons.alternate_email),
                   ),
                 ),
-                
+
                 const SizedBox(height: 20),
 
                 // Display Name Text Field
@@ -183,9 +195,9 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                     prefixIcon: Icon(Icons.person),
                   ),
                 ),
-                
+
                 const SizedBox(height: 20),
-                
+
                 // About / Bio Text Field
                 TextFormField(
                   controller: _bioController,
@@ -196,11 +208,13 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                     prefixIcon: Icon(Icons.info_outline),
                   ),
                 ),
-                
+
                 const SizedBox(height: 48),
-                
+
                 ElevatedButton(
-                  onPressed: profileState.status == ProfileStatus.loading ? null : _submit,
+                  onPressed: profileState.status == ProfileStatus.loading
+                      ? null
+                      : _submit,
                   child: profileState.status == ProfileStatus.loading
                       ? const SizedBox(
                           height: 24,

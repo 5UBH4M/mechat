@@ -56,11 +56,21 @@ class ChatSearchNotifier extends StateNotifier<ChatSearchState> {
   }
 
   void startSearch() {
-    state = state.copyWith(isSearching: true, query: '', matchIndices: [], currentMatchIndex: -1);
+    state = state.copyWith(
+      isSearching: true,
+      query: '',
+      matchIndices: [],
+      currentMatchIndex: -1,
+    );
   }
 
   void stopSearch() {
-    state = state.copyWith(isSearching: false, query: '', matchIndices: [], currentMatchIndex: -1);
+    state = state.copyWith(
+      isSearching: false,
+      query: '',
+      matchIndices: [],
+      currentMatchIndex: -1,
+    );
   }
 
   void addRecentSearch(String query) {
@@ -89,14 +99,19 @@ class ChatSearchNotifier extends StateNotifier<ChatSearchState> {
 
   void updateQuery(String query, List<MessageEntity> messages) {
     if (query.isEmpty) {
-      state = state.copyWith(query: query, matchIndices: [], currentMatchIndex: -1, isFuzzy: false);
+      state = state.copyWith(
+        query: query,
+        matchIndices: [],
+        currentMatchIndex: -1,
+        isFuzzy: false,
+      );
       return;
     }
 
     // Exact search first (case-insensitive)
     final exactMatches = <int>[];
     final lowerQuery = query.toLowerCase();
-    
+
     for (int i = 0; i < messages.length; i++) {
       if (messages[i].content.toLowerCase().contains(lowerQuery)) {
         exactMatches.add(i);
@@ -107,7 +122,9 @@ class ChatSearchNotifier extends StateNotifier<ChatSearchState> {
       state = state.copyWith(
         query: query,
         matchIndices: exactMatches,
-        currentMatchIndex: exactMatches.length - 1, // Start at bottom-most match (since messages are usually reversed or ordered, let's say index 0 is latest. Wait, indices depend on the provided list)
+        currentMatchIndex:
+            exactMatches.length -
+            1, // Start at bottom-most match (since messages are usually reversed or ordered, let's say index 0 is latest. Wait, indices depend on the provided list)
         isFuzzy: false,
       );
       return;
@@ -116,24 +133,33 @@ class ChatSearchNotifier extends StateNotifier<ChatSearchState> {
     // If no exact matches, try fuzzy
     // We only fuzzy search if query is at least 4 chars long
     if (query.length < 4) {
-      state = state.copyWith(query: query, matchIndices: [], currentMatchIndex: -1, isFuzzy: false);
+      state = state.copyWith(
+        query: query,
+        matchIndices: [],
+        currentMatchIndex: -1,
+        isFuzzy: false,
+      );
       return;
     }
 
     final fuse = Fuzzy<MessageEntity>(
       messages,
       options: FuzzyOptions(
-        keys: [WeightedKey(name: 'content', getter: (i) => i.content, weight: 1)],
-        threshold: 0.3, // 0 is perfect, 1 is anything. 0.3 allows minor spelling mistakes
+        keys: [
+          WeightedKey(name: 'content', getter: (i) => i.content, weight: 1),
+        ],
+        threshold:
+            0.3, // 0 is perfect, 1 is anything. 0.3 allows minor spelling mistakes
         minMatchCharLength: 3,
       ),
     );
 
     final results = fuse.search(query);
     final fuzzyIndices = <int>[];
-    
+
     for (var result in results) {
-      if (result.score < 0.4) { // Only good matches
+      if (result.score < 0.4) {
+        // Only good matches
         // Find the index in original list
         final idx = messages.indexOf(result.item);
         if (idx != -1) {
@@ -153,7 +179,12 @@ class ChatSearchNotifier extends StateNotifier<ChatSearchState> {
         isFuzzy: true,
       );
     } else {
-      state = state.copyWith(query: query, matchIndices: [], currentMatchIndex: -1, isFuzzy: false);
+      state = state.copyWith(
+        query: query,
+        matchIndices: [],
+        currentMatchIndex: -1,
+        isFuzzy: false,
+      );
     }
   }
 
@@ -172,6 +203,7 @@ class ChatSearchNotifier extends StateNotifier<ChatSearchState> {
   }
 }
 
-final chatSearchProvider = StateNotifierProvider<ChatSearchNotifier, ChatSearchState>((ref) {
-  return ChatSearchNotifier();
-});
+final chatSearchProvider =
+    StateNotifierProvider<ChatSearchNotifier, ChatSearchState>((ref) {
+      return ChatSearchNotifier();
+    });

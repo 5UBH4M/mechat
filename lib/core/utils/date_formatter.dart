@@ -22,7 +22,7 @@ class DateFormatter {
     final duration = Duration(seconds: seconds);
     final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
     final secs = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
-    
+
     if (duration.inHours > 0) {
       final hours = duration.inHours.toString().padLeft(2, '0');
       return '$hours:$minutes:$secs';
@@ -36,12 +36,12 @@ class DateFormatter {
     final hours = duration.inHours;
     final minutes = duration.inMinutes.remainder(60);
     final secs = duration.inSeconds.remainder(60);
-    
+
     List<String> parts = [];
     if (hours > 0) parts.add('${hours}h');
     if (minutes > 0) parts.add('${minutes}m');
     if (secs > 0) parts.add('${secs}s');
-    
+
     return parts.join(' ');
   }
 }

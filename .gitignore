@@ -46,3 +46,7 @@ app.*.map.json
 
 # Release APKs
 /release_apks/
+
+# Security - never commit service account keys
+**/serviceAccountKey.json
+*.env

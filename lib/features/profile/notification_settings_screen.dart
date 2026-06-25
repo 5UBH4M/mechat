@@ -21,9 +21,7 @@ class NotificationSettingsScreen extends ConsumerWidget {
     final notifier = ref.read(profileNotifierProvider.notifier);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Notification Settings'),
-      ),
+      appBar: AppBar(title: const Text('Notification Settings')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -36,7 +34,9 @@ class NotificationSettingsScreen extends ConsumerWidget {
           ),
           SwitchListTile(
             title: const Text('Show Sender Name'),
-            subtitle: const Text('Display the sender\'s name in notifications.'),
+            subtitle: const Text(
+              'Display the sender\'s name in notifications.',
+            ),
             value: !user.hideNotificationSender,
             activeColor: Theme.of(context).colorScheme.primary,
             onChanged: (val) {
@@ -50,7 +50,9 @@ class NotificationSettingsScreen extends ConsumerWidget {
           ),
           SwitchListTile(
             title: const Text('Show Message Content'),
-            subtitle: const Text('Because of end-to-end encryption, message content cannot be fully displayed. Turning this off hides the "New message" indicator.'),
+            subtitle: const Text(
+              'Because of end-to-end encryption, message content cannot be fully displayed. Turning this off hides the "New message" indicator.',
+            ),
             value: !user.hideNotificationMessage,
             activeColor: Theme.of(context).colorScheme.primary,
             onChanged: (val) {

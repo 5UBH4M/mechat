@@ -8,7 +8,8 @@ class ChatEntity extends Equatable {
   final Map<String, int> unreadCounts;
   final Map<String, bool> typingStatus;
   final bool isNotesToSelf;
-  final int disappearingTimer; // 0 means disabled, otherwise duration in seconds
+  final int
+  disappearingTimer; // 0 means disabled, otherwise duration in seconds
   final bool isConnectionEstablished;
   final String connectionRequestedBy;
 
@@ -26,14 +27,14 @@ class ChatEntity extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        participants,
-        lastMessage,
-        unreadCounts,
-        typingStatus,
-        isNotesToSelf,
-        disappearingTimer,
-        isConnectionEstablished,
-        connectionRequestedBy,
-      ];
+    id,
+    participants,
+    lastMessage,
+    unreadCounts,
+    typingStatus,
+    isNotesToSelf,
+    disappearingTimer,
+    isConnectionEstablished,
+    connectionRequestedBy,
+  ];
 }

@@ -21,7 +21,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     // We delay slightly to show the beautiful splash screen animations
     Future.delayed(const Duration(seconds: 2), () {
       if (!mounted) return;
-      
+
       final authState = ref.read(authNotifierProvider);
       switch (authState.status) {
         case AuthStatus.authenticated:
@@ -41,7 +41,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     // Listen to changes in auth status to redirect dynamically if needed
     ref.listen<AuthState>(authNotifierProvider, (previous, next) {
       if (next.status == AuthStatus.authenticated) {
@@ -65,7 +65,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
               width: 100,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [theme.colorScheme.primary, theme.colorScheme.secondary],
+                  colors: [
+                    theme.colorScheme.primary,
+                    theme.colorScheme.secondary,
+                  ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -75,7 +78,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                     color: theme.colorScheme.primary.withValues(alpha: 0.3),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
-                  )
+                  ),
                 ],
               ),
               child: const Icon(

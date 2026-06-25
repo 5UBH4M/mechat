@@ -18,7 +18,8 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObserver {
+class _HomeScreenState extends ConsumerState<HomeScreen>
+    with WidgetsBindingObserver {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   Timer? _heartbeatTimer;
@@ -91,7 +92,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
               'MeChat',
               style: theme.textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.w900,
-                color: theme.appBarTheme.titleTextStyle?.color ?? theme.colorScheme.onSurface,
+                color:
+                    theme.appBarTheme.titleTextStyle?.color ??
+                    theme.colorScheme.onSurface,
               ),
             ),
           ],
@@ -113,7 +116,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         children: [
           // Elegant Search Input
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 8.0,
+            ),
             child: TextField(
               controller: _searchController,
               onChanged: (val) {
@@ -129,7 +135,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
               ),
             ),
           ),
-          
+
           Expanded(
             child: chatsAsync.when(
               data: (chats) {
@@ -138,7 +144,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                   if (chat.isNotesToSelf) return false;
                   if (_searchQuery.isEmpty) return true;
                   return chat.id.toLowerCase().contains(_searchQuery) ||
-                      (chat.lastMessage?.content.toLowerCase().contains(_searchQuery) ?? false);
+                      (chat.lastMessage?.content.toLowerCase().contains(
+                            _searchQuery,
+                          ) ??
+                          false);
                 }).toList();
 
                 if (filteredChats.isEmpty) {
@@ -157,14 +166,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                   ),
                   itemBuilder: (context, index) {
                     final chat = filteredChats[index];
-                    return _buildChatItem(context, chat, currentUser?.uid, theme);
+                    return _buildChatItem(
+                      context,
+                      chat,
+                      currentUser?.uid,
+                      theme,
+                    );
                   },
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, stack) => Center(
-                child: Text('Error loading chats: $err'),
-              ),
+              error: (err, stack) =>
+                  Center(child: Text('Error loading chats: $err')),
             ),
           ),
         ],
@@ -206,26 +219,50 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     );
   }
 
-  Widget _buildChatItem(BuildContext context, ChatEntity chat, String? currentUid, ThemeData theme) {
+  Widget _buildChatItem(
+    BuildContext context,
+    ChatEntity chat,
+    String? currentUid,
+    ThemeData theme,
+  ) {
     // Determine the user's name/avatar.
     // For 'Notes to Self', we display customizable header.
     // For general participants, we resolve from participants.
     final isNotes = chat.isNotesToSelf;
-    final otherUid = chat.participants.firstWhere((id) => id != currentUid, orElse: () => currentUid ?? '');
+    final otherUid = chat.participants.firstWhere(
+      (id) => id != currentUid,
+      orElse: () => currentUid ?? '',
+    );
 
-    final int unreadCount = currentUid != null ? (chat.unreadCounts[currentUid] ?? 0) : 0;
-    final bool isTyping = currentUid != null ? (chat.typingStatus[otherUid] ?? false) : false;
+    final int unreadCount = currentUid != null
+        ? (chat.unreadCounts[currentUid] ?? 0)
+        : 0;
+    final bool isTyping = currentUid != null
+        ? (chat.typingStatus[otherUid] ?? false)
+        : false;
 
     if (isNotes) {
       return _buildTile(
-        context, chat, theme, currentUid, otherUid, 
-        'Notes to Self', true, '', unreadCount, isTyping, false,
+        context,
+        chat,
+        theme,
+        currentUid,
+        otherUid,
+        'Notes to Self',
+        true,
+        '',
+        unreadCount,
+        isTyping,
+        false,
       );
     }
 
     // Resolve user data dynamically using StreamBuilder for real-time online status
     return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection('users').doc(otherUid).snapshots(),
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(otherUid)
+          .snapshots(),
       builder: (context, snapshot) {
         String displayName = 'Loading...';
         String avatarUrl = '';
@@ -238,54 +275,89 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
             displayName = data['displayName'] ?? 'Unknown User';
             avatarUrl = data['profilePictureUrl'] ?? '';
             isOnline = data['isOnline'] ?? false;
-            lastSeen = (data['lastSeen'] as Timestamp?)?.toDate() ?? DateTime.now();
+            lastSeen =
+                (data['lastSeen'] as Timestamp?)?.toDate() ?? DateTime.now();
             lastSeenVisible = data['lastSeenVisible'] ?? true;
           }
         }
-        
+
         // Determine if user is truly online (isOnline flag AND heartbeat within 90 seconds)
         final currentUser = ref.read(authNotifierProvider).user;
-        final bothAllowLastSeen = currentUser != null && currentUser.lastSeenVisible && lastSeenVisible;
-        final isActuallyOnline = isOnline && DateTime.now().difference(lastSeen).inSeconds < 90;
+        final bothAllowLastSeen =
+            currentUser != null &&
+            currentUser.lastSeenVisible &&
+            lastSeenVisible;
+        final isActuallyOnline =
+            isOnline && DateTime.now().difference(lastSeen).inSeconds < 90;
         final showOnlineIndicator = bothAllowLastSeen && isActuallyOnline;
 
         return _buildTile(
-          context, chat, theme, currentUid, otherUid, 
-          displayName, false, avatarUrl, unreadCount, isTyping, showOnlineIndicator,
+          context,
+          chat,
+          theme,
+          currentUid,
+          otherUid,
+          displayName,
+          false,
+          avatarUrl,
+          unreadCount,
+          isTyping,
+          showOnlineIndicator,
         );
       },
     );
   }
 
   Widget _buildTile(
-    BuildContext context, ChatEntity chat, ThemeData theme,
-    String? currentUid, String otherUid, String displayName, 
-    bool isNotes, String avatarUrl, int unreadCount, bool isTyping, bool showOnlineIndicator,
+    BuildContext context,
+    ChatEntity chat,
+    ThemeData theme,
+    String? currentUid,
+    String otherUid,
+    String displayName,
+    bool isNotes,
+    String avatarUrl,
+    int unreadCount,
+    bool isTyping,
+    bool showOnlineIndicator,
   ) {
-
     return ListTile(
       onTap: () async {
-        
         final currentUser = ref.read(authNotifierProvider).user;
         if (currentUser == null) return;
 
-        if (currentUser.connectedTo.isNotEmpty && currentUser.connectedTo != otherUid) {
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('You are already connected to someone else. Please disconnect first.')));
-            }
-            return;
+        if (currentUser.connectedTo.isNotEmpty &&
+            currentUser.connectedTo != otherUid) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'You are already connected to someone else. Please disconnect first.',
+                ),
+              ),
+            );
+          }
+          return;
         }
 
         // Check if other user is connected to someone else
-        final otherUserDoc = await FirebaseFirestore.instance.collection('users').doc(otherUid).get();
+        final otherUserDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(otherUid)
+            .get();
         if (otherUserDoc.exists) {
-            final otherConnectedTo = otherUserDoc.data()?['connectedTo'] ?? '';
-            if (otherConnectedTo.isNotEmpty && otherConnectedTo != currentUser.uid) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User is already connected to someone else.')));
-                }
-                return;
+          final otherConnectedTo = otherUserDoc.data()?['connectedTo'] ?? '';
+          if (otherConnectedTo.isNotEmpty &&
+              otherConnectedTo != currentUser.uid) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('User is already connected to someone else.'),
+                ),
+              );
             }
+            return;
+          }
         }
 
         if (context.mounted) {
@@ -296,11 +368,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         children: [
           CircleAvatar(
             radius: 26,
-            backgroundColor: isNotes ? theme.colorScheme.primary.withValues(alpha: 0.2) : theme.colorScheme.surface,
-            backgroundImage: avatarUrl.isNotEmpty ? getBase64ImageProvider(avatarUrl) : null,
+            backgroundColor: isNotes
+                ? theme.colorScheme.primary.withValues(alpha: 0.2)
+                : theme.colorScheme.surface,
+            backgroundImage: avatarUrl.isNotEmpty
+                ? getBase64ImageProvider(avatarUrl)
+                : null,
             child: isNotes
                 ? Icon(Icons.bookmark_rounded, color: theme.colorScheme.primary)
-                : (avatarUrl.isEmpty ? const Icon(Icons.person, color: Colors.grey) : null),
+                : (avatarUrl.isEmpty
+                      ? const Icon(Icons.person, color: Colors.grey)
+                      : null),
           ),
           if (!isNotes && showOnlineIndicator)
             Positioned(
@@ -312,7 +390,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 decoration: BoxDecoration(
                   color: Colors.green, // Visual indicator online
                   shape: BoxShape.circle,
-                  border: Border.all(color: theme.colorScheme.surface, width: 2),
+                  border: Border.all(
+                    color: theme.colorScheme.surface,
+                    width: 2,
+                  ),
                 ),
               ),
             ),
@@ -351,7 +432,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: unreadCount > 0 ? theme.colorScheme.onSurface : null,
+                        color: unreadCount > 0
+                            ? theme.colorScheme.onSurface
+                            : null,
                         fontWeight: unreadCount > 0 ? FontWeight.bold : null,
                       ),
                     ),
@@ -365,9 +448,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 ),
                 child: Text(
                   unreadCount.toString(),
-                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              )
+              ),
           ],
         ),
       ),

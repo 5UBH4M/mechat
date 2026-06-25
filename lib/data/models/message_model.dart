@@ -23,7 +23,7 @@ class MessageModel extends MessageEntity {
 
   factory MessageModel.fromJson(Map<String, dynamic> json) {
     final reactionsMap = json['reactions'] as Map<dynamic, dynamic>? ?? {};
-    
+
     return MessageModel(
       id: json['id'] as String? ?? '',
       senderId: json['senderId'] as String? ?? '',
@@ -38,8 +38,14 @@ class MessageModel extends MessageEntity {
       duration: json['duration'] as int? ?? 0,
       repliedToMessageId: json['repliedToMessageId'] as String? ?? '',
       repliedToMessageContent: json['repliedToMessageContent'] as String? ?? '',
-      reactions: reactionsMap.map((key, value) => MapEntry(key.toString(), value.toString())),
-      starredBy: (json['starredBy'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
+      reactions: reactionsMap.map(
+        (key, value) => MapEntry(key.toString(), value.toString()),
+      ),
+      starredBy:
+          (json['starredBy'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
       isForwarded: json['isForwarded'] as bool? ?? false,
     );
   }
@@ -125,7 +131,8 @@ class MessageModel extends MessageEntity {
       fileSize: fileSize ?? this.fileSize,
       duration: duration ?? this.duration,
       repliedToMessageId: repliedToMessageId ?? this.repliedToMessageId,
-      repliedToMessageContent: repliedToMessageContent ?? this.repliedToMessageContent,
+      repliedToMessageContent:
+          repliedToMessageContent ?? this.repliedToMessageContent,
       reactions: reactions ?? this.reactions,
       starredBy: starredBy ?? this.starredBy,
       isForwarded: isForwarded ?? this.isForwarded,

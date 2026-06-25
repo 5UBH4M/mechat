@@ -13,7 +13,8 @@ import 'features/auth/auth_notifier.dart';
 import 'features/chat/chat_notifier.dart';
 import 'domain/entities/chat_entity.dart';
 
-final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
+    GlobalKey<ScaffoldMessengerState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,7 +28,9 @@ void main() async {
     await Firebase.initializeApp();
   } catch (e) {
     dev.log("Firebase Initialization warning: $e");
-    dev.log("The application will continue to run with local caching offline support.");
+    dev.log(
+      "The application will continue to run with local caching offline support.",
+    );
   }
 
   // 3. Initialize notifications in the background (don't block app start)
@@ -38,11 +41,7 @@ void main() async {
     } catch (_) {}
   });
 
-  runApp(
-    const ProviderScope(
-      child: MeChatApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: MeChatApp()));
 }
 
 class MeChatApp extends ConsumerStatefulWidget {
@@ -52,7 +51,8 @@ class MeChatApp extends ConsumerStatefulWidget {
   ConsumerState<MeChatApp> createState() => _MeChatAppState();
 }
 
-class _MeChatAppState extends ConsumerState<MeChatApp> with WidgetsBindingObserver {
+class _MeChatAppState extends ConsumerState<MeChatApp>
+    with WidgetsBindingObserver {
   /// Cache of userId -> displayName for notification sender names
   final Map<String, String> _userNameCache = {};
 
@@ -79,7 +79,10 @@ class _MeChatAppState extends ConsumerState<MeChatApp> with WidgetsBindingObserv
   Future<String> _getSenderName(String uid) async {
     if (_userNameCache.containsKey(uid)) return _userNameCache[uid]!;
     try {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
       final name = doc.data()?['displayName'] as String? ?? 'Someone';
       _userNameCache[uid] = name;
       return name;
@@ -99,12 +102,13 @@ class _MeChatAppState extends ConsumerState<MeChatApp> with WidgetsBindingObserv
       if (currentUser == null) return;
 
       final oldChats = previous?.value;
-      if (oldChats == null) return; // Prevent notifying for all messages on app startup
+      if (oldChats == null)
+        return; // Prevent notifying for all messages on app startup
       final newChats = next.value ?? [];
 
       for (var newChat in newChats) {
         final oldChat = oldChats.firstWhere(
-          (c) => c.id == newChat.id, 
+          (c) => c.id == newChat.id,
           orElse: () => ChatEntity(
             id: newChat.id,
             participants: newChat.participants,
@@ -114,24 +118,27 @@ class _MeChatAppState extends ConsumerState<MeChatApp> with WidgetsBindingObserv
             isNotesToSelf: newChat.isNotesToSelf,
           ),
         );
-        
+
         final newLastMsg = newChat.lastMessage;
         final oldLastMsg = oldChat.lastMessage;
 
         // If there's a new message and we didn't send it
         if (newLastMsg != null && newLastMsg.senderId != currentUser.uid) {
           if (oldLastMsg == null || newLastMsg.id != oldLastMsg.id) {
-            
             // Check if we are currently in the chat screen for this chat
-            final currentRoute = appRouter.routerDelegate.currentConfiguration.last.matchedLocation;
-            final isChatScreenActive = currentRoute == '/chat/${newLastMsg.senderId}' || 
-              currentRoute == '/chat/${newChat.participants.firstWhere((id) => id != currentUser.uid, orElse: () => '')}';
-            
-            final lifecycleState = WidgetsBinding.instance.lifecycleState;
-            final inBackground = lifecycleState != AppLifecycleState.resumed;
+            final currentRoute = appRouter
+                .routerDelegate
+                .currentConfiguration
+                .last
+                .matchedLocation;
+            final isChatScreenActive =
+                currentRoute == '/chat/${newLastMsg.senderId}' ||
+                currentRoute ==
+                    '/chat/${newChat.participants.firstWhere((id) => id != currentUser.uid, orElse: () => '')}';
 
-            // Only show local foreground notification if app is active and NOT in the chat
-            if (!inBackground && !isChatScreenActive) {
+            // Show notification if user is NOT currently viewing this chat
+            // This covers both foreground (different screen) and background (app paused but process alive)
+            if (!isChatScreenActive) {
               // Read user's notification settings
               final hideSender = currentUser.hideNotificationSender;
               final hideMessage = currentUser.hideNotificationMessage;
@@ -155,7 +162,7 @@ class _MeChatAppState extends ConsumerState<MeChatApp> with WidgetsBindingObserv
               }
 
               if (newLastMsg.content.isEmpty && newLastMsg.type == 'text') {
-                 if(newLastMsg.fileUrl.isEmpty) continue; 
+                if (newLastMsg.fileUrl.isEmpty) continue;
               }
 
               final chatRoute = '/chat/${newLastMsg.senderId}';
@@ -179,12 +186,12 @@ class _MeChatAppState extends ConsumerState<MeChatApp> with WidgetsBindingObserv
 
     final advTheme = ref.watch(advancedThemeProvider(null));
     final globalThemeId = ref.watch(themeControllerProvider).globalThemeId;
-    
+
     // Built-in full themes have their own ThemeData in AppTheme.
     // We only use the generic advanced-to-ThemeData fallback for actual custom presets (WhatsApp, etc.)
     final customThemeKeys = ['terminal', 'cyberpunk', 'oldphone', 'material3'];
     final useAdvancedGlobal = !customThemeKeys.contains(globalThemeId);
-    
+
     final themeModeType = ref.watch(themeModeProvider);
 
     ThemeData lightTheme = AppTheme.lightTheme;
@@ -220,8 +227,12 @@ class _MeChatAppState extends ConsumerState<MeChatApp> with WidgetsBindingObserv
     return MaterialApp.router(
       title: 'MeChat',
       debugShowCheckedModeBanner: false,
-      theme: useAdvancedGlobal ? advTheme.toThemeData(Brightness.light) : lightTheme,
-      darkTheme: useAdvancedGlobal ? advTheme.toThemeData(Brightness.dark) : darkTheme,
+      theme: useAdvancedGlobal
+          ? advTheme.toThemeData(Brightness.light)
+          : lightTheme,
+      darkTheme: useAdvancedGlobal
+          ? advTheme.toThemeData(Brightness.dark)
+          : darkTheme,
       themeMode: activeMode,
       scaffoldMessengerKey: scaffoldMessengerKey,
       routerConfig: appRouter,

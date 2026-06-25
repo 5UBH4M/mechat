@@ -1,4 +1,3 @@
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/image_helper.dart';
@@ -14,7 +13,10 @@ class ProfileRepositoryImpl implements ProfileRepository {
   @override
   Future<UserEntity?> getUserProfile(String uid) async {
     try {
-      final doc = await _db.collection(AppConstants.usersCollection).doc(uid).get();
+      final doc = await _db
+          .collection(AppConstants.usersCollection)
+          .doc(uid)
+          .get();
       if (doc.exists && doc.data() != null) {
         final model = UserModel.fromJson(doc.data()!);
         await _hive.saveUser(model.toJson());
@@ -28,7 +30,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
   Future<void> createUserProfile(UserEntity user) async {
     final model = UserModel(
       uid: user.uid,
-      phoneNumber: user.phoneNumber,
+      email: user.email,
       username: user.username,
       displayName: user.displayName,
       profilePictureUrl: user.profilePictureUrl,
@@ -55,7 +57,10 @@ class ProfileRepositoryImpl implements ProfileRepository {
       hideNotificationMessage: user.hideNotificationMessage,
     );
 
-    await _db.collection(AppConstants.usersCollection).doc(user.uid).set(model.toFirestore());
+    await _db
+        .collection(AppConstants.usersCollection)
+        .doc(user.uid)
+        .set(model.toFirestore());
     await _hive.saveUser(model.toJson());
   }
 
@@ -63,7 +68,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
   Future<void> updateUserProfile(UserEntity user) async {
     final model = UserModel(
       uid: user.uid,
-      phoneNumber: user.phoneNumber,
+      email: user.email,
       username: user.username,
       displayName: user.displayName,
       profilePictureUrl: user.profilePictureUrl,
@@ -90,7 +95,10 @@ class ProfileRepositoryImpl implements ProfileRepository {
       hideNotificationMessage: user.hideNotificationMessage,
     );
 
-    await _db.collection(AppConstants.usersCollection).doc(user.uid).update(model.toFirestore());
+    await _db
+        .collection(AppConstants.usersCollection)
+        .doc(user.uid)
+        .update(model.toFirestore());
     await _hive.saveUser(model.toJson());
   }
 
@@ -106,14 +114,13 @@ class ProfileRepositoryImpl implements ProfileRepository {
       'lastSeen': FieldValue.serverTimestamp(),
     };
     await _db.collection(AppConstants.usersCollection).doc(uid).update(data);
-    
+
     // Update local user cache if it's the current user
     final currentUser = _hive.getUser();
     if (currentUser != null && currentUser['uid'] == uid) {
-      final model = UserModel.fromJson(currentUser).copyWith(
-        isOnline: isOnline,
-        lastSeen: DateTime.now(),
-      );
+      final model = UserModel.fromJson(
+        currentUser,
+      ).copyWith(isOnline: isOnline, lastSeen: DateTime.now());
       await _hive.saveUser(model.toJson());
     }
   }

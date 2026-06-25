@@ -5,7 +5,7 @@ class AppTheme {
   // Brand Colors
   static const Color primaryDark = Color(0xFF6366F1); // Indigo
   static const Color primaryLight = Color(0xFF4F46E5);
-  
+
   static const Color secondaryDark = Color(0xFF14B8A6); // Teal
   static const Color secondaryLight = Color(0xFF0D9488);
 
@@ -59,17 +59,17 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          textStyle: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: surfaceDark,
         hintStyle: const TextStyle(color: Color(0xFF64748B)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide.none,
@@ -88,9 +88,21 @@ class AppTheme {
         ),
       ),
       textTheme: const TextTheme(
-        headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFFF1F5F9)),
-        headlineMedium: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFFF1F5F9)),
-        titleLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFFF1F5F9)),
+        headlineLarge: TextStyle(
+          fontSize: 32,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFFF1F5F9),
+        ),
+        headlineMedium: TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFFF1F5F9),
+        ),
+        titleLarge: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFFF1F5F9),
+        ),
         bodyLarge: TextStyle(fontSize: 16, color: Color(0xFFE2E8F0)),
         bodyMedium: TextStyle(fontSize: 14, color: Color(0xFF94A3B8)),
       ),
@@ -140,17 +152,17 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          textStyle: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: const Color(0xFFF1F5F9),
         hintStyle: const TextStyle(color: Color(0xFF94A3B8)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide.none,
@@ -169,9 +181,21 @@ class AppTheme {
         ),
       ),
       textTheme: const TextTheme(
-        headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-        headlineMedium: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-        titleLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+        headlineLarge: TextStyle(
+          fontSize: 32,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF0F172A),
+        ),
+        headlineMedium: TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF0F172A),
+        ),
+        titleLarge: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF0F172A),
+        ),
         bodyLarge: TextStyle(fontSize: 16, color: Color(0xFF334155)),
         bodyMedium: TextStyle(fontSize: 14, color: Color(0xFF64748B)),
       ),
@@ -225,9 +249,7 @@ class AppTheme {
           elevation: 0,
           minimumSize: const Size.fromHeight(52),
           side: const BorderSide(color: fg, width: 1),
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.zero,
-          ),
+          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
           textStyle: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
@@ -263,9 +285,24 @@ class AppTheme {
         selectionHandleColor: fg,
       ),
       textTheme: const TextTheme(
-        headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: fg, fontFamily: 'monospace'),
-        headlineMedium: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: fg, fontFamily: 'monospace'),
-        titleLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: fg, fontFamily: 'monospace'),
+        headlineLarge: TextStyle(
+          fontSize: 32,
+          fontWeight: FontWeight.bold,
+          color: fg,
+          fontFamily: 'monospace',
+        ),
+        headlineMedium: TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: fg,
+          fontFamily: 'monospace',
+        ),
+        titleLarge: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: fg,
+          fontFamily: 'monospace',
+        ),
         bodyLarge: TextStyle(fontSize: 16, color: fg, fontFamily: 'monospace'),
         bodyMedium: TextStyle(fontSize: 14, color: fg, fontFamily: 'monospace'),
         labelLarge: TextStyle(fontFamily: 'monospace', color: fg),
@@ -278,8 +315,10 @@ class AppTheme {
   static ThemeData get oldPhoneTheme {
     const Color bg = Color(0xFF869D8A); // Classic greenish-grey Nokia screen
     const Color fg = Color(0xFF1E2124); // Dark pixels
-    const Color surface = Color(0xFF7D9381); // Slightly darker green-grey for surface
-    
+    const Color surface = Color(
+      0xFF7D9381,
+    ); // Slightly darker green-grey for surface
+
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
@@ -322,9 +361,7 @@ class AppTheme {
           elevation: 0,
           minimumSize: const Size.fromHeight(52),
           side: const BorderSide(color: fg, width: 2),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(4),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
           textStyle: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w900,
@@ -356,14 +393,51 @@ class AppTheme {
         ),
       ),
       textTheme: const TextTheme(
-        headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: fg, fontFamily: 'monospace'),
-        headlineMedium: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: fg, fontFamily: 'monospace'),
-        titleLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: fg, fontFamily: 'monospace'),
-        bodyLarge: TextStyle(fontSize: 16, color: fg, fontWeight: FontWeight.w700, fontFamily: 'monospace'),
-        bodyMedium: TextStyle(fontSize: 14, color: fg, fontWeight: FontWeight.w700, fontFamily: 'monospace'),
-        labelLarge: TextStyle(fontFamily: 'monospace', color: fg, fontWeight: FontWeight.w700),
-        labelMedium: TextStyle(fontFamily: 'monospace', color: fg, fontWeight: FontWeight.w700),
-        labelSmall: TextStyle(fontFamily: 'monospace', color: fg, fontWeight: FontWeight.w700),
+        headlineLarge: TextStyle(
+          fontSize: 32,
+          fontWeight: FontWeight.w900,
+          color: fg,
+          fontFamily: 'monospace',
+        ),
+        headlineMedium: TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.w900,
+          color: fg,
+          fontFamily: 'monospace',
+        ),
+        titleLarge: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w900,
+          color: fg,
+          fontFamily: 'monospace',
+        ),
+        bodyLarge: TextStyle(
+          fontSize: 16,
+          color: fg,
+          fontWeight: FontWeight.w700,
+          fontFamily: 'monospace',
+        ),
+        bodyMedium: TextStyle(
+          fontSize: 14,
+          color: fg,
+          fontWeight: FontWeight.w700,
+          fontFamily: 'monospace',
+        ),
+        labelLarge: TextStyle(
+          fontFamily: 'monospace',
+          color: fg,
+          fontWeight: FontWeight.w700,
+        ),
+        labelMedium: TextStyle(
+          fontFamily: 'monospace',
+          color: fg,
+          fontWeight: FontWeight.w700,
+        ),
+        labelSmall: TextStyle(
+          fontFamily: 'monospace',
+          color: fg,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -398,9 +472,19 @@ class AppTheme {
         backgroundColor: model.backgroundColor,
         elevation: 0,
         centerTitle: false,
-        iconTheme: IconThemeData(color: ThemeData.estimateBrightnessForColor(model.backgroundColor) == Brightness.dark ? Colors.white : Colors.black87),
+        iconTheme: IconThemeData(
+          color:
+              ThemeData.estimateBrightnessForColor(model.backgroundColor) ==
+                  Brightness.dark
+              ? Colors.white
+              : Colors.black87,
+        ),
         titleTextStyle: TextStyle(
-          color: ThemeData.estimateBrightnessForColor(model.backgroundColor) == Brightness.dark ? Colors.white : Colors.black87,
+          color:
+              ThemeData.estimateBrightnessForColor(model.backgroundColor) ==
+                  Brightness.dark
+              ? Colors.white
+              : Colors.black87,
           fontSize: 20,
           fontWeight: FontWeight.bold,
           fontFamily: model.fontFamily,
@@ -422,30 +506,53 @@ class AppTheme {
           ),
         ),
       ),
-      textTheme: TextTheme(
-        headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, fontFamily: model.fontFamily),
-        headlineMedium: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, fontFamily: model.fontFamily),
-        titleLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, fontFamily: model.fontFamily),
-        bodyLarge: TextStyle(fontSize: 16, fontFamily: model.fontFamily),
-        bodyMedium: TextStyle(fontSize: 14, fontFamily: model.fontFamily),
-      ).apply(
-        bodyColor: ThemeData.estimateBrightnessForColor(model.surfaceColor) == Brightness.dark ? const Color(0xFFE2E8F0) : const Color(0xFF334155),
-        displayColor: ThemeData.estimateBrightnessForColor(model.surfaceColor) == Brightness.dark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A),
-      ),
+      textTheme:
+          TextTheme(
+            headlineLarge: TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+              fontFamily: model.fontFamily,
+            ),
+            headlineMedium: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              fontFamily: model.fontFamily,
+            ),
+            titleLarge: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              fontFamily: model.fontFamily,
+            ),
+            bodyLarge: TextStyle(fontSize: 16, fontFamily: model.fontFamily),
+            bodyMedium: TextStyle(fontSize: 14, fontFamily: model.fontFamily),
+          ).apply(
+            bodyColor:
+                ThemeData.estimateBrightnessForColor(model.surfaceColor) ==
+                    Brightness.dark
+                ? const Color(0xFFE2E8F0)
+                : const Color(0xFF334155),
+            displayColor:
+                ThemeData.estimateBrightnessForColor(model.surfaceColor) ==
+                    Brightness.dark
+                ? const Color(0xFFF1F5F9)
+                : const Color(0xFF0F172A),
+          ),
     );
   }
 
   static ThemeData get cyberpunkTheme {
-    return buildCustomTheme(const CustomThemeModel(
-      primaryColor: Color(0xFFFCE205),
-      secondaryColor: Color(0xFFFF003C),
-      backgroundColor: Color(0xFF0D0D0D),
-      surfaceColor: Color(0xFF1A1A1A),
-      receiverBubbleColor: Color(0xFF1A1A1A),
-      senderTextColor: Colors.black,
-      receiverTextColor: Colors.white,
-      fontFamily: 'monospace',
-      bubbleRadius: 0.0,
-    ));
+    return buildCustomTheme(
+      const CustomThemeModel(
+        primaryColor: Color(0xFFFCE205),
+        secondaryColor: Color(0xFFFF003C),
+        backgroundColor: Color(0xFF0D0D0D),
+        surfaceColor: Color(0xFF1A1A1A),
+        receiverBubbleColor: Color(0xFF1A1A1A),
+        senderTextColor: Colors.black,
+        receiverTextColor: Colors.white,
+        fontFamily: 'monospace',
+        bubbleRadius: 0.0,
+      ),
+    );
   }
 }

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../constants/app_constants.dart';
 import '../theme/theme_controller.dart';
@@ -12,6 +13,17 @@ class HiveService {
   late Box _chatBox;
   late Box _settingsBox;
   late Box _outboxBox;
+  late Box _secureBox;
+
+  bool _isInitialized = false;
+
+  void _checkInitialized() {
+    if (!_isInitialized) {
+      throw StateError(
+        'HiveService.init() must be called before accessing boxes',
+      );
+    }
+  }
 
   Future<void> init() async {
     await Hive.initFlutter();
@@ -20,14 +32,32 @@ class HiveService {
     _settingsBox = await Hive.openBox(AppConstants.settingsBoxName);
     _outboxBox = await Hive.openBox(AppConstants.offlineOutboxBoxName);
     await Hive.openBox(ThemeController.boxName);
+
+    // Open encrypted box for sensitive key material
+    final encryptionKeyRaw = _settingsBox.get('_hive_encryption_key');
+    List<int> encryptionKey;
+    if (encryptionKeyRaw != null) {
+      encryptionKey = List<int>.from(encryptionKeyRaw as List);
+    } else {
+      encryptionKey = Hive.generateSecureKey();
+      await _settingsBox.put('_hive_encryption_key', encryptionKey);
+    }
+    _secureBox = await Hive.openBox(
+      'secure_keys_box',
+      encryptionCipher: HiveAesCipher(Uint8List.fromList(encryptionKey)),
+    );
+
+    _isInitialized = true;
   }
 
   // --- Auth / User Caching ---
   Future<void> saveUser(Map<String, dynamic> userMap) async {
+    _checkInitialized();
     await _userBox.put(AppConstants.keyAuthUser, jsonEncode(userMap));
   }
 
   Map<String, dynamic>? getUser() {
+    _checkInitialized();
     final raw = _userBox.get(AppConstants.keyAuthUser);
     if (raw == null) return null;
     return jsonDecode(raw as String) as Map<String, dynamic>;
@@ -43,7 +73,8 @@ class HiveService {
   }
 
   String getThemeMode() {
-    return _settingsBox.get(AppConstants.keyThemeMode, defaultValue: 'dark') as String;
+    return _settingsBox.get(AppConstants.keyThemeMode, defaultValue: 'dark')
+        as String;
   }
 
   Future<void> saveCustomTheme(Map<String, dynamic> customThemeMap) async {
@@ -58,11 +89,6 @@ class HiveService {
 
   // --- Chat List & Message Caching ---
   Future<void> cacheChats(List<Map<String, dynamic>> chats) async {
-    final Map<String, String> data = {};
-    for (final chat in chats) {
-      final id = chat['id'] as String;
-      data[id] = jsonEncode(chat);
-    }
     await _chatBox.put('chats_list', jsonEncode(chats));
   }
 
@@ -73,7 +99,10 @@ class HiveService {
     return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
   }
 
-  Future<void> cacheMessages(String chatId, List<Map<String, dynamic>> messages) async {
+  Future<void> cacheMessages(
+    String chatId,
+    List<Map<String, dynamic>> messages,
+  ) async {
     await _chatBox.put('messages_$chatId', jsonEncode(messages));
   }
 
@@ -102,14 +131,22 @@ class HiveService {
     await _outboxBox.delete('queue');
   }
 
-  // --- Encryption Keys ---
+  // --- Encryption Keys (stored in encrypted box) ---
   Future<void> saveE2EKeys(String privateKey, String publicKey) async {
-    await _settingsBox.put(AppConstants.keyE2EPrivateKey, privateKey);
-    await _settingsBox.put(AppConstants.keyE2EPublicKey, publicKey);
+    _checkInitialized();
+    await _secureBox.put(AppConstants.keyE2EPrivateKey, privateKey);
+    await _secureBox.put(AppConstants.keyE2EPublicKey, publicKey);
   }
 
-  String? getE2EPrivateKey() => _settingsBox.get(AppConstants.keyE2EPrivateKey) as String?;
-  String? getE2EPublicKey() => _settingsBox.get(AppConstants.keyE2EPublicKey) as String?;
+  String? getE2EPrivateKey() {
+    _checkInitialized();
+    return _secureBox.get(AppConstants.keyE2EPrivateKey) as String?;
+  }
+
+  String? getE2EPublicKey() {
+    _checkInitialized();
+    return _secureBox.get(AppConstants.keyE2EPublicKey) as String?;
+  }
 
   // --- Chat Wallpaper ---
   Future<void> saveChatWallpaper(String path) async {
@@ -129,6 +166,7 @@ class HiveService {
     await _userBox.clear();
     await _chatBox.clear();
     await _outboxBox.clear();
+    await _secureBox.clear();
     // Keep settings (like theme)
   }
 }

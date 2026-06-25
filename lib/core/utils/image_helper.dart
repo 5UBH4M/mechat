@@ -7,10 +7,14 @@ import 'package:cached_network_image/cached_network_image.dart';
 
 class ImageHelper {
   /// Compresses the image and converts it to a base64 string.
-  static Future<String> convertToBase64(String imagePath, {int maxWidth = 300, int quality = 70}) async {
+  static Future<String> convertToBase64(
+    String imagePath, {
+    int maxWidth = 300,
+    int quality = 70,
+  }) async {
     final file = File(imagePath);
     final bytes = await file.readAsBytes();
-    
+
     // Decode image to resize/compress
     img.Image? decodedImage = await compute(_decodeImageBackground, bytes);
     if (decodedImage == null) return '';
@@ -21,8 +25,11 @@ class ImageHelper {
     }
 
     // Compress as JPEG
-    final compressedBytes = await compute(_encodeJpgBackground, _EncodeParams(decodedImage, quality));
-    
+    final compressedBytes = await compute(
+      _encodeJpgBackground,
+      _EncodeParams(decodedImage, quality),
+    );
+
     // Return Base64
     return 'data:image/jpeg;base64,${base64Encode(compressedBytes)}';
   }
@@ -39,7 +46,9 @@ img.Image? _decodeImageBackground(Uint8List bytes) {
 }
 
 Uint8List _encodeJpgBackground(_EncodeParams params) {
-  return Uint8List.fromList(img.encodeJpg(params.image, quality: params.quality));
+  return Uint8List.fromList(
+    img.encodeJpg(params.image, quality: params.quality),
+  );
 }
 
 Uint8List _decodeBase64(String data) {
@@ -118,20 +127,22 @@ class _Base64ImageState extends State<Base64Image>
 
     // Decode in background isolate
     final base64Data = widget.base64String.split(',').last;
-    compute(_decodeBase64, base64Data).then((bytes) {
-      _Base64Cache.put(widget.base64String, bytes);
-      if (mounted) {
-        setState(() {
-          _bytes = bytes;
+    compute(_decodeBase64, base64Data)
+        .then((bytes) {
+          _Base64Cache.put(widget.base64String, bytes);
+          if (mounted) {
+            setState(() {
+              _bytes = bytes;
+            });
+          }
+        })
+        .catchError((_) {
+          if (mounted) {
+            setState(() {
+              _hasError = true;
+            });
+          }
         });
-      }
-    }).catchError((_) {
-      if (mounted) {
-        setState(() {
-          _hasError = true;
-        });
-      }
-    });
   }
 
   @override
@@ -170,10 +181,8 @@ class _Base64ImageState extends State<Base64Image>
       fit: widget.fit,
       fadeInDuration: Duration.zero,
       fadeOutDuration: Duration.zero,
-      placeholder: (context, url) => SizedBox(
-        width: widget.width ?? 200,
-        height: widget.height ?? 200,
-      ),
+      placeholder: (context, url) =>
+          SizedBox(width: widget.width ?? 200, height: widget.height ?? 200),
       errorWidget: (context, url, error) =>
           Icon(Icons.error, size: widget.width ?? 50, color: Colors.grey),
     );

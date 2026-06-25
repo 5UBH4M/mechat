@@ -2,7 +2,7 @@ import 'package:equatable/equatable.dart';
 
 class UserEntity extends Equatable {
   final String uid;
-  final String phoneNumber;
+  final String email;
   final String username;
   final String displayName;
   final String profilePictureUrl;
@@ -26,15 +26,15 @@ class UserEntity extends Equatable {
   final bool autoAcceptCalls;
   final bool disableMute;
   final bool disableCameraOff;
-  
+
   final bool hideNotificationSender;
   final bool hideNotificationMessage;
-  
+
   final bool alwaysSendHD;
 
   const UserEntity({
     required this.uid,
-    required this.phoneNumber,
+    required this.email,
     required this.username,
     required this.displayName,
     required this.profilePictureUrl,
@@ -64,32 +64,32 @@ class UserEntity extends Equatable {
 
   @override
   List<Object?> get props => [
-        uid,
-        phoneNumber,
-        username,
-        displayName,
-        profilePictureUrl,
-        about,
-        isOnline,
-        lastSeen,
-        createdAt,
-        publicKey,
-        blockedUsers,
-        pushToken,
-        readReceiptsEnabled,
-        lastSeenVisible,
-        profilePhotoVisible,
-        connectedTo,
-        disconnectRequested,
-        previouslyConnected,
-        showPreviousConnectionsVisible,
-        hideContactPhotoInChat,
-        hideContactNameInChat,
-        autoAcceptCalls,
-        disableMute,
-        disableCameraOff,
-        hideNotificationSender,
-        hideNotificationMessage,
-        alwaysSendHD,
-      ];
+    uid,
+    email,
+    username,
+    displayName,
+    profilePictureUrl,
+    about,
+    isOnline,
+    lastSeen,
+    createdAt,
+    publicKey,
+    blockedUsers,
+    pushToken,
+    readReceiptsEnabled,
+    lastSeenVisible,
+    profilePhotoVisible,
+    connectedTo,
+    disconnectRequested,
+    previouslyConnected,
+    showPreviousConnectionsVisible,
+    hideContactPhotoInChat,
+    hideContactNameInChat,
+    autoAcceptCalls,
+    disableMute,
+    disableCameraOff,
+    hideNotificationSender,
+    hideNotificationMessage,
+    alwaysSendHD,
+  ];
 }

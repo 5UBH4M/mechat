@@ -8,11 +8,11 @@ import '../constants/app_constants.dart';
 
 class SignalingService {
   FirebaseFirestore get _db => FirebaseFirestore.instance;
-  
+
   RTCPeerConnection? peerConnection;
   MediaStream? localStream;
   MediaStream? remoteStream;
-  
+
   // Call status, remote stream, etc.
   // Call status, remote stream, etc.
   Function(MediaStream)? onRemoteStream;
@@ -33,15 +33,17 @@ class SignalingService {
 
     final Map<String, dynamic> mediaConstraints = {
       'audio': true,
-      'video': videoEnabled ? {
-        'mandatory': {
-          'minWidth': '640', 
-          'minHeight': '480',
-          'minFrameRate': '30',
-        },
-        'facingMode': 'user',
-        'optional': [],
-      } : false
+      'video': videoEnabled
+          ? {
+              'mandatory': {
+                'minWidth': '640',
+                'minHeight': '480',
+                'minFrameRate': '30',
+              },
+              'facingMode': 'user',
+              'optional': [],
+            }
+          : false,
     };
 
     localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
@@ -84,10 +86,7 @@ class SignalingService {
       'receiverId': receiverId,
       'type': isVideo ? 'video' : 'voice',
       'status': 'dialing',
-      'sdpOffer': {
-        'type': offer.type,
-        'sdp': offer.sdp,
-      },
+      'sdpOffer': {'type': offer.type, 'sdp': offer.sdp},
       'createdAt': FieldValue.serverTimestamp(),
     });
 
@@ -106,10 +105,12 @@ class SignalingService {
         cleanUpCall();
         return;
       }
-      
+
       final myUid = FirebaseAuth.instance.currentUser?.uid;
       final isCaller = myUid == currentData['callerId'];
-      final otherWantsHangup = isCaller ? currentData['receiverHangup'] == true : currentData['callerHangup'] == true;
+      final otherWantsHangup = isCaller
+          ? currentData['receiverHangup'] == true
+          : currentData['callerHangup'] == true;
       if (otherWantsHangup && onPartnerWantsHangup != null) {
         onPartnerWantsHangup!();
       } else if (!otherWantsHangup && currentData['rejectedHangup'] == true) {
@@ -129,22 +130,26 @@ class SignalingService {
             currentData['sdpAnswer']['type'],
           );
           await peerConnection?.setRemoteDescription(sdpAnswer);
-          
+
           // Now it's safe to listen for Receiver ICE Candidates
-          _candidatesSubscription ??= callDoc.collection('receiverCandidates').snapshots().listen((snapshot) {
-            for (final change in snapshot.docChanges) {
-              if (change.type == DocumentChangeType.added) {
-                final candidateData = change.doc.data() as Map<String, dynamic>;
-                peerConnection?.addCandidate(
-                  RTCIceCandidate(
-                    candidateData['candidate'],
-                    candidateData['sdpMid'],
-                    candidateData['sdpMLineIndex'],
-                  ),
-                );
-              }
-            }
-          });
+          _candidatesSubscription ??= callDoc
+              .collection('receiverCandidates')
+              .snapshots()
+              .listen((snapshot) {
+                for (final change in snapshot.docChanges) {
+                  if (change.type == DocumentChangeType.added) {
+                    final candidateData =
+                        change.doc.data() as Map<String, dynamic>;
+                    peerConnection?.addCandidate(
+                      RTCIceCandidate(
+                        candidateData['candidate'],
+                        candidateData['sdpMid'],
+                        candidateData['sdpMLineIndex'],
+                      ),
+                    );
+                  }
+                }
+              });
         }
       }
     });
@@ -175,7 +180,10 @@ class SignalingService {
     };
 
     // Set Remote Description (Offer)
-    final offer = RTCSessionDescription(sdpOfferData['sdp'], sdpOfferData['type']);
+    final offer = RTCSessionDescription(
+      sdpOfferData['sdp'],
+      sdpOfferData['type'],
+    );
     await peerConnection?.setRemoteDescription(offer);
 
     // Create SDP Answer
@@ -186,10 +194,7 @@ class SignalingService {
     await callDoc.update({
       'status': 'connected',
       'startedAt': FieldValue.serverTimestamp(),
-      'sdpAnswer': {
-        'type': answer.type,
-        'sdp': answer.sdp,
-      }
+      'sdpAnswer': {'type': answer.type, 'sdp': answer.sdp},
     });
 
     // Listen to changes (e.g. ended by caller)
@@ -207,7 +212,9 @@ class SignalingService {
       } else {
         final myUid = FirebaseAuth.instance.currentUser?.uid;
         final isCaller = myUid == snapData['callerId'];
-        final otherWantsHangup = isCaller ? snapData['receiverHangup'] == true : snapData['callerHangup'] == true;
+        final otherWantsHangup = isCaller
+            ? snapData['receiverHangup'] == true
+            : snapData['callerHangup'] == true;
         if (otherWantsHangup && onPartnerWantsHangup != null) {
           onPartnerWantsHangup!();
         } else if (!otherWantsHangup && snapData['rejectedHangup'] == true) {
@@ -220,20 +227,23 @@ class SignalingService {
     });
 
     // Listen for Caller ICE Candidates
-    _candidatesSubscription = callDoc.collection('callerCandidates').snapshots().listen((snap) {
-      for (final change in snap.docChanges) {
-        if (change.type == DocumentChangeType.added) {
-          final dat = change.doc.data() as Map<String, dynamic>;
-          peerConnection?.addCandidate(
-            RTCIceCandidate(
-              dat['candidate'],
-              dat['sdpMid'],
-              dat['sdpMLineIndex'],
-            ),
-          );
-        }
-      }
-    });
+    _candidatesSubscription = callDoc
+        .collection('callerCandidates')
+        .snapshots()
+        .listen((snap) {
+          for (final change in snap.docChanges) {
+            if (change.type == DocumentChangeType.added) {
+              final dat = change.doc.data() as Map<String, dynamic>;
+              peerConnection?.addCandidate(
+                RTCIceCandidate(
+                  dat['candidate'],
+                  dat['sdpMid'],
+                  dat['sdpMLineIndex'],
+                ),
+              );
+            }
+          }
+        });
   }
 
   // Register Connection Listeners
@@ -257,41 +267,43 @@ class SignalingService {
         cleanUpCall();
         return;
       }
-      
+
       final data = doc.data()!;
       if (isRejected || data['status'] != 'connected') {
-         await docRef.update({
-           'status': isRejected ? 'rejected' : 'ended',
-           'endedAt': FieldValue.serverTimestamp()
-         });
-         cleanUpCall();
-         return;
+        await docRef.update({
+          'status': isRejected ? 'rejected' : 'ended',
+          'endedAt': FieldValue.serverTimestamp(),
+        });
+        cleanUpCall();
+        return;
       }
 
       // Check mutual disconnect
       final myUid = FirebaseAuth.instance.currentUser?.uid;
       final callerId = data['callerId'];
-      
+
       final isCaller = myUid == callerId;
-      final otherWantsHangup = isCaller ? data['receiverHangup'] == true : data['callerHangup'] == true;
-      
+      final otherWantsHangup = isCaller
+          ? data['receiverHangup'] == true
+          : data['callerHangup'] == true;
+
       if (otherWantsHangup) {
-         // Both agreed
-         await docRef.update({
-           'status': 'ended',
-           'endedAt': FieldValue.serverTimestamp()
-         });
-         cleanUpCall();
+        // Both agreed
+        await docRef.update({
+          'status': 'ended',
+          'endedAt': FieldValue.serverTimestamp(),
+        });
+        cleanUpCall();
       } else {
-         // I am the first to request hangup
-         if (isCaller) {
-             await docRef.update({'callerHangup': true});
-         } else {
-             await docRef.update({'receiverHangup': true});
-         }
-         // Do not cleanUpCall yet, wait for other user.
-         // We can update local state to show "Waiting for other to end..." if we want,
-         // but for now, we just stay in the call.
+        // I am the first to request hangup
+        if (isCaller) {
+          await docRef.update({'callerHangup': true});
+        } else {
+          await docRef.update({'receiverHangup': true});
+        }
+        // Do not cleanUpCall yet, wait for other user.
+        // We can update local state to show "Waiting for other to end..." if we want,
+        // but for now, we just stay in the call.
       }
     } catch (e) {
       dev.log("Error ending call: $e");
@@ -305,7 +317,7 @@ class SignalingService {
       final docRef = _db.collection(AppConstants.callsCollection).doc(callId);
       final doc = await docRef.get();
       if (!doc.exists) return;
-      
+
       final data = doc.data()!;
       final myUid = FirebaseAuth.instance.currentUser?.uid;
       final isCaller = myUid == data['callerId'];
@@ -325,7 +337,7 @@ class SignalingService {
   void cleanUpCall() {
     _callSubscription?.cancel();
     _candidatesSubscription?.cancel();
-    
+
     localStream?.getTracks().forEach((track) => track.stop());
     localStream?.dispose();
     localStream = null;

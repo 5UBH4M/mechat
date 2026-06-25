@@ -85,7 +85,10 @@ class ThemeController extends Notifier<ThemeState> {
   }
 
   void _saveState() {
-    _box.put('custom_themes', jsonEncode(state.customThemes.map((e) => e.toJson()).toList()));
+    _box.put(
+      'custom_themes',
+      jsonEncode(state.customThemes.map((e) => e.toJson()).toList()),
+    );
     _box.put('global_theme_id', state.globalThemeId);
     _box.put('per_chat_themes', state.perChatThemes);
     _box.put('favorite_theme_ids', state.favoriteThemeIds.toList());
@@ -208,9 +211,14 @@ class ThemeController extends Notifier<ThemeState> {
   }
 }
 
-final themeControllerProvider = NotifierProvider<ThemeController, ThemeState>(ThemeController.new);
+final themeControllerProvider = NotifierProvider<ThemeController, ThemeState>(
+  ThemeController.new,
+);
 
-final advancedThemeProvider = Provider.family<AdvancedThemeModel, String?>((ref, chatId) {
+final advancedThemeProvider = Provider.family<AdvancedThemeModel, String?>((
+  ref,
+  chatId,
+) {
   // Watch the state to ensure UI rebuilds when theme changes
   ref.watch(themeControllerProvider);
   return ref.read(themeControllerProvider.notifier).getEffectiveTheme(chatId);

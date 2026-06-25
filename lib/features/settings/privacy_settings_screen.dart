@@ -8,7 +8,8 @@ class PrivacySettingsScreen extends ConsumerStatefulWidget {
   const PrivacySettingsScreen({super.key});
 
   @override
-  ConsumerState<PrivacySettingsScreen> createState() => _PrivacySettingsScreenState();
+  ConsumerState<PrivacySettingsScreen> createState() =>
+      _PrivacySettingsScreenState();
 }
 
 class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
@@ -40,7 +41,9 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
   }
 
   void _updateSettings() {
-    ref.read(profileNotifierProvider.notifier).updatePrivacySettings(
+    ref
+        .read(profileNotifierProvider.notifier)
+        .updatePrivacySettings(
           readReceiptsEnabled: _readReceipts,
           lastSeenVisible: _lastSeen,
           profilePhotoVisible: _profilePhoto,
@@ -86,7 +89,9 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
 
           SwitchListTile(
             title: const Text('Show Previous Connections'),
-            subtitle: const Text('Allow others to see the list of people you have previously established a connection with on your profile.'),
+            subtitle: const Text(
+              'Allow others to see the list of people you have previously established a connection with on your profile.',
+            ),
             value: _showPreviousConnectionsVisible,
             activeThumbColor: theme.colorScheme.primary,
             onChanged: (val) {
@@ -97,10 +102,18 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
           const SizedBox(height: 16),
           const Divider(),
           const SizedBox(height: 16),
-          Text('Chat Privacy', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
+          Text(
+            'Chat Privacy',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.primary,
+            ),
+          ),
           SwitchListTile(
             title: const Text('Hide Profile Photo in Chat'),
-            subtitle: const Text('Hide the contact\'s profile photo in the chat screen header to prevent others from seeing who you are talking to.'),
+            subtitle: const Text(
+              'Hide the contact\'s profile photo in the chat screen header to prevent others from seeing who you are talking to.',
+            ),
             value: _hideContactPhotoInChat,
             activeThumbColor: theme.colorScheme.primary,
             onChanged: (val) {
@@ -110,7 +123,9 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
           ),
           SwitchListTile(
             title: const Text('Hide Name in Chat'),
-            subtitle: const Text('Hide the contact\'s name in the chat screen header.'),
+            subtitle: const Text(
+              'Hide the contact\'s name in the chat screen header.',
+            ),
             value: _hideContactNameInChat,
             activeThumbColor: theme.colorScheme.primary,
             onChanged: (val) {
@@ -121,32 +136,62 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
           const SizedBox(height: 16),
           const Divider(),
           const SizedBox(height: 16),
-          Text('Paid Features', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: Colors.amber)),
+          Text(
+            'Paid Features',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: Colors.amber,
+            ),
+          ),
           SwitchListTile(
             title: const Text('Auto-Accept Calls'),
-            subtitle: const Text('Automatically accept incoming calls after 5 seconds.'),
+            subtitle: const Text(
+              'Automatically accept incoming calls after 5 seconds.',
+            ),
             value: true,
             activeThumbColor: theme.colorScheme.primary,
             onChanged: (val) {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This is a paid feature and cannot be disabled.')));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'This is a paid feature and cannot be disabled.',
+                  ),
+                ),
+              );
             },
           ),
           SwitchListTile(
             title: const Text('Disable Mute in Calls'),
-            subtitle: const Text('Remove the mute button during calls so audio cannot be muted.'),
+            subtitle: const Text(
+              'Remove the mute button during calls so audio cannot be muted.',
+            ),
             value: true,
             activeThumbColor: theme.colorScheme.primary,
             onChanged: (val) {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This is a paid feature and cannot be disabled.')));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'This is a paid feature and cannot be disabled.',
+                  ),
+                ),
+              );
             },
           ),
           SwitchListTile(
             title: const Text('Disable Camera Off'),
-            subtitle: const Text('Remove the video toggle button during video calls so the camera cannot be turned off.'),
+            subtitle: const Text(
+              'Remove the video toggle button during video calls so the camera cannot be turned off.',
+            ),
             value: true,
             activeThumbColor: theme.colorScheme.primary,
             onChanged: (val) {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This is a paid feature and cannot be disabled.')));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'This is a paid feature and cannot be disabled.',
+                  ),
+                ),
+              );
             },
           ),
         ],
@@ -165,7 +210,10 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
     return ListTile(
       leading: Icon(icon, color: Colors.grey),
       title: Text(title),
-      subtitle: Text(subtitle, style: TextStyle(color: theme.colorScheme.primary)),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(color: theme.colorScheme.primary),
+      ),
       onTap: () {
         // Toggle simply
         onChanged(!value);

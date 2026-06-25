@@ -103,8 +103,12 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final primaryColor = widget.isSender ? Colors.white : theme.colorScheme.primary;
-    final secondaryColor = widget.isSender ? Colors.white.withValues(alpha: 0.6) : theme.colorScheme.onSurface.withValues(alpha: 0.5);
+    final primaryColor = widget.isSender
+        ? Colors.white
+        : theme.colorScheme.primary;
+    final secondaryColor = widget.isSender
+        ? Colors.white.withValues(alpha: 0.6)
+        : theme.colorScheme.onSurface.withValues(alpha: 0.5);
 
     return Container(
       width: 220,
@@ -114,7 +118,9 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
           IconButton(
             padding: EdgeInsets.zero,
             icon: Icon(
-              _isPlaying ? Icons.pause_circle_filled_rounded : Icons.play_circle_filled_rounded,
+              _isPlaying
+                  ? Icons.pause_circle_filled_rounded
+                  : Icons.play_circle_filled_rounded,
               size: 40,
               color: primaryColor,
             ),
@@ -128,8 +134,12 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
                 SliderTheme(
                   data: SliderThemeData(
                     trackHeight: 3,
-                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                    overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
+                    thumbShape: const RoundSliderThumbShape(
+                      enabledThumbRadius: 6,
+                    ),
+                    overlayShape: const RoundSliderOverlayShape(
+                      overlayRadius: 10,
+                    ),
                     activeTrackColor: primaryColor,
                     inactiveTrackColor: primaryColor.withValues(alpha: 0.3),
                     thumbColor: primaryColor,
@@ -163,7 +173,7 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
                 ),
               ],
             ),
-          )
+          ),
         ],
       ),
     );

@@ -39,21 +39,21 @@ class MessageEntity extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        senderId,
-        receiverId,
-        content,
-        type,
-        timestamp,
-        status,
-        fileUrl,
-        fileName,
-        fileSize,
-        duration,
-        repliedToMessageId,
-        repliedToMessageContent,
-        reactions,
-        starredBy,
-        isForwarded,
-      ];
+    id,
+    senderId,
+    receiverId,
+    content,
+    type,
+    timestamp,
+    status,
+    fileUrl,
+    fileName,
+    fileSize,
+    duration,
+    repliedToMessageId,
+    repliedToMessageContent,
+    reactions,
+    starredBy,
+    isForwarded,
+  ];
 }

@@ -35,7 +35,9 @@ class _ProfileCropScreenState extends State<ProfileCropScreen> {
 
   Future<void> _onCropped(Uint8List croppedData) async {
     final tempDir = await getTemporaryDirectory();
-    final file = File('${tempDir.path}/cropped_profile_${DateTime.now().millisecondsSinceEpoch}.jpg');
+    final file = File(
+      '${tempDir.path}/cropped_profile_${DateTime.now().millisecondsSinceEpoch}.jpg',
+    );
     await file.writeAsBytes(croppedData);
     if (mounted) {
       Navigator.pop(context, file.path);
@@ -49,7 +51,9 @@ class _ProfileCropScreenState extends State<ProfileCropScreen> {
     if (_isLoading) {
       return Scaffold(
         backgroundColor: Colors.black,
-        body: const Center(child: CircularProgressIndicator(color: Colors.white)),
+        body: const Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
       );
     }
 
@@ -80,7 +84,9 @@ class _ProfileCropScreenState extends State<ProfileCropScreen> {
                 interactive: true,
                 baseColor: Colors.black,
                 maskColor: Colors.black.withValues(alpha: 0.7),
-                progressIndicator: const CircularProgressIndicator(color: Colors.white),
+                progressIndicator: const CircularProgressIndicator(
+                  color: Colors.white,
+                ),
                 onCropped: _onCropped,
               ),
             ),
@@ -94,7 +100,11 @@ class _ProfileCropScreenState extends State<ProfileCropScreen> {
                   // Cancel button
                   TextButton.icon(
                     onPressed: () => Navigator.pop(context, null),
-                    icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                    icon: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 28,
+                    ),
                     label: const Text(
                       'Cancel',
                       style: TextStyle(color: Colors.white, fontSize: 16),
@@ -123,7 +133,10 @@ class _ProfileCropScreenState extends State<ProfileCropScreen> {
                     style: FilledButton.styleFrom(
                       backgroundColor: theme.colorScheme.primary,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
                     ),
                   ),
                 ],

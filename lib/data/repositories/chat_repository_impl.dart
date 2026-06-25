@@ -28,7 +28,7 @@ class ChatRepositoryImpl implements ChatRepository {
       final model = ChatModel.fromJson(json);
       return _decryptChatLastMessage(model);
     }).toList();
-    
+
     // Sort cached chats (Notes to self on top, then by timestamp desc)
     _sortChats(cached);
     controller.add(cached);
@@ -80,16 +80,21 @@ class ChatRepositoryImpl implements ChatRepository {
       // Notes to self always first
       if (a.isNotesToSelf && !b.isNotesToSelf) return -1;
       if (!a.isNotesToSelf && b.isNotesToSelf) return 1;
-      
-      final aTime = a.lastMessage?.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0);
-      final bTime = b.lastMessage?.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0);
+
+      final aTime =
+          a.lastMessage?.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bTime =
+          b.lastMessage?.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0);
       return bTime.compareTo(aTime); // Latest first
     });
   }
 
   ChatEntity _decryptChatLastMessage(ChatModel chat) {
     if (chat.lastMessage == null) return chat;
-    final decryptedContent = _encryptor.decrypt(chat.lastMessage!.content, chat.id);
+    final decryptedContent = _encryptor.decrypt(
+      chat.lastMessage!.content,
+      chat.id,
+    );
     final decryptedMsg = (chat.lastMessage as MessageModel).copyWith(
       content: decryptedContent,
     );
@@ -128,8 +133,10 @@ class ChatRepositoryImpl implements ChatRepository {
         await _hive.cacheMessages(chatId, rawJsonList);
 
         // Decrypt content for UI
-        final decryptedList = messages.map((m) => _decryptMessage(m, chatId)).toList();
-        
+        final decryptedList = messages
+            .map((m) => _decryptMessage(m, chatId))
+            .toList();
+
         if (!controller.isClosed) {
           controller.add(decryptedList);
         }
@@ -154,10 +161,13 @@ class ChatRepositoryImpl implements ChatRepository {
     if (msg.type == 'text' || msg.content.isNotEmpty) {
       decryptedContent = _encryptor.decrypt(msg.content, chatId);
     }
-    
+
     if (msg.repliedToMessageContent.isNotEmpty) {
       try {
-        decryptedReplyContent = _encryptor.decrypt(msg.repliedToMessageContent, chatId);
+        decryptedReplyContent = _encryptor.decrypt(
+          msg.repliedToMessageContent,
+          chatId,
+        );
       } catch (e) {
         // Fallback in case it wasn't encrypted or failed to decrypt
         decryptedReplyContent = msg.repliedToMessageContent;
@@ -201,7 +211,7 @@ class ChatRepositoryImpl implements ChatRepository {
         'chatId': chatId,
         'message': offlineMsg.toJson(),
       });
-      
+
       // Update local message list cache immediately
       final localMsgs = _hive.getCachedMessages(chatId);
       localMsgs.add(offlineMsg.toJson());
@@ -211,7 +221,9 @@ class ChatRepositoryImpl implements ChatRepository {
 
     // Write to messages subcollection
     final chatRef = _db.collection(AppConstants.chatsCollection).doc(chatId);
-    final msgRef = chatRef.collection(AppConstants.messagesCollection).doc(message.id);
+    final msgRef = chatRef
+        .collection(AppConstants.messagesCollection)
+        .doc(message.id);
 
     final batch = _db.batch();
     batch.set(msgRef, msgModel.toFirestore());
@@ -238,7 +250,7 @@ class ChatRepositoryImpl implements ChatRepository {
       onProgress(0.01);
 
       String fileUrl = '';
-      
+
       // Try Firebase Storage first for proper file handling
       try {
         final storageRef = FirebaseStorage.instance
@@ -246,10 +258,12 @@ class ChatRepositoryImpl implements ChatRepository {
             .child('chat_media')
             .child(chatId)
             .child('${message.id}_${message.fileName}');
-        
+
         final uploadTask = storageRef.putFile(
           File(filePath),
-          SettableMetadata(contentType: _getContentType(message.type, message.fileName)),
+          SettableMetadata(
+            contentType: _getContentType(message.type, message.fileName),
+          ),
         );
 
         // Listen to real upload progress
@@ -264,7 +278,11 @@ class ChatRepositoryImpl implements ChatRepository {
       } catch (_) {
         // Fallback to base64 for images if Storage fails
         if (message.type == 'image') {
-          fileUrl = await ImageHelper.convertToBase64(filePath, maxWidth: 1280, quality: 85);
+          fileUrl = await ImageHelper.convertToBase64(
+            filePath,
+            maxWidth: 1280,
+            quality: 85,
+          );
         } else {
           final bytes = await File(filePath).readAsBytes();
           fileUrl = 'data:audio/aac;base64,${base64Encode(bytes)}';
@@ -400,6 +418,7 @@ class ChatRepositoryImpl implements ChatRepository {
       return false;
     }
   }
+
   @override
   Future<void> addReaction({
     required String chatId,
@@ -414,13 +433,9 @@ class ChatRepositoryImpl implements ChatRepository {
         .doc(messageId);
 
     if (reaction.isEmpty) {
-      await msgRef.update({
-        'reactions.$userId': FieldValue.delete(),
-      });
+      await msgRef.update({'reactions.$userId': FieldValue.delete()});
     } else {
-      await msgRef.update({
-        'reactions.$userId': reaction,
-      });
+      await msgRef.update({'reactions.$userId': reaction});
     }
   }
 
@@ -439,11 +454,11 @@ class ChatRepositoryImpl implements ChatRepository {
 
     if (isStarred) {
       await msgRef.update({
-        'starredBy': FieldValue.arrayUnion([userId])
+        'starredBy': FieldValue.arrayUnion([userId]),
       });
     } else {
       await msgRef.update({
-        'starredBy': FieldValue.arrayRemove([userId])
+        'starredBy': FieldValue.arrayRemove([userId]),
       });
     }
   }

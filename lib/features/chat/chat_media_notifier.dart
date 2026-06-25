@@ -40,7 +40,7 @@ class ChatMediaState {
 
 class ChatMediaNotifier extends StateNotifier<ChatMediaState> {
   final String chatId;
-  
+
   ChatMediaNotifier(this.chatId) : super(const ChatMediaState()) {
     _loadBookmarks();
   }
@@ -98,23 +98,25 @@ class ChatMediaNotifier extends StateNotifier<ChatMediaState> {
   void toggleBookmark(MessageEntity message) {
     final ids = Set<String>.from(state.bookmarkedIds);
     final isBookmarked = ids.contains(message.id);
-    
+
     if (isBookmarked) {
       ids.remove(message.id);
     } else {
       ids.add(message.id);
     }
-    
+
     state = state.copyWith(bookmarkedIds: ids);
     _saveBookmarks(ids);
-    
+
     // We don't re-process everything, just add/remove from current list for efficiency
     final bookmarks = List<MessageEntity>.from(state.bookmarkedMessages);
     if (isBookmarked) {
       bookmarks.removeWhere((m) => m.id == message.id);
     } else {
       bookmarks.add(message);
-      bookmarks.sort((a, b) => b.timestamp.compareTo(a.timestamp)); // Newest first
+      bookmarks.sort(
+        (a, b) => b.timestamp.compareTo(a.timestamp),
+      ); // Newest first
     }
     state = state.copyWith(bookmarkedMessages: bookmarks);
   }
@@ -124,6 +126,10 @@ class ChatMediaNotifier extends StateNotifier<ChatMediaState> {
   }
 }
 
-final chatMediaProvider = StateNotifierProvider.family<ChatMediaNotifier, ChatMediaState, String>((ref, chatId) {
-  return ChatMediaNotifier(chatId);
-});
+final chatMediaProvider =
+    StateNotifierProvider.family<ChatMediaNotifier, ChatMediaState, String>((
+      ref,
+      chatId,
+    ) {
+      return ChatMediaNotifier(chatId);
+    });
