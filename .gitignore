@@ -50,3 +50,7 @@ app.*.map.json
 # Security - never commit service account keys
 **/serviceAccountKey.json
 *.env
+
+# Output logs
+logcat.txt
+analyze_output.txt

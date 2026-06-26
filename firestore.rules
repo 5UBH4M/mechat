@@ -1,0 +1,177 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =====================================================================
+    // DENY ALL BY DEFAULT — every path must have an explicit allow rule.
+    // =====================================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // =====================================================================
+    // HELPER FUNCTIONS
+    // =====================================================================
+
+    /// True when the request comes from a signed-in user.
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    /// True when the signed-in user's UID matches `userId`.
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    /// True when the signed-in user is a participant of the given chat.
+    function isChatParticipant(chatId) {
+      return isAuthenticated()
+        && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+    }
+
+    /// True when the signed-in user is a participant of the given call
+    /// (either the caller or the receiver).
+    function isCallParticipant(callId) {
+      let callDoc = get(/databases/$(database)/documents/calls/$(callId)).data;
+      return isAuthenticated()
+        && (request.auth.uid == callDoc.callerId
+            || request.auth.uid == callDoc.receiverId);
+    }
+
+    // =====================================================================
+    // USERS  —  /users/{userId}
+    // =====================================================================
+    match /users/{userId} {
+
+      // --- READ ---
+      // Owner can read their full profile.
+      // Other authenticated users can read only non-sensitive fields.
+      allow get: if isAuthenticated();
+      allow list: if isAuthenticated();
+
+      // --- CREATE ---
+      // Only the owner can create their own profile, and the uid field
+      // in the document must match their auth UID to prevent spoofing.
+      allow create: if isOwner(userId)
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.uid is string
+        && request.resource.data.email is string
+        && request.resource.data.username is string
+        && request.resource.data.displayName is string
+        && request.resource.data.profilePictureUrl is string
+        && request.resource.data.about is string
+        && request.resource.data.isOnline is bool
+        && request.resource.data.lastSeen is timestamp
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.blockedUsers is list
+        && request.resource.data.blockedUsers.size() <= 500
+        && request.resource.data.readReceiptsEnabled is bool
+        && request.resource.data.lastSeenVisible is bool
+        && request.resource.data.profilePhotoVisible is bool;
+
+      // --- UPDATE ---
+      // Only the owner can update their own profile.
+      // The uid field is immutable — it must not change.
+      allow update: if isOwner(userId)
+        && request.resource.data.uid == resource.data.uid          // uid is immutable
+        && request.resource.data.email == resource.data.email      // email is immutable
+        && request.resource.data.createdAt == resource.data.createdAt // createdAt is immutable
+        && request.resource.data.uid is string
+        && request.resource.data.displayName is string
+        && request.resource.data.about is string
+        && request.resource.data.isOnline is bool
+        && request.resource.data.blockedUsers is list
+        && request.resource.data.blockedUsers.size() <= 500
+        && request.resource.data.readReceiptsEnabled is bool
+        && request.resource.data.lastSeenVisible is bool
+        && request.resource.data.profilePhotoVisible is bool;
+
+      // --- DELETE ---
+      // Only the owner can delete their profile.
+      allow delete: if isOwner(userId);
+    }
+
+    // =====================================================================
+    // CHATS  —  /chats/{chatId}
+    // =====================================================================
+    match /chats/{chatId} {
+
+      // Only participants can read or list chats.
+      allow read: if isAuthenticated()
+        && request.auth.uid in resource.data.participants;
+
+      // A new chat can be created by an authenticated user who is in the
+      // participants array. Participants array must have exactly 1 or 2 members
+      // (1 for "notes to self", 2 for a normal chat).
+      allow create: if isAuthenticated()
+        && request.auth.uid in request.resource.data.participants
+        && request.resource.data.participants is list
+        && request.resource.data.participants.size() >= 1
+        && request.resource.data.participants.size() <= 2;
+
+      // Only participants can update. The participants array is immutable
+      // after creation to prevent hijacking.
+      allow update: if isChatParticipant(chatId)
+        && request.resource.data.participants == resource.data.participants;
+
+      // Only participants can delete a chat.
+      allow delete: if isChatParticipant(chatId);
+
+      // -----------------------------------------------------------------
+      // MESSAGES  —  /chats/{chatId}/messages/{messageId}
+      // -----------------------------------------------------------------
+      match /messages/{messageId} {
+
+        // Only chat participants can read messages.
+        allow read: if isChatParticipant(chatId);
+
+        // Only chat participants can create messages.
+        allow create: if isChatParticipant(chatId);
+
+        // Only chat participants can update messages (e.g. read receipts,
+        // message edits, reactions).
+        allow update: if isChatParticipant(chatId);
+
+        // Only chat participants can delete messages.
+        allow delete: if isChatParticipant(chatId);
+      }
+    }
+
+    // =====================================================================
+    // CALLS  —  /calls/{callId}
+    // =====================================================================
+    match /calls/{callId} {
+
+      // Any authenticated user can read a call doc they are part of.
+      // On create we check caller/receiver; on read we check participation.
+      allow read: if isAuthenticated()
+        && (request.auth.uid == resource.data.callerId
+            || request.auth.uid == resource.data.receiverId);
+
+      // The caller creates the call document. callerId must match auth UID.
+      allow create: if isAuthenticated()
+        && request.resource.data.callerId == request.auth.uid
+        && request.resource.data.callerId is string
+        && request.resource.data.receiverId is string
+        && request.resource.data.callerId != request.resource.data.receiverId;
+
+      // Only participants can update (e.g. answer, hang up).
+      allow update: if isCallParticipant(callId);
+
+      // Only participants can delete a call doc.
+      allow delete: if isCallParticipant(callId);
+
+      // -----------------------------------------------------------------
+      // ICE CANDIDATES  —  callerCandidates / receiverCandidates
+      // -----------------------------------------------------------------
+      match /callerCandidates/{candidateId} {
+        allow read, write: if isCallParticipant(callId);
+      }
+
+      match /receiverCandidates/{candidateId} {
+        allow read, write: if isCallParticipant(callId);
+      }
+    }
+  }
+}

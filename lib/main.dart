@@ -1,4 +1,5 @@
 import 'dart:developer' as dev;
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -27,10 +28,12 @@ void main() async {
   try {
     await Firebase.initializeApp();
   } catch (e) {
-    dev.log("Firebase Initialization warning: $e");
-    dev.log(
-      "The application will continue to run with local caching offline support.",
-    );
+    if (kDebugMode) {
+      dev.log("Firebase Initialization warning: $e");
+      dev.log(
+        "The application will continue to run with local caching offline support.",
+      );
+    }
   }
 
   // 3. Initialize notifications in the background (don't block app start)

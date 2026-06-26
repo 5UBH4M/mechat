@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:developer' as dev;
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
@@ -306,7 +307,9 @@ class SignalingService {
         // but for now, we just stay in the call.
       }
     } catch (e) {
-      dev.log("Error ending call: $e");
+      if (kDebugMode) {
+        dev.log("Error ending call: $e");
+      }
       cleanUpCall(); // Fallback
     }
   }
@@ -329,7 +332,9 @@ class SignalingService {
         await docRef.update({'callerHangup': false, 'rejectedHangup': true});
       }
     } catch (e) {
-      dev.log("Error rejecting hangup: $e");
+      if (kDebugMode) {
+        dev.log("Error rejecting hangup: $e");
+      }
     }
   }
 

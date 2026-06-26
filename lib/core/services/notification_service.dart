@@ -1,4 +1,5 @@
 import 'dart:developer' as dev;
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -7,7 +8,9 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 /// Top-level background handler — must be top-level function
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  dev.log("Handling background message: ${message.messageId}");
+  if (kDebugMode) {
+    dev.log("Handling background message: ${message.messageId}");
+  }
   // FCM will auto-display the notification from the `notification` payload
   // sent by our Cloud Function, so we don't need to do anything extra here.
 }
@@ -98,7 +101,9 @@ class NotificationService {
       // which chat screen is active. The listener in main.dart handles foreground
       // notifications accurately.
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        dev.log("Foreground FCM message received: ${message.messageId}");
+        if (kDebugMode) {
+          dev.log("Foreground FCM message received: ${message.messageId}");
+        }
       });
 
       // 5. Handle notification tap when app was terminated
@@ -126,9 +131,9 @@ class NotificationService {
       // 7. Force save token to Firestore immediately
       try {
         final token = await _fcm.getToken();
-        dev.log(
-          "FCM Token: ${token != null ? '${token.substring(0, 10)}...' : 'null'}",
-        );
+        if (kDebugMode) {
+          dev.log("FCM Token obtained");
+        }
         if (token != null) {
           final currentUser = FirebaseAuth.instance.currentUser;
           if (currentUser != null) {
@@ -139,12 +144,16 @@ class NotificationService {
           }
         }
       } catch (e) {
-        dev.log("Failed to save FCM token: $e");
+        if (kDebugMode) {
+          dev.log("Failed to save FCM token: $e");
+        }
       }
 
       // 8. Listen for token refresh — Android can rotate FCM tokens at any time
       _fcm.onTokenRefresh.listen((newToken) async {
-        dev.log("FCM Token refreshed: ${newToken.substring(0, 10)}...");
+        if (kDebugMode) {
+          dev.log("FCM Token refreshed");
+        }
         try {
           final currentUser = FirebaseAuth.instance.currentUser;
           if (currentUser != null) {
@@ -152,19 +161,27 @@ class NotificationService {
                 .collection('users')
                 .doc(currentUser.uid)
                 .update({'pushToken': newToken});
-            dev.log("Updated pushToken in Firestore after refresh");
+            if (kDebugMode) {
+              dev.log("Updated pushToken in Firestore after refresh");
+            }
           }
         } catch (e) {
-          dev.log("Failed to update refreshed FCM token: $e");
+          if (kDebugMode) {
+            dev.log("Failed to update refreshed FCM token: $e");
+          }
         }
       });
     } catch (e) {
-      dev.log("Error initializing NotificationService: $e");
+      if (kDebugMode) {
+        dev.log("Error initializing NotificationService: $e");
+      }
     }
   }
 
   void _handleNotificationTap(NotificationResponse response) {
-    dev.log("Notification clicked: ${response.payload}");
+    if (kDebugMode) {
+      dev.log("Notification clicked: ${response.payload}");
+    }
     if (response.payload != null && _onNotificationTap != null) {
       _onNotificationTap!(response.payload);
     }
@@ -174,7 +191,9 @@ class NotificationService {
     try {
       return await _fcm.getToken();
     } catch (e) {
-      dev.log("Error getting FCM Token: $e");
+      if (kDebugMode) {
+        dev.log("Error getting FCM Token: $e");
+      }
       return null;
     }
   }

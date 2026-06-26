@@ -247,12 +247,24 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   String _extractLink(String text) {
     final match = RegExp(r'(https?:\/\/[^\s]+)').firstMatch(text);
-    return match?.group(0) ?? '';
+    final raw = match?.group(0) ?? '';
+    if (raw.isEmpty) return '';
+    final uri = Uri.tryParse(raw);
+    if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) {
+      return '';
+    }
+    return raw;
   }
 
   Future<void> _openLocation(String latLng) async {
-    final url = Uri.parse(
-      'https://www.google.com/maps/search/?api=1&query=$latLng',
+    // Validate that latLng matches a valid coordinate pattern before use.
+    if (!RegExp(r'^-?\d+\.?\d*,-?\d+\.?\d*$').hasMatch(latLng)) {
+      return;
+    }
+    final url = Uri.https(
+      'www.google.com',
+      '/maps/search/',
+      {'api': '1', 'query': latLng},
     );
     if (await canLaunchUrl(url)) {
       await launchUrl(url);

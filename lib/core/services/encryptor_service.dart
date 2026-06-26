@@ -52,7 +52,7 @@ class EncryptorService {
     if (text.isEmpty) return '';
     try {
       final key = _deriveKey(chatId);
-      final iv = enc.IV.fromLength(16); // Random IV
+      final iv = enc.IV.fromSecureRandom(16); // Random IV
       final encrypter = enc.Encrypter(enc.AES(key, mode: enc.AESMode.cbc));
 
       final encrypted = encrypter.encrypt(text, iv: iv);
@@ -70,10 +70,10 @@ class EncryptorService {
   String decrypt(String encryptedText, String chatId) {
     if (encryptedText.isEmpty) return '';
     if (!encryptedText.contains(':'))
-      return encryptedText; // Plaintext (legacy unencrypted)
+      return '[Encrypted Message]'; // Don't leak potentially sensitive content
     try {
       final parts = encryptedText.split(':');
-      if (parts.length != 2) return encryptedText;
+      if (parts.length != 2) return '[Decryption Error]';
 
       // Try current key derivation first
       try {

@@ -34,6 +34,21 @@ class HiveService {
     await Hive.openBox(ThemeController.boxName);
 
     // Open encrypted box for sensitive key material
+    //
+    // TODO(security): VULNERABILITY – The Hive encryption key is stored in
+    // plaintext inside the UNENCRYPTED `_settingsBox`. Any attacker with
+    // file-system access (rooted device, device backup, or physical access)
+    // can read the key and decrypt `secure_keys_box`, completely defeating
+    // the purpose of encrypting E2E key material.
+    //
+    // FIX: Migrate key storage to `flutter_secure_storage`, which delegates
+    // to the platform keychain (Android Keystore / iOS Keychain). These
+    // stores are hardware-backed on most devices and are not readable even
+    // with root access on modern hardware.
+    //
+    // WHY NOT NOW: Requires adding the `flutter_secure_storage` dependency
+    // and writing a one-time migration path for existing users who already
+    // have an encryption key persisted here.
     final encryptionKeyRaw = _settingsBox.get('_hive_encryption_key');
     List<int> encryptionKey;
     if (encryptionKeyRaw != null) {
@@ -162,6 +177,10 @@ class HiveService {
   }
 
   // Clear all caches on logout
+  // TODO(security): When encryption-key storage is migrated to
+  // `flutter_secure_storage`, also delete the key from secure storage here
+  // (e.g., `await secureStorage.delete(key: '_hive_encryption_key')`) so
+  // that a logout truly purges all sensitive material.
   Future<void> clearAllCache() async {
     await _userBox.clear();
     await _chatBox.clear();
