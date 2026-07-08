@@ -54,3 +54,4 @@ app.*.map.json
 # Output logs
 logcat.txt
 analyze_output.txt
+.env

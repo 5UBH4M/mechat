@@ -38,7 +38,7 @@ class NotificationSettingsScreen extends ConsumerWidget {
               'Display the sender\'s name in notifications.',
             ),
             value: !user.hideNotificationSender,
-            activeColor: Theme.of(context).colorScheme.primary,
+            activeThumbColor: Theme.of(context).colorScheme.primary,
             onChanged: (val) {
               notifier.updatePrivacySettings(
                 readReceiptsEnabled: user.readReceiptsEnabled,
@@ -54,7 +54,7 @@ class NotificationSettingsScreen extends ConsumerWidget {
               'Because of end-to-end encryption, message content cannot be fully displayed. Turning this off hides the "New message" indicator.',
             ),
             value: !user.hideNotificationMessage,
-            activeColor: Theme.of(context).colorScheme.primary,
+            activeThumbColor: Theme.of(context).colorScheme.primary,
             onChanged: (val) {
               notifier.updatePrivacySettings(
                 readReceiptsEnabled: user.readReceiptsEnabled,

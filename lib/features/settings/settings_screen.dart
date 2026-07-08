@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../core/theme/theme_provider.dart';
 import '../../core/utils/image_helper.dart';
 import '../../core/widgets/profile_crop_screen.dart';
 import '../auth/auth_notifier.dart';
@@ -88,7 +87,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final user = ref.watch(authNotifierProvider).user;
-    final themeMode = ref.watch(themeModeProvider);
     final profileState = ref.watch(profileNotifierProvider);
 
     if (user == null) {

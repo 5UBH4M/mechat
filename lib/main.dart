@@ -1,9 +1,8 @@
-import 'dart:developer' as dev;
-import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'core/services/hive_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/theme/app_theme.dart';
@@ -13,28 +12,24 @@ import 'core/utils/app_router.dart';
 import 'features/auth/auth_notifier.dart';
 import 'features/chat/chat_notifier.dart';
 import 'domain/entities/chat_entity.dart';
+import 'firebase_options.dart';
 
 final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
     GlobalKey<ScaffoldMessengerState>();
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  await dotenv.load(fileName: ".env");
 
   // 1. Initialize Hive Local Storage Cache
   final hiveService = HiveService();
   await hiveService.init();
 
   // 2. Initialize Firebase (non-blocking — never delays app start)
-  try {
-    await Firebase.initializeApp();
-  } catch (e) {
-    if (kDebugMode) {
-      dev.log("Firebase Initialization warning: $e");
-      dev.log(
-        "The application will continue to run with local caching offline support.",
-      );
-    }
-  }
+  // 2. Initialize Firebase
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   // 3. Initialize notifications in the background (don't block app start)
   Future.microtask(() async {
@@ -96,17 +91,15 @@ class _MeChatAppState extends ConsumerState<MeChatApp>
 
   @override
   Widget build(BuildContext context) {
-    final themeMode = ref.watch(themeModeProvider);
-    final customTheme = ref.watch(customThemeProvider);
-
     // Global listener for incoming messages to show notifications
     ref.listen(recentChatsProvider, (previous, next) {
       final currentUser = ref.read(authNotifierProvider).user;
       if (currentUser == null) return;
 
       final oldChats = previous?.value;
-      if (oldChats == null)
+      if (oldChats == null) {
         return; // Prevent notifying for all messages on app startup
+      }
       final newChats = next.value ?? [];
 
       for (var newChat in newChats) {

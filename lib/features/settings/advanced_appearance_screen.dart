@@ -83,7 +83,6 @@ class AdvancedAppearanceScreen extends ConsumerStatefulWidget {
 class _AdvancedAppearanceScreenState
     extends ConsumerState<AdvancedAppearanceScreen> {
   late AdvancedThemeModel _theme;
-  late AdvancedThemeModel _originalTheme;
   int _selectedIndex = 0;
 
   @override
@@ -91,7 +90,6 @@ class _AdvancedAppearanceScreenState
     super.initState();
     final controller = ref.read(themeControllerProvider.notifier);
     _theme = controller.getEffectiveTheme(widget.chatId);
-    _originalTheme = _theme;
 
     // Find which preset is currently active
     final allThemes = _getAllThemes();
@@ -175,7 +173,7 @@ class _AdvancedAppearanceScreenState
   ) {
     final hexController = TextEditingController(
       text:
-          '#${initialColor.value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}',
+          '#${initialColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}',
     );
     showDialog(
       context: context,
@@ -209,7 +207,7 @@ class _AdvancedAppearanceScreenState
                   itemCount: _presetColors.length,
                   itemBuilder: (context, index) {
                     final c = _presetColors[index];
-                    final isSelected = c.value == initialColor.value;
+                    final isSelected = c.toARGB32() == initialColor.toARGB32();
                     return GestureDetector(
                       onTap: () {
                         onColorChanged(c);
@@ -345,8 +343,8 @@ class _AdvancedAppearanceScreenState
                       Tab(text: 'Customize'),
                     ],
                     labelColor: colorScheme.primary,
-                    unselectedLabelColor: colorScheme.onSurface.withOpacity(
-                      0.5,
+                    unselectedLabelColor: colorScheme.onSurface.withValues(
+                      alpha: 0.5,
                     ),
                     indicatorColor: colorScheme.primary,
                   ),
@@ -451,7 +449,7 @@ class _AdvancedAppearanceScreenState
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.15),
+            color: Colors.black.withValues(alpha: 0.15),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),
@@ -554,7 +552,7 @@ class _AdvancedAppearanceScreenState
                       ),
                       color: Color(
                         _theme.appAppearance.appBarColor,
-                      ).withOpacity(0.95),
+                      ).withValues(alpha: 0.95),
                       child: Row(
                         children: [
                           Icon(
@@ -646,7 +644,7 @@ class _AdvancedAppearanceScreenState
           vertical: bubble.paddingVertical,
         ),
         decoration: BoxDecoration(
-          color: Color(bubble.backgroundColor).withOpacity(bubble.opacity),
+          color: Color(bubble.backgroundColor).withValues(alpha: bubble.opacity),
           border: bubble.borderWidth > 0
               ? Border.all(
                   color: Color(bubble.borderColor),
@@ -726,7 +724,7 @@ class _AdvancedAppearanceScreenState
   ) {
     return InkWell(
       onTap: () => _showColorPicker(Color(colorValue), (c) {
-        onChanged(c.value);
+        onChanged(c.toARGB32());
       }),
       borderRadius: BorderRadius.circular(8),
       child: Padding(
@@ -901,7 +899,7 @@ class _AdvancedAppearanceScreenState
       icon: Icons.text_fields,
       children: [
         DropdownButtonFormField<String>(
-          value: _fontOptions.contains(_theme.textTheme.fontFamily)
+          initialValue: _fontOptions.contains(_theme.textTheme.fontFamily)
               ? _theme.textTheme.fontFamily
               : 'Roboto',
           decoration: InputDecoration(

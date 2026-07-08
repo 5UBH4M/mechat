@@ -62,7 +62,9 @@ class SignalingService {
     final callId = callDoc.id;
 
     // Create RTCPeerConnection
-    peerConnection = await createPeerConnection(AppConstants.iceServers);
+    peerConnection = await createPeerConnection(
+      await AppConstants.getIceServers(),
+    );
     _registerConnectionListeners();
 
     // Add local tracks
@@ -167,7 +169,9 @@ class SignalingService {
     final data = snapshot.data() as Map<String, dynamic>;
     final sdpOfferData = data['sdpOffer'];
 
-    peerConnection = await createPeerConnection(AppConstants.iceServers);
+    peerConnection = await createPeerConnection(
+      await AppConstants.getIceServers(),
+    );
     _registerConnectionListeners();
 
     // Add local tracks

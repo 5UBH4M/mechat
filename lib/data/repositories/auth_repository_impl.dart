@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../../core/constants/app_constants.dart';
@@ -9,13 +10,31 @@ import '../../core/services/hive_service.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../models/user_model.dart';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:google_sign_in_all_platforms/google_sign_in_all_platforms.dart' as gsia;
+
 class AuthRepositoryImpl implements AuthRepository {
   FirebaseAuth get _auth => FirebaseAuth.instance;
   FirebaseFirestore get _db => FirebaseFirestore.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn(
-    serverClientId: '1006584668487-cah47qgfekc4endk41d589nb23m2469q.apps.googleusercontent.com',
+    clientId: dotenv.env['GOOGLE_SIGN_IN_CLIENT_ID'] ?? '',
+    serverClientId: kIsWeb ? null : dotenv.env['GOOGLE_SIGN_IN_SERVER_CLIENT_ID'],
   );
+  gsia.GoogleSignIn? _googleSignInLinux;
+
   final HiveService _hive = HiveService();
+
+  AuthRepositoryImpl() {
+    if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.linux || defaultTargetPlatform == TargetPlatform.windows)) {
+      _googleSignInLinux = gsia.GoogleSignIn(
+        params: gsia.GoogleSignInParams(
+          clientId: dotenv.env['GOOGLE_SIGN_IN_LINUX_CLIENT_ID'] ?? '',
+          clientSecret: dotenv.env['GOOGLE_SIGN_IN_LINUX_CLIENT_SECRET'] ?? '',
+          redirectPort: 3000,
+        ),
+      );
+    }
+  }
 
   @override
   Stream<UserEntity?> get authStateChanges {
@@ -42,7 +61,7 @@ class AuthRepositoryImpl implements AuthRepository {
               .get(const GetOptions(source: Source.serverAndCache))
               .timeout(const Duration(seconds: 5));
           if (doc.exists) {
-            UserModel model = UserModel.fromJson(doc.data()!);
+            UserModel model = UserModel.fromJson(doc.data() ?? {});
 
             try {
               final token = await NotificationService().getToken();
@@ -90,7 +109,7 @@ class AuthRepositoryImpl implements AuthRepository {
           .get()
           .timeout(const Duration(seconds: 10));
       if (doc.exists) {
-        UserModel model = UserModel.fromJson(doc.data()!);
+        UserModel model = UserModel.fromJson(doc.data() ?? {});
         try {
           final token = await NotificationService().getToken();
           if (token != null && token != model.pushToken) {
@@ -136,18 +155,36 @@ class AuthRepositoryImpl implements AuthRepository {
     required void Function(String error) onSignInFailed,
   }) async {
     try {
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) {
-        onSignInFailed('Sign in aborted by user');
-        return;
-      }
+      OAuthCredential credential;
+      
+      if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.linux || defaultTargetPlatform == TargetPlatform.windows)) {
+        if (_googleSignInLinux == null) {
+          onSignInFailed('Linux sign in not initialized');
+          return;
+        }
+        final credentials = await _googleSignInLinux!.signIn();
+        if (credentials == null) {
+          onSignInFailed('Sign in aborted by user');
+          return;
+        }
+        credential = GoogleAuthProvider.credential(
+          accessToken: credentials.accessToken,
+          idToken: null, // Often null for desktop offline flow
+        );
+      } else {
+        final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+        if (googleUser == null) {
+          onSignInFailed('Sign in aborted by user');
+          return;
+        }
 
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-      final OAuthCredential credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
+        final GoogleSignInAuthentication googleAuth =
+            await googleUser.authentication;
+        credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+      }
 
       final userCredential = await _auth.signInWithCredential(credential);
       final firebaseUser = userCredential.user;
@@ -165,7 +202,7 @@ class AuthRepositoryImpl implements AuthRepository {
 
       UserModel userModel;
       if (userDoc.exists) {
-        userModel = UserModel.fromJson(userDoc.data()!);
+        userModel = UserModel.fromJson(userDoc.data() ?? {});
       } else {
         userModel = UserModel(
           uid: firebaseUser.uid,

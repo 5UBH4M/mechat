@@ -218,8 +218,9 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                                   )
                                   .get(),
                               builder: (context, snapshot) {
-                                if (!snapshot.hasData)
+                                if (!snapshot.hasData) {
                                   return const SizedBox.shrink();
+                                }
                                 final names = snapshot.data!.docs
                                     .map(
                                       (d) =>

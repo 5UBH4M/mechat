@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../constants/app_constants.dart';
 import '../theme/theme_controller.dart';
 
@@ -34,29 +35,31 @@ class HiveService {
     await Hive.openBox(ThemeController.boxName);
 
     // Open encrypted box for sensitive key material
-    //
-    // TODO(security): VULNERABILITY – The Hive encryption key is stored in
-    // plaintext inside the UNENCRYPTED `_settingsBox`. Any attacker with
-    // file-system access (rooted device, device backup, or physical access)
-    // can read the key and decrypt `secure_keys_box`, completely defeating
-    // the purpose of encrypting E2E key material.
-    //
-    // FIX: Migrate key storage to `flutter_secure_storage`, which delegates
-    // to the platform keychain (Android Keystore / iOS Keychain). These
-    // stores are hardware-backed on most devices and are not readable even
-    // with root access on modern hardware.
-    //
-    // WHY NOT NOW: Requires adding the `flutter_secure_storage` dependency
-    // and writing a one-time migration path for existing users who already
-    // have an encryption key persisted here.
-    final encryptionKeyRaw = _settingsBox.get('_hive_encryption_key');
+    const secureStorage = FlutterSecureStorage();
+    String? encryptionKeyBase64 = await secureStorage.read(key: '_hive_encryption_key');
     List<int> encryptionKey;
-    if (encryptionKeyRaw != null) {
-      encryptionKey = List<int>.from(encryptionKeyRaw as List);
+
+    if (encryptionKeyBase64 != null) {
+      encryptionKey = base64Url.decode(encryptionKeyBase64);
     } else {
-      encryptionKey = Hive.generateSecureKey();
-      await _settingsBox.put('_hive_encryption_key', encryptionKey);
+      // Check for legacy key in unencrypted box (migration)
+      final legacyKeyRaw = _settingsBox.get('_hive_encryption_key');
+      if (legacyKeyRaw != null) {
+        encryptionKey = List<int>.from(legacyKeyRaw as List);
+        await secureStorage.write(
+          key: '_hive_encryption_key', 
+          value: base64Url.encode(encryptionKey)
+        );
+        await _settingsBox.delete('_hive_encryption_key');
+      } else {
+        encryptionKey = Hive.generateSecureKey();
+        await secureStorage.write(
+          key: '_hive_encryption_key', 
+          value: base64Url.encode(encryptionKey)
+        );
+      }
     }
+
     _secureBox = await Hive.openBox(
       'secure_keys_box',
       encryptionCipher: HiveAesCipher(Uint8List.fromList(encryptionKey)),
@@ -177,15 +180,15 @@ class HiveService {
   }
 
   // Clear all caches on logout
-  // TODO(security): When encryption-key storage is migrated to
-  // `flutter_secure_storage`, also delete the key from secure storage here
-  // (e.g., `await secureStorage.delete(key: '_hive_encryption_key')`) so
-  // that a logout truly purges all sensitive material.
   Future<void> clearAllCache() async {
     await _userBox.clear();
     await _chatBox.clear();
     await _outboxBox.clear();
     await _secureBox.clear();
+    
+    // Purge encryption key
+    const secureStorage = FlutterSecureStorage();
+    await secureStorage.delete(key: '_hive_encryption_key');
     // Keep settings (like theme)
   }
 }

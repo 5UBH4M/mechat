@@ -262,7 +262,7 @@ class _CustomThemeScreenState extends ConsumerState<CustomThemeScreen> {
         itemCount: _availableColors.length,
         itemBuilder: (context, index) {
           final c = _availableColors[index];
-          final isSelected = c.value == selectedColor.value;
+          final isSelected = c.toARGB32() == selectedColor.toARGB32();
           return GestureDetector(
             onTap: () => onColorSelected(c),
             child: Container(

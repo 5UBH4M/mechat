@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 
 class CustomThemeModel {
@@ -64,13 +63,13 @@ class CustomThemeModel {
 
   Map<String, dynamic> toJson() {
     return {
-      'primaryColor': primaryColor.value,
-      'secondaryColor': secondaryColor.value,
-      'backgroundColor': backgroundColor.value,
-      'surfaceColor': surfaceColor.value,
-      'receiverBubbleColor': receiverBubbleColor.value,
-      'senderTextColor': senderTextColor.value,
-      'receiverTextColor': receiverTextColor.value,
+      'primaryColor': primaryColor.toARGB32(),
+      'secondaryColor': secondaryColor.toARGB32(),
+      'backgroundColor': backgroundColor.toARGB32(),
+      'surfaceColor': surfaceColor.toARGB32(),
+      'receiverBubbleColor': receiverBubbleColor.toARGB32(),
+      'senderTextColor': senderTextColor.toARGB32(),
+      'receiverTextColor': receiverTextColor.toARGB32(),
       'fontFamily': fontFamily,
       'bubbleRadius': bubbleRadius,
     };

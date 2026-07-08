@@ -69,8 +69,9 @@ class EncryptorService {
   /// then falls back to legacy derivation for backward compatibility.
   String decrypt(String encryptedText, String chatId) {
     if (encryptedText.isEmpty) return '';
-    if (!encryptedText.contains(':'))
+    if (!encryptedText.contains(':')) {
       return '[Encrypted Message]'; // Don't leak potentially sensitive content
+    }
     try {
       final parts = encryptedText.split(':');
       if (parts.length != 2) return '[Decryption Error]';

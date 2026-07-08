@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class AppConstants {
   static const String appName = 'MeChat';
 
@@ -21,10 +23,10 @@ class AppConstants {
   static const String keyE2EPublicKey = 'e2e_public_key';
   static const String keyNotificationSettings = 'notifications_enabled';
 
-  // TODO(security): TURN server credentials should be fetched from a backend
-  // endpoint with short-lived tokens. These hardcoded public relay credentials
-  // could be rate-limited or discontinued at any time.
-  static const Map<String, dynamic> iceServers = {
+  static const String appConfigCollection = 'app_config';
+  static const String webrtcConfigDocument = 'webrtc';
+
+  static const Map<String, dynamic> fallbackIceServers = {
     'iceServers': [
       {
         'urls': [
@@ -33,16 +35,23 @@ class AppConstants {
           'stun:stun2.l.google.com:19302',
         ],
       },
-      {
-        'urls': [
-          'turn:openrelay.metered.ca:80',
-          'turn:openrelay.metered.ca:443',
-        ],
-        'username': 'openrelayproject',
-        'credential': 'openrelayproject',
-      },
     ],
   };
+
+  static Future<Map<String, dynamic>> getIceServers() async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection(appConfigCollection)
+        .doc(webrtcConfigDocument)
+        .get();
+
+    final data = snapshot.data();
+    final iceServers = data?['iceServers'];
+    if (iceServers is List && iceServers.isNotEmpty) {
+      return {'iceServers': iceServers};
+    }
+
+    return fallbackIceServers;
+  }
 
   // UI Default Values
   static const String defaultAbout = 'Hey there! I am using MeChat.';

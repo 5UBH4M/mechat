@@ -195,25 +195,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
-  void _scrollToDate(DateTime targetDate, List<MessageEntity> messages) {
-    if (messages.isEmpty) return;
-    int closestIndex = 0;
-    Duration minDiff = const Duration(days: 99999);
-    for (int i = 0; i < messages.length; i++) {
-      final diff = messages[i].timestamp.difference(targetDate).abs();
-      if (diff < minDiff) {
-        minDiff = diff;
-        closestIndex = i;
-      }
-    }
-    if (_itemScrollController.isAttached) {
-      _itemScrollController.scrollTo(
-        index: closestIndex,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-    }
-  }
+
 
   // --- Voice Message Recording ---
   Future<void> _startRecording() async {
@@ -777,8 +759,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           searchNotifier.updateQuery(val, messagesList);
                         },
                         onSubmitted: (val) {
-                          if (val.trim().isNotEmpty)
+                          if (val.trim().isNotEmpty) {
                             searchNotifier.addRecentSearch(val.trim());
+                          }
                         },
                       ),
                     ),
@@ -1199,8 +1182,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     bool isCurrentMatch,
     Color textColor,
   ) {
-    if (query.isEmpty)
+    if (query.isEmpty) {
       return Text(text, style: TextStyle(color: textColor, fontSize: 15));
+    }
 
     final lowerText = text.toLowerCase();
     final lowerQuery = query.toLowerCase();
@@ -1319,7 +1303,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     final bubbleColor = baseBubbleColor;
 
-    final textColor;
+    final Color textColor;
     if (useAdvancedThemeData) {
       // In advanced themes, use the custom text color from the theme model
       final colorValue = isMe
@@ -1461,7 +1445,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           Navigator.of(context).push(
                             PageRouteBuilder(
                               opaque: false,
-                              pageBuilder: (_, __, ___) => ImageViewerScreen(
+                              pageBuilder: (context, animation, secondaryAnimation) => ImageViewerScreen(
                                 base64String: msg.fileUrl,
                                 senderName: isMe
                                     ? 'You'
@@ -2208,7 +2192,7 @@ class _SwipeToReplyState extends State<_SwipeToReply>
   late Animation<double> _animation;
   double _dragExtent = 0;
   bool _hasTriggeredHaptic = false;
-  bool _wasFocused = false;
+
 
   static const double _replyThreshold = 60.0;
   static const double _maxDrag = 100.0;
