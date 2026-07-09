@@ -25,14 +25,9 @@ void main() async {
   
   await dotenv.load(fileName: ".env");
 
-  // 1. Initialize Hive Local Storage Cache
   final hiveService = HiveService();
   await hiveService.init();
 
-  // 2. Initialize Firebase
-  // Firebase plugins (firebase_core, cloud_firestore, firebase_auth, etc.)
-  // have NO native Linux support. On Linux this call will fail because no
-  // platform channel is registered. We catch the error and show a fallback UI.
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -43,7 +38,6 @@ void main() async {
     firebaseInitialized = false;
   }
 
-  // 3. Initialize notifications in the background (don't block app start)
   if (firebaseInitialized) {
     Future.microtask(() async {
       try {
@@ -107,7 +101,6 @@ class _MeChatAppState extends ConsumerState<MeChatApp>
 
   @override
   Widget build(BuildContext context) {
-    // On Linux, Firebase is not available — show an informative fallback screen.
     if (!firebaseInitialized) {
       return MaterialApp(
         title: 'MeChat',
@@ -117,7 +110,6 @@ class _MeChatAppState extends ConsumerState<MeChatApp>
       );
     }
 
-    // Global listener for incoming messages to show notifications
     ref.listen(recentChatsProvider, (previous, next) {
       final currentUser = ref.read(authNotifierProvider).user;
       if (currentUser == null) return;
@@ -144,10 +136,8 @@ class _MeChatAppState extends ConsumerState<MeChatApp>
         final newLastMsg = newChat.lastMessage;
         final oldLastMsg = oldChat.lastMessage;
 
-        // If there's a new message and we didn't send it
         if (newLastMsg != null && newLastMsg.senderId != currentUser.uid) {
           if (oldLastMsg == null || newLastMsg.id != oldLastMsg.id) {
-            // Check if we are currently in the chat screen for this chat
             final currentRoute = appRouter
                 .routerDelegate
                 .currentConfiguration
@@ -158,10 +148,7 @@ class _MeChatAppState extends ConsumerState<MeChatApp>
                 currentRoute ==
                     '/chat/${newChat.participants.firstWhere((id) => id != currentUser.uid, orElse: () => '')}';
 
-            // Show notification if user is NOT currently viewing this chat
-            // This covers both foreground (different screen) and background (app paused but process alive)
             if (!isChatScreenActive) {
-              // Read user's notification settings
               final hideSender = currentUser.hideNotificationSender;
               final hideMessage = currentUser.hideNotificationMessage;
 
@@ -189,7 +176,6 @@ class _MeChatAppState extends ConsumerState<MeChatApp>
 
               final chatRoute = '/chat/${newLastMsg.senderId}';
 
-              // Fetch sender name asynchronously and show notification
               _getSenderName(newLastMsg.senderId).then((senderName) {
                 NotificationService().showMessageNotification(
                   id: newLastMsg.id.hashCode,
@@ -209,8 +195,6 @@ class _MeChatAppState extends ConsumerState<MeChatApp>
     final advTheme = ref.watch(advancedThemeProvider(null));
     final globalThemeId = ref.watch(themeControllerProvider).globalThemeId;
 
-    // Built-in full themes have their own ThemeData in AppTheme.
-    // We only use the generic advanced-to-ThemeData fallback for actual custom presets (WhatsApp, etc.)
     final customThemeKeys = ['terminal', 'cyberpunk', 'oldphone', 'material3'];
     final useAdvancedGlobal = !customThemeKeys.contains(globalThemeId);
 
