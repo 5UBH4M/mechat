@@ -16,6 +16,10 @@ import 'firebase_options.dart';
 
 final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
     GlobalKey<ScaffoldMessengerState>();
+
+/// Whether Firebase was successfully initialized on this platform.
+bool firebaseInitialized = false;
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
@@ -25,19 +29,29 @@ void main() async {
   final hiveService = HiveService();
   await hiveService.init();
 
-  // 2. Initialize Firebase (non-blocking — never delays app start)
   // 2. Initialize Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // Firebase plugins (firebase_core, cloud_firestore, firebase_auth, etc.)
+  // have NO native Linux support. On Linux this call will fail because no
+  // platform channel is registered. We catch the error and show a fallback UI.
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    firebaseInitialized = true;
+  } catch (e) {
+    // Expected on Linux desktop — no native Firebase plugin exists.
+    firebaseInitialized = false;
+  }
 
   // 3. Initialize notifications in the background (don't block app start)
-  Future.microtask(() async {
-    try {
-      final notificationService = NotificationService();
-      await notificationService.init();
-    } catch (_) {}
-  });
+  if (firebaseInitialized) {
+    Future.microtask(() async {
+      try {
+        final notificationService = NotificationService();
+        await notificationService.init();
+      } catch (_) {}
+    });
+  }
 
   runApp(const ProviderScope(child: MeChatApp()));
 }
@@ -59,12 +73,14 @@ class _MeChatAppState extends ConsumerState<MeChatApp>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
-    // Set up notification tap handler to navigate to the chat
-    NotificationService().onNotificationTap = (String? payload) {
-      if (payload != null && payload.startsWith('/chat/')) {
-        appRouter.go(payload);
-      }
-    };
+    if (firebaseInitialized) {
+      // Set up notification tap handler to navigate to the chat
+      NotificationService().onNotificationTap = (String? payload) {
+        if (payload != null && payload.startsWith('/chat/')) {
+          appRouter.go(payload);
+        }
+      };
+    }
   }
 
   @override
@@ -91,6 +107,16 @@ class _MeChatAppState extends ConsumerState<MeChatApp>
 
   @override
   Widget build(BuildContext context) {
+    // On Linux, Firebase is not available — show an informative fallback screen.
+    if (!firebaseInitialized) {
+      return MaterialApp(
+        title: 'MeChat',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.darkTheme,
+        home: const _UnsupportedPlatformScreen(),
+      );
+    }
+
     // Global listener for incoming messages to show notifications
     ref.listen(recentChatsProvider, (previous, next) {
       final currentUser = ref.read(authNotifierProvider).user;
@@ -232,6 +258,66 @@ class _MeChatAppState extends ConsumerState<MeChatApp>
       themeMode: activeMode,
       scaffoldMessengerKey: scaffoldMessengerKey,
       routerConfig: appRouter,
+    );
+  }
+}
+
+/// Fallback screen shown when Firebase is unavailable (Linux desktop).
+class _UnsupportedPlatformScreen extends StatelessWidget {
+  const _UnsupportedPlatformScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.desktop_windows_rounded,
+                size: 80,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'MeChat',
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Linux desktop is not yet supported.',
+                style: theme.textTheme.titleMedium,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Firebase (which MeChat depends on for authentication, '
+                'messaging, and storage) does not provide native Linux '
+                'plugins. Please use the Android, iOS, or Web version '
+                'of MeChat instead.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Tip: Run "flutter run -d chrome" to use the web version locally.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontStyle: FontStyle.italic,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
