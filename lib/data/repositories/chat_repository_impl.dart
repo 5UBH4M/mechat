@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cross_file/cross_file.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/encryptor_service.dart';
 import '../../core/services/hive_service.dart';
@@ -259,12 +261,22 @@ class ChatRepositoryImpl implements ChatRepository {
             .child(chatId)
             .child('${message.id}_${message.fileName}');
 
-        final uploadTask = storageRef.putFile(
-          File(filePath),
-          SettableMetadata(
-            contentType: _getContentType(message.type, message.fileName),
-          ),
-        );
+        final UploadTask uploadTask;
+        if (kIsWeb) {
+          uploadTask = storageRef.putData(
+            await XFile(filePath).readAsBytes(),
+            SettableMetadata(
+              contentType: _getContentType(message.type, message.fileName),
+            ),
+          );
+        } else {
+          uploadTask = storageRef.putFile(
+            File(filePath),
+            SettableMetadata(
+              contentType: _getContentType(message.type, message.fileName),
+            ),
+          );
+        }
 
         // Listen to real upload progress
         uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
@@ -284,7 +296,9 @@ class ChatRepositoryImpl implements ChatRepository {
             quality: 85,
           );
         } else {
-          final bytes = await File(filePath).readAsBytes();
+          final bytes = kIsWeb
+              ? await XFile(filePath).readAsBytes()
+              : await File(filePath).readAsBytes();
           fileUrl = 'data:audio/aac;base64,${base64Encode(bytes)}';
         }
       }
@@ -411,6 +425,7 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   Future<bool> _isNetworkAvailable() async {
+    if (kIsWeb) return true;
     try {
       final result = await InternetAddress.lookup('google.com');
       return result.isNotEmpty && result[0].rawAddress.isNotEmpty;

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -297,8 +298,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         final duration = DateTime.now()
             .difference(_recordingStartTime!)
             .inSeconds;
-        final file = File(path);
-        final size = await file.length();
+        final int size;
+        if (kIsWeb) {
+          size = 0;
+        } else {
+          size = await File(path).length();
+        }
 
         await ref
             .read(chatNotifierProvider.notifier)
@@ -328,8 +333,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       );
 
       for (var picked in pickedList) {
-        final file = File(picked.path);
-        final size = await file.length();
+        final int size;
+        if (kIsWeb) {
+          size = 0;
+        } else {
+          size = await File(picked.path).length();
+        }
         await ref
             .read(chatNotifierProvider.notifier)
             .sendFileMessage(
@@ -358,8 +367,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       );
 
       if (picked != null) {
-        final file = File(picked.path);
-        final size = await file.length();
+        final int size;
+        if (kIsWeb) {
+          size = 0;
+        } else {
+          size = await File(picked.path).length();
+        }
         await ref
             .read(chatNotifierProvider.notifier)
             .sendFileMessage(
@@ -986,7 +999,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ],
         ),
         body: Container(
-          decoration: wallpaperPath != null
+          decoration: wallpaperPath != null && !kIsWeb
               ? BoxDecoration(
                   image: DecorationImage(
                     image: FileImage(File(wallpaperPath)),

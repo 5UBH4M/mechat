@@ -1,7 +1,9 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:crop_your_image/crop_your_image.dart';
+import 'package:cross_file/cross_file.dart';
 import 'package:path_provider/path_provider.dart';
 
 class ProfileCropScreen extends StatefulWidget {
@@ -26,7 +28,12 @@ class _ProfileCropScreenState extends State<ProfileCropScreen> {
   }
 
   Future<void> _loadImage() async {
-    final bytes = await File(widget.imagePath).readAsBytes();
+    final Uint8List bytes;
+    if (kIsWeb) {
+      bytes = await XFile(widget.imagePath).readAsBytes();
+    } else {
+      bytes = await File(widget.imagePath).readAsBytes();
+    }
     setState(() {
       _imageBytes = bytes;
       _isLoading = false;
@@ -34,6 +41,10 @@ class _ProfileCropScreenState extends State<ProfileCropScreen> {
   }
 
   Future<void> _onCropped(Uint8List croppedData) async {
+    if (kIsWeb) {
+      if (mounted) Navigator.pop(context, '');
+      return;
+    }
     final tempDir = await getTemporaryDirectory();
     final file = File(
       '${tempDir.path}/cropped_profile_${DateTime.now().millisecondsSinceEpoch}.jpg',

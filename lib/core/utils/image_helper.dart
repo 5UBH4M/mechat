@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cross_file/cross_file.dart';
 
 class ImageHelper {
   /// Compresses the image and converts it to a base64 string.
@@ -12,8 +13,12 @@ class ImageHelper {
     int maxWidth = 300,
     int quality = 70,
   }) async {
-    final file = File(imagePath);
-    final bytes = await file.readAsBytes();
+    final Uint8List bytes;
+    if (kIsWeb) {
+      bytes = await XFile(imagePath).readAsBytes();
+    } else {
+      bytes = await File(imagePath).readAsBytes();
+    }
 
     // Decode image to resize/compress
     img.Image? decodedImage = await compute(_decodeImageBackground, bytes);

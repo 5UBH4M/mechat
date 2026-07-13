@@ -17,7 +17,7 @@ class AuthRepositoryImpl implements AuthRepository {
   FirebaseAuth get _auth => FirebaseAuth.instance;
   FirebaseFirestore get _db => FirebaseFirestore.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn(
-    clientId: dotenv.env['GOOGLE_SIGN_IN_CLIENT_ID'] ?? '',
+    clientId: dotenv.env['GOOGLE_SIGN_IN_CLIENT_ID']?.isEmpty ?? true ? null : dotenv.env['GOOGLE_SIGN_IN_CLIENT_ID'],
     serverClientId: kIsWeb ? null : dotenv.env['GOOGLE_SIGN_IN_SERVER_CLIENT_ID'],
   );
   gsia.GoogleSignIn? _googleSignInLinux;
@@ -25,6 +25,7 @@ class AuthRepositoryImpl implements AuthRepository {
   final HiveService _hive = HiveService();
 
   AuthRepositoryImpl() {
+    // Desktop initialization
     if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.linux || defaultTargetPlatform == TargetPlatform.windows)) {
       _googleSignInLinux = gsia.GoogleSignIn(
         params: gsia.GoogleSignInParams(

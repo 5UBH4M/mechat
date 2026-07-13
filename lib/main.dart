@@ -25,8 +25,12 @@ void main() async {
   
   await dotenv.load(fileName: ".env");
 
-  final hiveService = HiveService();
-  await hiveService.init();
+  try {
+    final hiveService = HiveService();
+    await hiveService.init();
+  } catch (e) {
+    debugPrint('HiveService init failed: $e');
+  }
 
   try {
     await Firebase.initializeApp(
@@ -34,7 +38,6 @@ void main() async {
     );
     firebaseInitialized = true;
   } catch (e) {
-    // Expected on Linux desktop — no native Firebase plugin exists.
     firebaseInitialized = false;
   }
 
