@@ -26,8 +26,11 @@ service cloud.firestore {
 
     /// True when the signed-in user is a participant of the given chat.
     function isChatParticipant(chatId) {
-      return isAuthenticated()
-        && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+      let chatRef = /databases/$(database)/documents/chats/$(chatId);
+      return isAuthenticated() && (
+        (exists(chatRef) && request.auth.uid in get(chatRef).data.participants) ||
+        (!exists(chatRef) && chatId.matches('.*' + request.auth.uid + '.*'))
+      );
     }
 
     /// True when the signed-in user is a participant of the given call
@@ -64,11 +67,11 @@ service cloud.firestore {
         && request.resource.data.isOnline is bool
         && request.resource.data.lastSeen is timestamp
         && request.resource.data.createdAt is timestamp
-        && request.resource.data.blockedUsers is list
-        && request.resource.data.blockedUsers.size() <= 500
-        && request.resource.data.readReceiptsEnabled is bool
-        && request.resource.data.lastSeenVisible is bool
-        && request.resource.data.profilePhotoVisible is bool;
+        && request.resource.data.get('blockedUsers', []) is list
+        && request.resource.data.get('blockedUsers', []).size() <= 500
+        && request.resource.data.get('readReceiptsEnabled', true) is bool
+        && request.resource.data.get('lastSeenVisible', true) is bool
+        && request.resource.data.get('profilePhotoVisible', true) is bool;
 
       // --- UPDATE ---
       // Only the owner can update their own profile.
@@ -81,11 +84,11 @@ service cloud.firestore {
         && request.resource.data.displayName is string
         && request.resource.data.about is string
         && request.resource.data.isOnline is bool
-        && request.resource.data.blockedUsers is list
-        && request.resource.data.blockedUsers.size() <= 500
-        && request.resource.data.readReceiptsEnabled is bool
-        && request.resource.data.lastSeenVisible is bool
-        && request.resource.data.profilePhotoVisible is bool;
+        && request.resource.data.get('blockedUsers', []) is list
+        && request.resource.data.get('blockedUsers', []).size() <= 500
+        && request.resource.data.get('readReceiptsEnabled', true) is bool
+        && request.resource.data.get('lastSeenVisible', true) is bool
+        && request.resource.data.get('profilePhotoVisible', true) is bool;
 
       // --- DELETE ---
       // Only the owner can delete their profile.

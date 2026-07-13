@@ -231,12 +231,19 @@ class ChatRepositoryImpl implements ChatRepository {
     batch.set(msgRef, msgModel.toFirestore());
 
     // Update main chat thread details
-    // Increment unread count for recipient
+    // Use set with merge: true to create the chat document if it doesn't exist yet
     final updateData = {
       'lastMessage': msgModel.toFirestore(),
-      'unreadCounts.${message.receiverId}': FieldValue.increment(1),
+      'unreadCounts': {
+        message.receiverId: FieldValue.increment(1),
+      },
+      'participants': message.senderId == message.receiverId
+          ? [message.senderId]
+          : (message.senderId.compareTo(message.receiverId) < 0
+              ? [message.senderId, message.receiverId]
+              : [message.receiverId, message.senderId]),
     };
-    batch.update(chatRef, updateData);
+    batch.set(chatRef, updateData, SetOptions(merge: true));
 
     await batch.commit();
   }

@@ -156,9 +156,15 @@ class AuthRepositoryImpl implements AuthRepository {
     required void Function(String error) onSignInFailed,
   }) async {
     try {
-      OAuthCredential credential;
-      
-      if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.linux || defaultTargetPlatform == TargetPlatform.windows)) {
+      UserCredential userCredential;
+
+      if (kIsWeb) {
+        // Use Firebase Auth's built-in popup for Web
+        // This avoids the deprecated google_sign_in web package issues
+        // and works much better with third-party cookie blockers.
+        final provider = GoogleAuthProvider();
+        userCredential = await _auth.signInWithPopup(provider);
+      } else if (defaultTargetPlatform == TargetPlatform.linux || defaultTargetPlatform == TargetPlatform.windows) {
         if (_googleSignInLinux == null) {
           onSignInFailed('Linux sign in not initialized');
           return;
@@ -168,11 +174,13 @@ class AuthRepositoryImpl implements AuthRepository {
           onSignInFailed('Sign in aborted by user');
           return;
         }
-        credential = GoogleAuthProvider.credential(
+        final credential = GoogleAuthProvider.credential(
           accessToken: credentials.accessToken,
           idToken: null, // Often null for desktop offline flow
         );
+        userCredential = await _auth.signInWithCredential(credential);
       } else {
+        // Mobile (Android/iOS/MacOS)
         final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
         if (googleUser == null) {
           onSignInFailed('Sign in aborted by user');
@@ -181,19 +189,23 @@ class AuthRepositoryImpl implements AuthRepository {
 
         final GoogleSignInAuthentication googleAuth =
             await googleUser.authentication;
-        credential = GoogleAuthProvider.credential(
+        final credential = GoogleAuthProvider.credential(
           accessToken: googleAuth.accessToken,
           idToken: googleAuth.idToken,
         );
+        userCredential = await _auth.signInWithCredential(credential);
       }
 
-      final userCredential = await _auth.signInWithCredential(credential);
       final firebaseUser = userCredential.user;
 
       if (firebaseUser == null) {
         onSignInFailed('Failed to sign in with Google');
         return;
       }
+
+      // Add a small delay to ensure FirebaseAuth state propagates to Firestore WebChannel
+      // This prevents a known race condition where get() throws permission-denied.
+      await Future.delayed(const Duration(milliseconds: 1000));
 
       // Check if user profile already exists
       final userDoc = await _db
