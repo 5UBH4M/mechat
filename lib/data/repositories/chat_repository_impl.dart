@@ -227,23 +227,30 @@ class ChatRepositoryImpl implements ChatRepository {
         .collection(AppConstants.messagesCollection)
         .doc(message.id);
 
+    final chatDoc = await chatRef.get();
     final batch = _db.batch();
     batch.set(msgRef, msgModel.toFirestore());
 
-    // Update main chat thread details
-    // Use set with merge: true to create the chat document if it doesn't exist yet
-    final updateData = {
-      'lastMessage': msgModel.toFirestore(),
-      'unreadCounts': {
-        message.receiverId: FieldValue.increment(1),
-      },
-      'participants': message.senderId == message.receiverId
-          ? [message.senderId]
-          : (message.senderId.compareTo(message.receiverId) < 0
-              ? [message.senderId, message.receiverId]
-              : [message.receiverId, message.senderId]),
-    };
-    batch.set(chatRef, updateData, SetOptions(merge: true));
+    if (chatDoc.exists) {
+      // Chat exists — just update lastMessage and unreadCounts (no participants change)
+      batch.update(chatRef, {
+        'lastMessage': msgModel.toFirestore(),
+        'unreadCounts.${message.receiverId}': FieldValue.increment(1),
+      });
+    } else {
+      // Chat doesn't exist — create it with participants
+      batch.set(chatRef, {
+        'lastMessage': msgModel.toFirestore(),
+        'unreadCounts': {
+          message.receiverId: FieldValue.increment(1),
+        },
+        'participants': message.senderId == message.receiverId
+            ? [message.senderId]
+            : (message.senderId.compareTo(message.receiverId) < 0
+                ? [message.senderId, message.receiverId]
+                : [message.receiverId, message.senderId]),
+      });
+    }
 
     await batch.commit();
   }
@@ -422,9 +429,37 @@ class ChatRepositoryImpl implements ChatRepository {
       final msgJson = item['message'] as Map<String, dynamic>;
       final msg = MessageModel.fromJson(msgJson);
       try {
-        await sendMessage(msg, chatId);
+        // Write directly to Firestore — content is ALREADY encrypted from the first sendMessage call
+        final chatRef = _db.collection(AppConstants.chatsCollection).doc(chatId);
+        final msgRef = chatRef
+            .collection(AppConstants.messagesCollection)
+            .doc(msg.id);
+
+        final sentMsg = msg.copyWith(status: 'sent');
+        final chatDoc = await chatRef.get();
+        final batch = _db.batch();
+        batch.set(msgRef, sentMsg.toFirestore());
+
+        if (chatDoc.exists) {
+          batch.update(chatRef, {
+            'lastMessage': sentMsg.toFirestore(),
+            'unreadCounts.${msg.receiverId}': FieldValue.increment(1),
+          });
+        } else {
+          batch.set(chatRef, {
+            'lastMessage': sentMsg.toFirestore(),
+            'unreadCounts': {
+              msg.receiverId: FieldValue.increment(1),
+            },
+            'participants': msg.senderId == msg.receiverId
+                ? [msg.senderId]
+                : (msg.senderId.compareTo(msg.receiverId) < 0
+                    ? [msg.senderId, msg.receiverId]
+                    : [msg.receiverId, msg.senderId]),
+          });
+        }
+        await batch.commit();
       } catch (_) {
-        // Stop syncing if we hit network issues again
         return;
       }
     }

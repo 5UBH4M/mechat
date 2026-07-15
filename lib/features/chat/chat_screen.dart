@@ -34,6 +34,7 @@ import 'audio_message_player.dart';
 import 'chat_media_notifier.dart';
 import 'chat_notifier.dart';
 import 'chat_search_notifier.dart';
+import '../profile/profile_notifier.dart';
 import 'user_info_screen.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
@@ -61,6 +62,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Timer? _recordingTimer;
   DateTime? _recordingStartTime;
   Timer? _typingDebouncer;
+  Timer? _heartbeatTimer;
   MessageEntity? _replyingToMessage;
   int _lastMessageCount = 0;
   bool _showScrollToBottom = false;
@@ -78,6 +80,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           .resetUnreadCount(widget.receiverId);
     });
 
+    _startHeartbeat();
+
     _itemPositionsListener.itemPositions.addListener(() {
       final positions = _itemPositionsListener.itemPositions.value;
       if (positions.isEmpty) return;
@@ -87,6 +91,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       } else {
         if (!_showScrollToBottom) setState(() => _showScrollToBottom = true);
       }
+    });
+  }
+
+  void _startHeartbeat() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      ref.read(profileNotifierProvider.notifier).updateOnlinePresence(true);
     });
   }
 
@@ -139,6 +150,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _audioRecorder.dispose();
     _messageFocusNode.dispose();
     _typingDebouncer?.cancel();
+    _heartbeatTimer?.cancel();
     _recordingTimer?.cancel();
     super.dispose();
   }
@@ -1702,6 +1714,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     (currentUser?.readReceiptsEnabled ?? true) &&
                         (_receiverUser?.readReceiptsEnabled ?? true),
                     theme,
+                    statusColor: Color(advTheme.textTheme.timestampColor),
                   ),
                 ],
                 if (currentUser != null &&
@@ -1727,19 +1740,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget _buildMessageStatusIcon(
     String status,
     bool showBlueTicks,
-    ThemeData theme,
-  ) {
+    ThemeData theme, {
+    Color? statusColor,
+  }) {
+    final iconColor = statusColor ?? theme.colorScheme.onSurface.withOpacity(0.7);
+    const double iconSize = 14;
     if (status == 'sending') {
-      return const Icon(Icons.access_time, size: 12, color: Colors.grey);
+      return Icon(Icons.access_time, size: iconSize, color: iconColor);
     }
     if (status == 'sent') {
-      return const Icon(Icons.check, size: 12, color: Colors.grey);
+      return Icon(Icons.check, size: iconSize, color: iconColor);
     }
     if (status == 'delivered' || (status == 'read' && !showBlueTicks)) {
-      return const Icon(Icons.done_all, size: 12, color: Colors.grey);
+      return Icon(Icons.done_all, size: iconSize, color: iconColor);
     }
     if (status == 'read') {
-      return Icon(Icons.done_all, size: 12, color: theme.colorScheme.primary);
+      return Icon(Icons.done_all, size: iconSize, color: theme.colorScheme.primary);
     }
     return const SizedBox.shrink();
   }
@@ -1885,25 +1901,31 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           const SizedBox(width: 8),
 
           // Send / Voice Record Button
-          GestureDetector(
+          Builder(builder: (context) {
+            final sendButtonBgColor = useAdvancedThemeData
+                ? Color(advTheme.appAppearance.sendButtonColor)
+                : theme.colorScheme.secondary;
+            final sendIconColor = sendButtonBgColor.computeLuminance() > 0.5
+                ? Colors.black
+                : Colors.white;
+            return GestureDetector(
             onLongPress: _isRecording ? null : _startRecording,
             onLongPressUp: _isRecording ? () => _stopRecording(true) : null,
             child: IconButton.filled(
               onPressed: _isRecording ? null : _sendText,
               style: IconButton.styleFrom(
-                backgroundColor: useAdvancedThemeData
-                    ? Color(advTheme.appAppearance.sendButtonColor)
-                    : theme.colorScheme.secondary,
+                backgroundColor: sendButtonBgColor,
                 shape: const CircleBorder(),
                 minimumSize: const Size(48, 48),
               ),
               icon: _isRecording
-                  ? const Icon(Icons.stop, color: Colors.white)
+                  ? Icon(Icons.stop, color: sendIconColor)
                   : (_messageController.text.trim().isNotEmpty
-                        ? const Icon(Icons.send, color: Colors.white)
-                        : const Icon(Icons.mic, color: Colors.white)),
+                        ? Icon(Icons.send, color: sendIconColor)
+                        : Icon(Icons.mic, color: sendIconColor)),
             ),
-          ),
+          );
+          }),
         ],
       ),
     );
