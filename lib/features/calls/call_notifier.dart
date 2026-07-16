@@ -147,15 +147,15 @@ class CallNotifier extends StateNotifier<CallState> {
               // Setup local/remote signaling callbacks
               _setupSignalingCallbacks();
 
-              // Show notification if app is in background
+              // Show full-screen incoming call notification (works over lock screen and other apps)
               final lifecycleState = WidgetsBinding.instance.lifecycleState;
               if (lifecycleState != AppLifecycleState.resumed) {
                 _ref
                     .read(notificationServiceProvider)
-                    .showCustomNotification(
+                    .showIncomingCallNotification(
                       id: doc.id.hashCode,
-                      title: 'Incoming Call',
-                      body: '${data['callerName'] ?? 'Someone'} is calling you',
+                      callerName: data['callerName'] ?? 'Someone',
+                      isVideo: data['type'] == 'video',
                     );
               }
             }
@@ -261,6 +261,10 @@ class CallNotifier extends StateNotifier<CallState> {
     final callId = state.callId;
     if (callId == null) return;
 
+    // Cancel the incoming call notification
+    _ref.read(notificationServiceProvider)
+        .cancelIncomingCallNotification(callId.hashCode);
+
     final signaling = _ref.read(signalingServiceProvider);
 
     try {
@@ -279,6 +283,10 @@ class CallNotifier extends StateNotifier<CallState> {
   Future<void> rejectCall() async {
     final callId = state.callId;
     if (callId == null) return;
+
+    // Cancel the incoming call notification
+    _ref.read(notificationServiceProvider)
+        .cancelIncomingCallNotification(callId.hashCode);
 
     final signaling = _ref.read(signalingServiceProvider);
     await signaling.endCall(callId, isRejected: true);

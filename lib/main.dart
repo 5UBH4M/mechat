@@ -151,7 +151,12 @@ class _MeChatAppState extends ConsumerState<MeChatApp>
                 currentRoute ==
                     '/chat/${newChat.participants.firstWhere((id) => id != currentUser.uid, orElse: () => '')}';
 
-            if (!isChatScreenActive) {
+            // Don't show notifications when the app is in the foreground
+            final lifecycleState = WidgetsBinding.instance.lifecycleState;
+            final isAppInForeground = lifecycleState == null ||
+                lifecycleState == AppLifecycleState.resumed;
+
+            if (!isChatScreenActive && !isAppInForeground) {
               final hideSender = currentUser.hideNotificationSender;
               final hideMessage = currentUser.hideNotificationMessage;
 

@@ -90,11 +90,22 @@ class NotificationService {
         importance: Importance.max,
       );
 
-      await _localNotifications
+      // Create incoming call notification channel with full-screen intent
+      const AndroidNotificationChannel callChannel = AndroidNotificationChannel(
+        'mechat_incoming_call',
+        'Incoming Calls',
+        description: 'Full-screen notifications for incoming calls',
+        importance: Importance.max,
+        playSound: true,
+        enableVibration: true,
+      );
+
+      final androidPlugin = _localNotifications
           .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin
-          >()
-          ?.createNotificationChannel(channel);
+          >();
+      await androidPlugin?.createNotificationChannel(channel);
+      await androidPlugin?.createNotificationChannel(callChannel);
 
       // 4. Listen to foreground messages from FCM
       // We do NOT show local notifications directly here because it doesn't know
@@ -324,6 +335,49 @@ class NotificationService {
 
   /// Cancel a specific notification by ID
   Future<void> cancelNotification(int id) async {
+    await _localNotifications.cancel(id: id);
+  }
+
+  /// Show a full-screen incoming call notification that displays over
+  /// the lock screen and other apps
+  Future<void> showIncomingCallNotification({
+    required int id,
+    required String callerName,
+    required bool isVideo,
+  }) async {
+    final AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
+          'mechat_incoming_call',
+          'Incoming Calls',
+          channelDescription: 'Full-screen notifications for incoming calls',
+          importance: Importance.max,
+          priority: Priority.max,
+          fullScreenIntent: true,
+          category: AndroidNotificationCategory.call,
+          visibility: NotificationVisibility.public,
+          ongoing: true,
+          autoCancel: false,
+          playSound: true,
+          enableVibration: true,
+          vibrationPattern: Int64List.fromList([0, 500, 200, 500, 200, 500]),
+          timeoutAfter: 60000,
+        );
+
+    final NotificationDetails details = NotificationDetails(
+      android: androidDetails,
+    );
+
+    await _localNotifications.show(
+      id: id,
+      title: isVideo ? '📹 Incoming Video Call' : '📞 Incoming Voice Call',
+      body: '$callerName is calling...',
+      notificationDetails: details,
+      payload: '/incoming-call',
+    );
+  }
+
+  /// Cancel incoming call notification
+  Future<void> cancelIncomingCallNotification(int id) async {
     await _localNotifications.cancel(id: id);
   }
 }

@@ -17,19 +17,33 @@ class OngoingCallScreen extends ConsumerStatefulWidget {
 }
 
 class _OngoingCallScreenState extends ConsumerState<OngoingCallScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   final SimplePip _pip = SimplePip();
+  bool _controlsVisible = true;
+
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // For Android 12+ auto enter
     _pip.setAutoPipMode();
+
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeInOut,
+    );
+    _fadeController.value = 1.0; // Start visible
   }
 
   @override
   void dispose() {
+    _fadeController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -42,25 +56,24 @@ class _OngoingCallScreenState extends ConsumerState<OngoingCallScreen>
     }
   }
 
+  void _toggleControls() {
+    setState(() {
+      _controlsVisible = !_controlsVisible;
+    });
+    if (_controlsVisible) {
+      _fadeController.forward();
+    } else {
+      _fadeController.reverse();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final callState = ref.watch(callNotifierProvider);
     final notifier = ref.read(callNotifierProvider.notifier);
     final user = ref.watch(authNotifierProvider).user;
     final disableMute = user?.disableMute ?? false;
     final disableCameraOff = user?.disableCameraOff ?? false;
-
-    // Use theme colors for voice calls, black/white for video calls
-    final bgColor = callState.isVideo
-        ? Colors.black
-        : theme.scaffoldBackgroundColor;
-    final textColor = callState.isVideo
-        ? Colors.white
-        : theme.colorScheme.onSurface;
-    final textMutedColor = callState.isVideo
-        ? Colors.white70
-        : theme.colorScheme.onSurface.withValues(alpha: 0.7);
 
     // Automatically navigate home if the call is closed
     ref.listen<CallState>(callNotifierProvider, (previous, next) {
@@ -74,49 +87,22 @@ class _OngoingCallScreenState extends ConsumerState<OngoingCallScreen>
 
       if (previous?.partnerWantsHangup != true &&
           next.partnerWantsHangup == true) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Call Disconnect'),
-            content: const Text(
-              'Your partner wants to end the call. Accept or reject?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(ctx).pop();
-                  notifier.rejectHangupRequest();
-                },
-                child: const Text(
-                  'Reject',
-                  style: TextStyle(color: Colors.red),
-                ),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.of(ctx).pop();
-                  notifier.endCall();
-                },
-                child: const Text(
-                  'Accept',
-                  style: TextStyle(color: Colors.green),
-                ),
-              ),
-            ],
-          ),
-        );
+        _showHangupDialog(notifier);
       }
 
       if (previous?.partnerHangupRejected != true &&
           next.partnerHangupRejected == true) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Your partner rejected the call end request. You can retry later.',
+          SnackBar(
+            content: const Text(
+              'Your partner rejected the call end request.',
             ),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 3),
+            backgroundColor: Colors.orange.shade700,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -124,187 +110,302 @@ class _OngoingCallScreenState extends ConsumerState<OngoingCallScreen>
 
     return PipWidget(
       pipChild: Scaffold(
-        backgroundColor: bgColor,
+        backgroundColor: Colors.black,
         body: Center(
-          child: ref.watch(callNotifierProvider).isVideo
-              ? _buildVideoCallStream(
-                  ref.watch(callNotifierProvider),
-                  ref.watch(callNotifierProvider.notifier),
-                )
-              : Icon(Icons.call, color: Colors.green, size: 50),
+          child: callState.isVideo
+              ? _buildVideoCallStream(callState, notifier)
+              : const Icon(Icons.call, color: Colors.green, size: 50),
         ),
       ),
       child: Builder(
         builder: (context) {
           return Scaffold(
-            backgroundColor: bgColor,
-            body: SafeArea(
-              child: Stack(
-                children: [
-                  // 1. Core Background View (Video Streams or Voice Pulsing Wave)
-                  if (callState.isVideo)
-                    _buildVideoCallStream(callState, notifier)
-                  else
-                    _buildVoiceCallStream(callState, theme),
-
-                  // 2. Call Info Overlay Header (Name, Call Status, Timer)
-                  Positioned(
-                    top: 20,
-                    left: 20,
-                    right: 20,
-                    child: Column(
-                      children: [
-                        Text(
-                          callState.remoteUserName,
-                          style: TextStyle(
-                            color: textColor,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
+            body: GestureDetector(
+              onTap: callState.isVideo ? _toggleControls : null,
+              child: Container(
+                width: double.infinity,
+                height: double.infinity,
+                decoration: callState.isVideo
+                    ? const BoxDecoration(color: Colors.black)
+                    : const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Color(0xFF0A1628),
+                            Color(0xFF132A47),
+                            Color(0xFF1A3A5C),
+                          ],
                         ),
-                        const SizedBox(height: 6),
-                        Text(
-                          callState.status == 'connected'
-                              ? DateFormatter.formatCallTimer(
-                                  callState.duration,
-                                )
-                              : callState.status.toUpperCase(),
-                          style: TextStyle(
-                            color: textMutedColor,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // 3. Floating Bottom Toolbar
-                  Align(
-                    alignment: Alignment.bottomCenter,
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 40.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          // Mute Mic Toggle
-                          if (!disableMute)
-                            IconButton.filled(
-                              style: IconButton.styleFrom(
-                                backgroundColor: callState.isMicMuted
-                                    ? Colors.white
-                                    : Colors.white24,
-                                foregroundColor: callState.isMicMuted
-                                    ? Colors.black
-                                    : Colors.white,
-                                minimumSize: const Size(56, 56),
-                              ),
-                              icon: Icon(
-                                callState.isMicMuted
-                                    ? Icons.mic_off_rounded
-                                    : Icons.mic_rounded,
-                              ),
-                              onPressed: notifier.toggleMute,
-                            ),
-
-                          // Speaker Mode Toggle (Voice Call) or Camera Toggle (Video Call)
-                          if (callState.isVideo)
-                            if (!disableCameraOff)
-                              IconButton.filled(
-                                style: IconButton.styleFrom(
-                                  backgroundColor: callState.isCameraEnabled
-                                      ? Colors.white24
-                                      : Colors.white,
-                                  foregroundColor: callState.isCameraEnabled
-                                      ? Colors.white
-                                      : Colors.black,
-                                  minimumSize: const Size(56, 56),
-                                ),
-                                icon: Icon(
-                                  callState.isCameraEnabled
-                                      ? Icons.videocam_rounded
-                                      : Icons.videocam_off_rounded,
-                                ),
-                                onPressed: notifier.toggleCamera,
-                              )
-                            else
-                              const SizedBox()
-                          else
-                            IconButton.filled(
-                              style: IconButton.styleFrom(
-                                backgroundColor: callState.isSpeakerOn
-                                    ? Colors.white
-                                    : Colors.white24,
-                                foregroundColor: callState.isSpeakerOn
-                                    ? Colors.black
-                                    : Colors.white,
-                                minimumSize: const Size(56, 56),
-                              ),
-                              icon: Icon(
-                                callState.isSpeakerOn
-                                    ? Icons.volume_up_rounded
-                                    : Icons.volume_down_rounded,
-                              ),
-                              onPressed: notifier.toggleSpeaker,
-                            ),
-
-                          // Camera Flip (Video Call only)
-                          if (callState.isVideo)
-                            IconButton.filled(
-                              style: IconButton.styleFrom(
-                                backgroundColor: Colors.white24,
-                                foregroundColor: Colors.white,
-                                minimumSize: const Size(56, 56),
-                              ),
-                              icon: const Icon(Icons.flip_camera_ios_rounded),
-                              onPressed: notifier.switchCamera,
-                            ),
-
-                          // PIP Button
-                          IconButton.filled(
-                            style: IconButton.styleFrom(
-                              backgroundColor: Colors.white24,
-                              foregroundColor: Colors.white,
-                              minimumSize: const Size(56, 56),
-                            ),
-                            icon: const Icon(
-                              Icons.picture_in_picture_alt_rounded,
-                            ),
-                            onPressed: () {
-                              _pip.enterPipMode();
-                            },
-                          ),
-
-                          // End / Hangup Button
-                          IconButton.filled(
-                            style: IconButton.styleFrom(
-                              backgroundColor: Colors.red,
-                              foregroundColor: Colors.white,
-                              minimumSize: const Size(64, 64),
-                            ),
-                            icon: const Icon(Icons.call_end_rounded),
-                            onPressed: () {
-                              notifier.endCall();
-                              if (callState.status == 'connected') {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Requested call end. Waiting for partner...',
-                                    ),
-                                  ),
-                                );
-                              }
-                            },
-                          ),
-                        ],
                       ),
-                    ),
+                child: SafeArea(
+                  child: Stack(
+                    children: [
+                      // Core content
+                      if (callState.isVideo)
+                        _buildVideoCallStream(callState, notifier)
+                      else
+                        _buildVoiceCallView(callState),
+
+                      // Top bar with caller info
+                      FadeTransition(
+                        opacity: _fadeAnimation,
+                        child: _buildTopBar(callState),
+                      ),
+
+                      // Bottom controls
+                      FadeTransition(
+                        opacity: _fadeAnimation,
+                        child: _buildBottomControls(
+                          callState,
+                          notifier,
+                          disableMute,
+                          disableCameraOff,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildTopBar(CallState callState) {
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Colors.black.withOpacity(0.6),
+              Colors.transparent,
+            ],
+          ),
+        ),
+        child: Column(
+          children: [
+            Text(
+              callState.remoteUserName,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.3,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: callState.status == 'connected'
+                    ? const Color(0xFF00E676).withOpacity(0.15)
+                    : Colors.white.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                callState.status == 'connected'
+                    ? DateFormatter.formatCallTimer(callState.duration)
+                    : callState.status.toUpperCase(),
+                style: TextStyle(
+                  color: callState.status == 'connected'
+                      ? const Color(0xFF00E676)
+                      : Colors.white70,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: callState.status == 'connected' ? 1.0 : 1.5,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomControls(
+    CallState callState,
+    CallNotifier notifier,
+    bool disableMute,
+    bool disableCameraOff,
+  ) {
+    return Positioned(
+      bottom: 0,
+      left: 0,
+      right: 0,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 30, 16, 40),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.bottomCenter,
+            end: Alignment.topCenter,
+            colors: [
+              Colors.black.withOpacity(0.7),
+              Colors.transparent,
+            ],
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            // Mute Mic
+            if (!disableMute)
+              _buildControlButton(
+                icon: callState.isMicMuted
+                    ? Icons.mic_off_rounded
+                    : Icons.mic_rounded,
+                label: callState.isMicMuted ? 'Unmute' : 'Mute',
+                isActive: callState.isMicMuted,
+                onTap: notifier.toggleMute,
+              ),
+
+            // Speaker (Voice) or Camera Toggle (Video)
+            if (callState.isVideo)
+              if (!disableCameraOff)
+                _buildControlButton(
+                  icon: callState.isCameraEnabled
+                      ? Icons.videocam_rounded
+                      : Icons.videocam_off_rounded,
+                  label: callState.isCameraEnabled ? 'Cam Off' : 'Cam On',
+                  isActive: !callState.isCameraEnabled,
+                  onTap: notifier.toggleCamera,
+                )
+              else
+                const SizedBox(width: 56)
+            else
+              _buildControlButton(
+                icon: callState.isSpeakerOn
+                    ? Icons.volume_up_rounded
+                    : Icons.volume_down_rounded,
+                label: callState.isSpeakerOn ? 'Speaker' : 'Earpiece',
+                isActive: callState.isSpeakerOn,
+                onTap: notifier.toggleSpeaker,
+              ),
+
+            // Camera Flip (Video only)
+            if (callState.isVideo)
+              _buildControlButton(
+                icon: Icons.flip_camera_ios_rounded,
+                label: 'Flip',
+                onTap: notifier.switchCamera,
+              ),
+
+            // PIP
+            _buildControlButton(
+              icon: Icons.picture_in_picture_alt_rounded,
+              label: 'PIP',
+              onTap: () => _pip.enterPipMode(),
+            ),
+
+            // End Call
+            _buildEndCallButton(notifier, callState),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildControlButton({
+    required IconData icon,
+    required String label,
+    bool isActive = false,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: isActive
+                  ? Colors.white
+                  : Colors.white.withOpacity(0.15),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.white.withOpacity(0.2),
+                width: 1,
+              ),
+            ),
+            child: Icon(
+              icon,
+              color: isActive ? Colors.black : Colors.white,
+              size: 24,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.7),
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEndCallButton(CallNotifier notifier, CallState callState) {
+    return GestureDetector(
+      onTap: () {
+        notifier.endCall();
+        if (callState.status == 'connected') {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Requested call end. Waiting for partner...'),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          );
+        }
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFF3B5C),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFFF3B5C).withOpacity(0.4),
+                  blurRadius: 16,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.call_end_rounded,
+              color: Colors.white,
+              size: 28,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'End',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.7),
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -315,7 +416,7 @@ class _OngoingCallScreenState extends ConsumerState<OngoingCallScreen>
         notifier.remoteRenderer.srcObject != null;
     return Stack(
       children: [
-        // Background View: Remote Stream
+        // Remote stream (full screen)
         if (hasRemote)
           RTCVideoView(
             notifier.remoteRenderer,
@@ -323,37 +424,64 @@ class _OngoingCallScreenState extends ConsumerState<OngoingCallScreen>
           )
         else
           Container(
-            color: Colors.black54,
-            child: const Center(
+            color: const Color(0xFF0D0D2B),
+            child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(color: Colors.white),
-                  SizedBox(height: 16),
+                  SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 3,
+                      color: Colors.white.withOpacity(0.6),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
                   Text(
-                    'Waiting for remote stream...',
-                    style: TextStyle(color: Colors.white70),
+                    'Connecting...',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.6),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
               ),
             ),
           ),
 
-        // Picture in Picture View: Local Camera Preview
+        // Local camera preview (PiP corner)
         if (state.isCameraEnabled && notifier.localRenderer.srcObject != null)
           Positioned(
-            right: 20,
+            right: 16,
             top: 100,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
+            child: GestureDetector(
               child: Container(
                 width: 110,
                 height: 150,
-                color: Colors.black87,
-                child: RTCVideoView(
-                  notifier.localRenderer,
-                  mirror: true,
-                  objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.3),
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.5),
+                      blurRadius: 12,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: RTCVideoView(
+                    notifier.localRenderer,
+                    mirror: true,
+                    objectFit:
+                        RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                  ),
                 ),
               ),
             ),
@@ -362,28 +490,114 @@ class _OngoingCallScreenState extends ConsumerState<OngoingCallScreen>
     );
   }
 
-  Widget _buildVoiceCallStream(CallState state, ThemeData theme) {
+  Widget _buildVoiceCallView(CallState callState) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircleAvatar(
-            radius: 64,
-            backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
-            child: Icon(
-              Icons.person,
-              size: 72,
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+          // Large avatar with gradient border
+          Container(
+            width: 140,
+            height: 140,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF4FC3F7),
+                  Color(0xFF2196F3),
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF4FC3F7).withOpacity(0.3),
+                  blurRadius: 30,
+                  spreadRadius: 5,
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.person_rounded,
+              size: 80,
+              color: Colors.white,
             ),
           ),
           const SizedBox(height: 48),
+          // Audio waveform indicator
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(7, (index) {
+              return AnimatedContainer(
+                duration: Duration(milliseconds: 300 + index * 50),
+                width: 4,
+                height: callState.status == 'connected'
+                    ? 12.0 + (index % 3) * 8.0
+                    : 8.0,
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF4FC3F7).withOpacity(0.6),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: 16),
           Text(
-            'Ongoing voice call...',
+            callState.status == 'connected'
+                ? 'Call in progress'
+                : 'Connecting...',
             style: TextStyle(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-              fontSize: 16,
+              color: Colors.white.withOpacity(0.5),
+              fontSize: 15,
               fontStyle: FontStyle.italic,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showHangupDialog(CallNotifier notifier) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A2332),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: const Text(
+          'End Call?',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'Your partner wants to end the call.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              notifier.rejectHangupRequest();
+            },
+            child: const Text(
+              'Continue',
+              style: TextStyle(color: Color(0xFF4FC3F7)),
+            ),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFFF3B5C),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              notifier.endCall();
+            },
+            child: const Text('End Call'),
           ),
         ],
       ),
