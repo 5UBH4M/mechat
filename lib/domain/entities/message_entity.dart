@@ -17,6 +17,7 @@ class MessageEntity extends Equatable {
   final Map<String, String> reactions; // userId -> emoji
   final List<String> starredBy; // List of userIds who starred this message
   final bool isForwarded;
+  final String localFilePath; // Client-only: for optimistic image preview
 
   const MessageEntity({
     required this.id,
@@ -35,6 +36,7 @@ class MessageEntity extends Equatable {
     this.reactions = const {},
     this.starredBy = const [],
     this.isForwarded = false,
+    this.localFilePath = '',
   });
 
   @override

@@ -25,6 +25,10 @@ final chatMessagesProvider = StreamProvider.autoDispose
       return chatRepo.getMessages(chatId);
     });
 
+// 4. Pending messages for optimistic UI updates (instant message display)
+final pendingMessagesProvider =
+    StateProvider<List<MessageEntity>>((ref) => []);
+
 // 3. Notifier for sending messages and performing actions
 class ChatNotifier extends StateNotifier<double> {
   final ChatRepository _chatRepository;
@@ -37,6 +41,16 @@ class ChatNotifier extends StateNotifier<double> {
   String getChatId(String uid1, String uid2) {
     if (uid1 == uid2 || uid2 == 'notes_to_self') return 'notes_$uid1';
     return uid1.compareTo(uid2) < 0 ? '${uid1}_$uid2' : '${uid2}_$uid1';
+  }
+
+  void _addPending(MessageEntity msg) {
+    final notifier = _ref.read(pendingMessagesProvider.notifier);
+    notifier.state = [...notifier.state, msg];
+  }
+
+  void _removePending(String messageId) {
+    final notifier = _ref.read(pendingMessagesProvider.notifier);
+    notifier.state = notifier.state.where((m) => m.id != messageId).toList();
   }
 
   Future<void> sendTextMessage({
@@ -61,10 +75,13 @@ class ChatNotifier extends StateNotifier<double> {
       repliedToMessageContent: repliedToMessageContent,
     );
 
-    // Initialize the chat thread document on Firestore first if it's the first message
-    await _initializeChatThread(chatId, sender.uid, receiverId);
+    // Show message in UI immediately
+    _addPending(message);
 
-    await _chatRepository.sendMessage(message, chatId);
+    // Fire network call in background — don't block the UI
+    _initializeChatThread(chatId, sender.uid, receiverId).then((_) {
+      return _chatRepository.sendMessage(message, chatId);
+    }).catchError((_) {});
   }
 
   Future<void> sendMessage(MessageEntity message, String receiverId) async {
@@ -94,7 +111,7 @@ class ChatNotifier extends StateNotifier<double> {
       id: const Uuid().v4(),
       senderId: sender.uid,
       receiverId: receiverId == 'notes_to_self' ? sender.uid : receiverId,
-      content: '', // URL will be added by repository
+      content: '',
       type: type,
       timestamp: DateTime.now(),
       status: 'sending',
@@ -103,14 +120,17 @@ class ChatNotifier extends StateNotifier<double> {
       duration: duration,
       repliedToMessageId: repliedToMessageId,
       repliedToMessageContent: repliedToMessageContent,
+      localFilePath: filePath,
     );
+
+    // Show preview in UI immediately
+    _addPending(message);
 
     // Reset progress
     state = 0.0;
 
-    await _initializeChatThread(chatId, sender.uid, receiverId);
-
     try {
+      await _initializeChatThread(chatId, sender.uid, receiverId);
       await _chatRepository.sendMediaMessage(
         message: message,
         chatId: chatId,
@@ -120,7 +140,10 @@ class ChatNotifier extends StateNotifier<double> {
         },
       );
     } catch (_) {
-      state = -1.0; // Error indicator
+      state = -1.0;
+      Future.delayed(const Duration(seconds: 3), () {
+        if (state == -1.0) state = 0.0;
+      });
     }
   }
 

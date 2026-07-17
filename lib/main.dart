@@ -42,12 +42,10 @@ void main() async {
   }
 
   if (firebaseInitialized) {
-    Future.microtask(() async {
-      try {
-        final notificationService = NotificationService();
-        await notificationService.init();
-      } catch (_) {}
-    });
+    try {
+      final notificationService = NotificationService();
+      await notificationService.init();
+    } catch (_) {}
   }
 
   runApp(const ProviderScope(child: MeChatApp()));
@@ -74,7 +72,8 @@ class _MeChatAppState extends ConsumerState<MeChatApp>
       // Set up notification tap handler to navigate to the chat
       NotificationService().onNotificationTap = (String? payload) {
         if (payload != null && payload.startsWith('/chat/')) {
-          appRouter.go(payload);
+          appRouter.go('/home');
+          appRouter.push(payload);
         }
       };
     }

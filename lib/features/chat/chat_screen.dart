@@ -690,6 +690,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final messagesAsync = ref.watch(chatMessagesProvider(chatId));
     final chatsAsync = ref.watch(recentChatsProvider);
 
+    // Merge stream messages with optimistic pending messages
+    final streamMessages = messagesAsync.value ?? [];
+    final pendingMessages = ref.watch(pendingMessagesProvider);
+    final streamIds = streamMessages.map((m) => m.id).toSet();
+    final unsyncedPending = pendingMessages.where((m) => !streamIds.contains(m.id)).toList();
+    final mergedMessages = [...streamMessages, ...unsyncedPending];
+    final messagesList = mergedMessages.reversed.toList();
+
+    // Auto-clean pending messages that have been confirmed by the stream
+    if (pendingMessages.isNotEmpty && unsyncedPending.length < pendingMessages.length) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ref.read(pendingMessagesProvider.notifier).state = unsyncedPending;
+        }
+      });
+    }
+
     // Find the chat entity if it exists
     final chatEntity = chatsAsync.value
         ?.where((c) => c.id == chatId)
@@ -704,7 +721,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ? (chatEntity.typingStatus[_receiverUser!.uid] ?? false)
         : false;
 
-    final messageCount = messagesAsync.value?.length ?? 0;
+    final messageCount = mergedMessages.length;
     final limitReached = messageCount >= 5 && !isConnectionEstablished;
 
     final partnerRequestedDisconnect =
@@ -730,8 +747,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         currentUser?.hideContactPhotoInChat == true && !_isNotesToSelf;
     final hideName =
         currentUser?.hideContactNameInChat == true && !_isNotesToSelf;
-
-    final messagesList = messagesAsync.value?.reversed.toList() ?? [];
 
     ref.listen<ChatSearchState>(chatSearchProvider, (prev, next) {
       if (next.isSearching &&
@@ -1192,7 +1207,64 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 else if (partnerRequestedDisconnect && isConnectionEstablished)
                   _buildDisconnectRequestUI(theme)
                 else
-                  _buildInputBar(theme, advTheme, useAdvancedThemeData),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Consumer(
+                        builder: (context, ref, _) {
+                          final uploadProgress = ref.watch(chatNotifierProvider);
+                          if (uploadProgress > 0 && uploadProgress < 1.0) {
+                            return Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.cloud_upload_outlined, size: 16, color: theme.colorScheme.primary),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'Uploading... ${(uploadProgress * 100).toInt()}%',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(2),
+                                  child: LinearProgressIndicator(
+                                    value: uploadProgress,
+                                    minHeight: 3,
+                                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                                    valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+                                  ),
+                                ),
+                              ],
+                            );
+                          } else if (uploadProgress == -1.0) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.error_outline, size: 16, color: theme.colorScheme.error),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Upload failed',
+                                    style: TextStyle(fontSize: 12, color: theme.colorScheme.error),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
+                      _buildInputBar(theme, advTheme, useAdvancedThemeData),
+                    ],
+                  ),
               ],
             ),
           ),
@@ -1466,27 +1538,87 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     // Media renderer
                     if (msg.type == 'image')
                       GestureDetector(
-                        onTap: () {
-                          Navigator.of(context).push(
-                            PageRouteBuilder(
-                              opaque: false,
-                              pageBuilder: (context, animation, secondaryAnimation) => ImageViewerScreen(
-                                base64String: msg.fileUrl,
-                                senderName: isMe
-                                    ? 'You'
-                                    : (_receiverUser?.displayName ?? 'User'),
-                                timestamp: msg.timestamp,
-                              ),
-                            ),
-                          );
-                        },
+                        onTap: msg.fileUrl.isNotEmpty
+                            ? () {
+                                Navigator.of(context).push(
+                                  PageRouteBuilder(
+                                    opaque: false,
+                                    pageBuilder: (context, animation, secondaryAnimation) => ImageViewerScreen(
+                                      base64String: msg.fileUrl,
+                                      senderName: isMe
+                                          ? 'You'
+                                          : (_receiverUser?.displayName ?? 'User'),
+                                      timestamp: msg.timestamp,
+                                    ),
+                                  ),
+                                );
+                              }
+                            : null,
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(10),
-                          child: Base64Image(
-                            key: ValueKey(msg.fileUrl),
-                            base64String: msg.fileUrl,
-                            fit: BoxFit.cover,
-                          ),
+                          child: msg.fileUrl.isNotEmpty
+                              ? Base64Image(
+                                  key: ValueKey(msg.fileUrl),
+                                  base64String: msg.fileUrl,
+                                  fit: BoxFit.cover,
+                                )
+                              : msg.localFilePath.isNotEmpty
+                                  ? Stack(
+                                      alignment: Alignment.center,
+                                      children: [
+                                        Image.file(
+                                          File(msg.localFilePath),
+                                          fit: BoxFit.cover,
+                                          width: 220,
+                                          height: 220,
+                                          errorBuilder: (_, __, ___) => const SizedBox(
+                                            width: 220,
+                                            height: 220,
+                                            child: Icon(Icons.broken_image, size: 48),
+                                          ),
+                                        ),
+                                        Positioned.fill(
+                                          child: Container(
+                                            color: Colors.black45,
+                                            child: Consumer(
+                                              builder: (context, ref, _) {
+                                                final progress = ref.watch(chatNotifierProvider);
+                                                return Column(
+                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                                  children: [
+                                                    SizedBox(
+                                                      width: 48,
+                                                      height: 48,
+                                                      child: CircularProgressIndicator(
+                                                        value: progress > 0 && progress < 1.0 ? progress : null,
+                                                        strokeWidth: 3,
+                                                        color: Colors.white,
+                                                      ),
+                                                    ),
+                                                    if (progress > 0 && progress < 1.0) ...[
+                                                      const SizedBox(height: 8),
+                                                      Text(
+                                                        '${(progress * 100).toInt()}%',
+                                                        style: const TextStyle(
+                                                          color: Colors.white,
+                                                          fontSize: 12,
+                                                          fontWeight: FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ],
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : const SizedBox(
+                                      width: 220,
+                                      height: 220,
+                                      child: Center(child: CircularProgressIndicator()),
+                                    ),
                         ),
                       )
                     else if (msg.type == 'audio')
