@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/services/service_providers.dart';
+import '../../data/models/message_model.dart';
 import '../../domain/entities/chat_entity.dart';
 import '../../domain/entities/message_entity.dart';
 import '../../domain/repositories/chat_repository.dart';
@@ -27,7 +28,51 @@ final chatMessagesProvider = StreamProvider.autoDispose
 
 // 4. Pending messages for optimistic UI updates (instant message display)
 final pendingMessagesProvider =
-    StateProvider<List<MessageEntity>>((ref) => []);
+    StateProvider<List<MessageEntity>>((_) => []);
+
+// 5. Cached messages for instant display while Firestore loads
+final cachedMessagesProvider =
+    Provider.family<List<MessageEntity>, String>((ref, chatId) {
+  final hive = ref.watch(hiveServiceProvider);
+  final encryptor = ref.watch(encryptorServiceProvider);
+  return hive.getCachedMessages(chatId).map((json) {
+    final model = MessageModel.fromJson(json);
+    String content = model.content;
+    String replyContent = model.repliedToMessageContent;
+    if (model.type == 'text' || model.content.isNotEmpty) {
+      try {
+        content = encryptor.decrypt(model.content, chatId);
+      } catch (_) {
+        content = model.content;
+      }
+    }
+    if (model.repliedToMessageContent.isNotEmpty) {
+      try {
+        replyContent = encryptor.decrypt(model.repliedToMessageContent, chatId);
+      } catch (_) {
+        replyContent = model.repliedToMessageContent;
+      }
+    }
+    return MessageEntity(
+      id: model.id,
+      senderId: model.senderId,
+      receiverId: model.receiverId,
+      content: content,
+      type: model.type,
+      timestamp: model.timestamp,
+      status: model.status,
+      fileUrl: model.fileUrl,
+      fileName: model.fileName,
+      fileSize: model.fileSize,
+      duration: model.duration,
+      repliedToMessageId: model.repliedToMessageId,
+      repliedToMessageContent: replyContent,
+      reactions: model.reactions,
+      starredBy: model.starredBy,
+      isForwarded: model.isForwarded,
+    );
+  }).toList();
+});
 
 // 3. Notifier for sending messages and performing actions
 class ChatNotifier extends StateNotifier<double> {
@@ -126,12 +171,11 @@ class ChatNotifier extends StateNotifier<double> {
     // Show preview in UI immediately
     _addPending(message);
 
-    // Reset progress
+    // Reset progress and run upload in background — don't block the caller
     state = 0.0;
 
-    try {
-      await _initializeChatThread(chatId, sender.uid, receiverId);
-      await _chatRepository.sendMediaMessage(
+    _initializeChatThread(chatId, sender.uid, receiverId).then((_) {
+      return _chatRepository.sendMediaMessage(
         message: message,
         chatId: chatId,
         filePath: filePath,
@@ -139,12 +183,12 @@ class ChatNotifier extends StateNotifier<double> {
           state = progress;
         },
       );
-    } catch (_) {
+    }).catchError((_) {
       state = -1.0;
       Future.delayed(const Duration(seconds: 3), () {
         if (state == -1.0) state = 0.0;
       });
-    }
+    });
   }
 
   Future<void> setTypingStatus(String receiverId, bool isTyping) async {

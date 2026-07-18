@@ -107,7 +107,8 @@ class ChatRepositoryImpl implements ChatRepository {
   Stream<List<MessageEntity>> getMessages(String chatId) {
     final controller = StreamController<List<MessageEntity>>.broadcast();
 
-    // 1. Emit cached messages immediately
+    // 1. Emit cached messages immediately (may be lost on broadcast, but the
+    //    UI loading handler reads from Hive directly via cachedMessagesProvider)
     final cached = _hive.getCachedMessages(chatId).map((json) {
       final model = MessageModel.fromJson(json);
       return _decryptMessage(model, chatId);
@@ -115,26 +116,20 @@ class ChatRepositoryImpl implements ChatRepository {
     controller.add(cached);
 
     // 2. Stream from Firestore
-    final firestoreStream = _db
+    StreamSubscription? sub;
+    sub = _db
         .collection(AppConstants.chatsCollection)
         .doc(chatId)
         .collection(AppConstants.messagesCollection)
         .orderBy('timestamp', descending: false)
-        .snapshots();
-
-    StreamSubscription? sub;
-    sub = firestoreStream.listen(
+        .snapshots()
+        .listen(
       (snapshot) async {
-        final List<MessageModel> messages = [];
-        for (final doc in snapshot.docs) {
-          messages.add(MessageModel.fromJson(doc.data()));
-        }
+        final messages = snapshot.docs
+            .map((doc) => MessageModel.fromJson(doc.data()))
+            .toList();
 
-        // Cache raw message maps
-        final rawJsonList = messages.map((e) => e.toJson()).toList();
-        await _hive.cacheMessages(chatId, rawJsonList);
-
-        // Decrypt content for UI
+        // Decrypt and emit to UI FIRST
         final decryptedList = messages
             .map((m) => _decryptMessage(m, chatId))
             .toList();
@@ -142,9 +137,15 @@ class ChatRepositoryImpl implements ChatRepository {
         if (!controller.isClosed) {
           controller.add(decryptedList);
         }
+
+        // Cache AFTER emitting — non-blocking for UI
+        final rawJsonList = messages.map((e) => e.toJson()).toList();
+        await _hive.cacheMessages(chatId, rawJsonList);
       },
       onError: (err) {
-        controller.addError(err);
+        if (!controller.isClosed) {
+          controller.addError(err);
+        }
       },
     );
 

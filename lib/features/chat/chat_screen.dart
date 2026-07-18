@@ -1153,8 +1153,37 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                               ],
                             );
                           },
-                          loading: () =>
-                              const Center(child: CircularProgressIndicator()),
+                          loading: () {
+                            // Read cached messages from Hive directly
+                            final cachedMsgs = ref.read(cachedMessagesProvider(chatId));
+                            final pending = ref.read(pendingMessagesProvider);
+                            final cachedIds = cachedMsgs.map((m) => m.id).toSet();
+                            final extraPending = pending.where((m) => !cachedIds.contains(m.id)).toList();
+                            final loadingMessages = [...cachedMsgs, ...extraPending].reversed.toList();
+
+                            if (loadingMessages.isNotEmpty) {
+                              return GestureDetector(
+                                onTap: () => FocusScope.of(context).unfocus(),
+                                child: ScrollablePositionedList.builder(
+                                  reverse: true,
+                                  itemScrollController: _itemScrollController,
+                                  itemPositionsListener: _itemPositionsListener,
+                                  itemCount: loadingMessages.length,
+                                  padding: const EdgeInsets.all(16),
+                                  itemBuilder: (context, index) {
+                                    final msg = loadingMessages[index];
+                                    final isMe = msg.senderId == currentUser?.uid;
+                                    return _buildMessageBubble(
+                                      context, msg, isMe, currentUser,
+                                      theme, advTheme, useAdvancedThemeData,
+                                      searchState, index,
+                                    );
+                                  },
+                                ),
+                              );
+                            }
+                            return const Center(child: CircularProgressIndicator());
+                          },
                           error: (err, stack) =>
                               Center(child: Text('Error: $err')),
                         ),
