@@ -28,6 +28,8 @@ class HiveService {
   }
 
   Future<void> init() async {
+    // initFlutter() uses getApplicationDocumentsDirectory() internally
+    // which is persistent storage Android won't clear
     await Hive.initFlutter();
     _userBox = await Hive.openBox(AppConstants.userBoxName);
     _chatBox = await Hive.openBox(AppConstants.chatCacheBoxName);

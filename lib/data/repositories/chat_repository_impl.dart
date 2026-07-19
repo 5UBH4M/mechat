@@ -104,57 +104,38 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
-  Stream<List<MessageEntity>> getMessages(String chatId) {
-    final controller = StreamController<List<MessageEntity>>.broadcast();
-
-    // 1. Emit cached messages immediately (may be lost on broadcast, but the
-    //    UI loading handler reads from Hive directly via cachedMessagesProvider)
+  Stream<List<MessageEntity>> getMessages(String chatId) async* {
+    // 1. Emit cached messages FIRST — instant, no network needed
     final cached = _hive.getCachedMessages(chatId).map((json) {
       final model = MessageModel.fromJson(json);
       return _decryptMessage(model, chatId);
     }).toList();
-    controller.add(cached);
+    if (cached.isNotEmpty) {
+      yield cached;
+    }
 
-    // 2. Stream from Firestore
-    StreamSubscription? sub;
-    sub = _db
+    // 2. Forward Firestore stream — each snapshot decrypts, emits, then caches
+    yield* _db
         .collection(AppConstants.chatsCollection)
         .doc(chatId)
         .collection(AppConstants.messagesCollection)
         .orderBy('timestamp', descending: false)
         .snapshots()
-        .listen(
-      (snapshot) async {
-        final messages = snapshot.docs
-            .map((doc) => MessageModel.fromJson(doc.data()))
-            .toList();
+        .map((snapshot) {
+      final messages = snapshot.docs
+          .map((doc) => MessageModel.fromJson(doc.data()))
+          .toList();
 
-        // Decrypt and emit to UI FIRST
-        final decryptedList = messages
-            .map((m) => _decryptMessage(m, chatId))
-            .toList();
+      final decryptedList = messages
+          .map((m) => _decryptMessage(m, chatId))
+          .toList();
 
-        if (!controller.isClosed) {
-          controller.add(decryptedList);
-        }
+      // Cache in background — fire and forget
+      final rawJsonList = messages.map((e) => e.toJson()).toList();
+      _hive.cacheMessages(chatId, rawJsonList);
 
-        // Cache AFTER emitting — non-blocking for UI
-        final rawJsonList = messages.map((e) => e.toJson()).toList();
-        await _hive.cacheMessages(chatId, rawJsonList);
-      },
-      onError: (err) {
-        if (!controller.isClosed) {
-          controller.addError(err);
-        }
-      },
-    );
-
-    controller.onCancel = () {
-      sub?.cancel();
-      controller.close();
-    };
-
-    return controller.stream;
+      return decryptedList;
+    });
   }
 
   MessageEntity _decryptMessage(MessageModel msg, String chatId) {

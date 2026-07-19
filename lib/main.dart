@@ -23,7 +23,11 @@ bool firebaseInitialized = false;
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  await dotenv.load(fileName: ".env");
+  try {
+    await dotenv.load(fileName: ".env");
+  } catch (e) {
+    debugPrint('dotenv load failed: $e');
+  }
 
   try {
     final hiveService = HiveService();

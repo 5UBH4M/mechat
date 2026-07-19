@@ -115,6 +115,7 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
         });
       }
     } catch (e) {
+      debugPrint('⚠️ _fetchMessageCounts FAILED: $e');
       if (mounted) {
         setState(() => _isLoadingCounts = false);
       }

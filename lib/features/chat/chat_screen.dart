@@ -66,6 +66,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   MessageEntity? _replyingToMessage;
   int _lastMessageCount = 0;
   bool _showScrollToBottom = false;
+  String? _highlightedMessageId;
 
   StreamSubscription<DocumentSnapshot>? _receiverSub;
 
@@ -181,7 +182,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         .setTypingStatus(widget.receiverId, false);
 
     final replyId = _replyingToMessage?.id ?? '';
-    final replyContent = _replyingToMessage?.content ?? '';
+    String replyContent = _replyingToMessage?.content ?? '';
+    if (replyContent.isEmpty && _replyingToMessage != null) {
+      switch (_replyingToMessage!.type) {
+        case 'image': replyContent = '📷 Photo'; break;
+        case 'video': replyContent = '🎬 Video'; break;
+        case 'audio': replyContent = '🎵 Audio'; break;
+        case 'document': replyContent = '📄 ${_replyingToMessage!.fileName}'; break;
+        default: replyContent = _replyingToMessage!.fileName;
+      }
+    }
     setState(() {
       _replyingToMessage = null;
     });
@@ -206,6 +216,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         curve: Curves.easeOut,
       );
     }
+  }
+
+  void _scrollToMessage(String messageId, List<MessageEntity> messagesList) {
+    final index = messagesList.indexWhere((m) => m.id == messageId);
+    if (index == -1 || !_itemScrollController.isAttached) return;
+
+    _itemScrollController.scrollTo(
+      index: index,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      alignment: 0.3,
+    );
+
+    setState(() => _highlightedMessageId = messageId);
+    Future.delayed(const Duration(seconds: 1), () {
+      if (mounted) setState(() => _highlightedMessageId = null);
+    });
   }
 
 
@@ -1489,15 +1516,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           children: [
             GestureDetector(
               onLongPress: () => _showMessageActions(context, msg, isMe, theme),
-              child: Container(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
                 constraints: BoxConstraints(
                   maxWidth: MediaQuery.of(context).size.width * 0.75,
                 ),
                 decoration: BoxDecoration(
-                  color: bubbleColor,
-                  border: isTerminal
-                      ? Border.all(color: theme.colorScheme.onSurface, width: 1)
-                      : null,
+                  color: _highlightedMessageId == msg.id
+                      ? (isMe ? bubbleColor.withValues(alpha: 0.6) : theme.colorScheme.primaryContainer.withValues(alpha: 0.5))
+                      : bubbleColor,
+                  border: _highlightedMessageId == msg.id
+                      ? Border.all(color: theme.colorScheme.primary, width: 2)
+                      : isTerminal
+                          ? Border.all(color: theme.colorScheme.onSurface, width: 1)
+                          : null,
                   borderRadius: isTerminal
                       ? BorderRadius.zero
                       : BorderRadius.only(
@@ -1543,23 +1575,90 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         ),
                       ),
 
-                    // Replying content indicator
+                    // Replying content indicator — tap to scroll to original message
                     if (msg.repliedToMessageId.isNotEmpty)
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 6),
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          msg.repliedToMessageContent,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontStyle: FontStyle.italic,
-                            color: isMe
-                                ? textColor.withValues(alpha: 0.8)
-                                : Colors.grey,
+                      GestureDetector(
+                        onTap: () {
+                          final messagesAsync = ref.read(chatMessagesProvider(
+                            ref.read(chatNotifierProvider.notifier)
+                                .getChatId(
+                              ref.read(authNotifierProvider).user!.uid,
+                              widget.receiverId,
+                            ),
+                          ));
+                          final streamMsgs = messagesAsync.value ?? [];
+                          final pending = ref.read(pendingMessagesProvider);
+                          final ids = streamMsgs.map((m) => m.id).toSet();
+                          final extra = pending.where((m) => !ids.contains(m.id)).toList();
+                          final allMsgs = [...streamMsgs, ...extra].reversed.toList();
+                          _scrollToMessage(msg.repliedToMessageId, allMsgs);
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 6),
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 3,
+                                height: 28,
+                                margin: const EdgeInsets.only(right: 8),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.primary,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                              Flexible(
+                                child: Builder(
+                                  builder: (context) {
+                                    // Find the original replied-to message to check if it's an image
+                                    final chatId = ref.read(chatNotifierProvider.notifier)
+                                        .getChatId(ref.read(authNotifierProvider).user!.uid, widget.receiverId);
+                                    final allMsgs = ref.read(chatMessagesProvider(chatId)).value ?? [];
+                                    final repliedMsg = allMsgs.where((m) => m.id == msg.repliedToMessageId).firstOrNull;
+                                    final isImageReply = repliedMsg?.type == 'image' && repliedMsg!.fileUrl.isNotEmpty;
+
+                                    return Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            msg.repliedToMessageContent,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontStyle: FontStyle.italic,
+                                              color: isMe
+                                                  ? textColor.withValues(alpha: 0.8)
+                                                  : Colors.grey,
+                                            ),
+                                          ),
+                                        ),
+                                        if (isImageReply) ...[
+                                          const SizedBox(width: 8),
+                                          ClipRRect(
+                                            borderRadius: BorderRadius.circular(4),
+                                            child: SizedBox(
+                                              width: 40,
+                                              height: 40,
+                                              child: Base64Image(
+                                                base64String: repliedMsg!.fileUrl,
+                                                fit: BoxFit.cover,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -1586,10 +1685,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(10),
                           child: msg.fileUrl.isNotEmpty
-                              ? Base64Image(
-                                  key: ValueKey(msg.fileUrl),
-                                  base64String: msg.fileUrl,
-                                  fit: BoxFit.cover,
+                              ? ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 250,
+                                    maxHeight: 300,
+                                    minWidth: 150,
+                                    minHeight: 150,
+                                  ),
+                                  child: Base64Image(
+                                    key: ValueKey(msg.fileUrl),
+                                    base64String: msg.fileUrl,
+                                    fit: BoxFit.cover,
+                                  ),
                                 )
                               : msg.localFilePath.isNotEmpty
                                   ? Stack(
@@ -1922,17 +2029,69 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Widget _buildReplyingBar(ThemeData theme) {
+    final isImageReply = _replyingToMessage!.type == 'image';
+    final isVideoReply = _replyingToMessage!.type == 'video';
+    final isAudioReply = _replyingToMessage!.type == 'audio';
+
+    String replyText;
+    if (_replyingToMessage!.content.isNotEmpty) {
+      replyText = _replyingToMessage!.content;
+    } else if (isImageReply) {
+      replyText = '📷 Photo';
+    } else if (isVideoReply) {
+      replyText = '🎬 Video';
+    } else if (isAudioReply) {
+      replyText = '🎵 Audio';
+    } else {
+      replyText = _replyingToMessage!.fileName;
+    }
+
     return Container(
       key: const ValueKey('reply_bar'),
       color: theme.colorScheme.surface,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          const Icon(Icons.reply, size: 20),
-          const SizedBox(width: 8),
+          Container(
+            width: 3,
+            height: 40,
+            margin: const EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          if (isImageReply && _replyingToMessage!.fileUrl.isNotEmpty) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: SizedBox(
+                width: 40,
+                height: 40,
+                child: Base64Image(
+                  base64String: _replyingToMessage!.fileUrl,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ] else if (isImageReply && _replyingToMessage!.localFilePath.isNotEmpty) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: SizedBox(
+                width: 40,
+                height: 40,
+                child: Image.file(
+                  File(_replyingToMessage!.localFilePath),
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const Icon(Icons.image, size: 24),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
           Expanded(
             child: Text(
-              'Replying to: ${_replyingToMessage!.content.isNotEmpty ? _replyingToMessage!.content : _replyingToMessage!.fileName}',
+              replyText,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontStyle: FontStyle.italic),
