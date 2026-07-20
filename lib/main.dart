@@ -22,7 +22,7 @@ bool firebaseInitialized = false;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   try {
     await dotenv.load(fileName: ".env");
   } catch (e) {
@@ -46,10 +46,7 @@ void main() async {
   }
 
   if (firebaseInitialized) {
-    try {
-      final notificationService = NotificationService();
-      await notificationService.init();
-    } catch (_) {}
+    NotificationService().init().catchError((_) {});
   }
 
   runApp(const ProviderScope(child: MeChatApp()));
@@ -73,7 +70,6 @@ class _MeChatAppState extends ConsumerState<MeChatApp>
     WidgetsBinding.instance.addObserver(this);
 
     if (firebaseInitialized) {
-      // Set up notification tap handler to navigate to the chat
       NotificationService().onNotificationTap = (String? payload) {
         if (payload != null && payload.startsWith('/chat/')) {
           appRouter.go('/home');

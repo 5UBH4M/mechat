@@ -18,7 +18,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   }
 
   void _checkAuth() {
-    // We delay slightly to show the beautiful splash screen animations
     Future.delayed(const Duration(seconds: 2), () {
       if (!mounted) return;
 
@@ -42,7 +41,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    // Listen to changes in auth status to redirect dynamically if needed
     ref.listen<AuthState>(authNotifierProvider, (previous, next) {
       if (next.status == AuthStatus.authenticated) {
         context.go('/home');
@@ -59,19 +57,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Premium Gradient App Icon
+            // App Icon
             Container(
               height: 100,
               width: 100,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    theme.colorScheme.primary,
-                    theme.colorScheme.secondary,
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
                 borderRadius: BorderRadius.circular(28),
                 boxShadow: [
                   BoxShadow(
@@ -81,10 +71,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                   ),
                 ],
               ),
-              child: const Icon(
-                Icons.chat_bubble_rounded,
-                color: Colors.white,
-                size: 48,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(28),
+                child: Image.asset(
+                  'assets/images/icon.png',
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
             const SizedBox(height: 24),
@@ -106,6 +98,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             CircularProgressIndicator(
               strokeWidth: 3,
               color: theme.colorScheme.secondary,
+            ),
+            const SizedBox(height: 48),
+            Text(
+              'developed by ~ Subham 🤍',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
+                letterSpacing: 0.5,
+              ),
             ),
           ],
         ),

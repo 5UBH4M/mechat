@@ -317,7 +317,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       id: const Uuid().v4(),
       senderId: currentUser.uid,
       receiverId: widget.receiverId,
-      content: 'John Doe\n+1 234 567 8900', // Mock contact
+      content: '${currentUser.displayName}\n${currentUser.email}',
       type: 'contact',
       timestamp: DateTime.now(),
       status: 'sending',
@@ -1076,14 +1076,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     children: [
                       Positioned.fill(
                         child: messagesAsync.when(
+                          skipLoadingOnReload: true,
+                          skipLoadingOnRefresh: true,
                           data: (messages) {
-                            // Only auto-scroll when new messages arrive, not on every rebuild
-                            if (messages.length > _lastMessageCount) {
-                              _lastMessageCount = messages.length;
+                            // Only auto-scroll when NEW messages arrive, not on initial load
+                            // _lastMessageCount == 0 means first load — list is already at bottom (reverse: true)
+                            if (_lastMessageCount > 0 && messages.length > _lastMessageCount) {
                               WidgetsBinding.instance.addPostFrameCallback(
                                 (_) => _scrollToBottom(),
                               );
                             }
+                            _lastMessageCount = messages.length;
 
                             // Batch update read status to prevent scrolling lag
                             WidgetsBinding.instance.addPostFrameCallback((_) {

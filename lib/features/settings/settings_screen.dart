@@ -295,59 +295,68 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       color: theme.colorScheme.primary,
                     ),
                     title: const Text('Chat Wallpaper'),
+                    subtitle: ref.read(hiveServiceProvider).getChatWallpaper() != null
+                        ? const Text('Tap to change or remove')
+                        : null,
                     trailing: const Icon(
                       Icons.arrow_forward_ios_rounded,
                       size: 16,
                     ),
-                    onTap: () async {
-                      final picker = ImagePicker();
-                      final picked = await picker.pickImage(
-                        source: ImageSource.gallery,
-                      );
-                      if (picked != null) {
-                        await ref
-                            .read(hiveServiceProvider)
-                            .saveChatWallpaper(picked.path);
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Wallpaper updated successfully'),
-                            ),
-                          );
-                        }
-                      }
-                    },
-                    onLongPress: () async {
-                      // Allow removing wallpaper on long press
-                      final confirm = await showDialog<bool>(
+                    onTap: () {
+                      final hasWallpaper = ref.read(hiveServiceProvider).getChatWallpaper() != null;
+                      showModalBottomSheet(
                         context: context,
-                        builder: (ctx) => AlertDialog(
-                          title: const Text('Remove Wallpaper'),
-                          content: const Text(
-                            'Remove the custom chat wallpaper?',
+                        builder: (ctx) => SafeArea(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ListTile(
+                                leading: const Icon(Icons.photo_library_rounded),
+                                title: const Text('Choose from Gallery'),
+                                onTap: () async {
+                                  Navigator.pop(ctx);
+                                  final picker = ImagePicker();
+                                  final picked = await picker.pickImage(
+                                    source: ImageSource.gallery,
+                                  );
+                                  if (picked != null) {
+                                    await ref
+                                        .read(hiveServiceProvider)
+                                        .saveChatWallpaper(picked.path);
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Wallpaper updated'),
+                                        ),
+                                      );
+                                      setState(() {});
+                                    }
+                                  }
+                                },
+                              ),
+                              if (hasWallpaper)
+                                ListTile(
+                                  leading: const Icon(Icons.delete_rounded, color: Colors.redAccent),
+                                  title: const Text('Remove Wallpaper'),
+                                  onTap: () async {
+                                    Navigator.pop(ctx);
+                                    await ref
+                                        .read(hiveServiceProvider)
+                                        .removeChatWallpaper();
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Wallpaper removed'),
+                                        ),
+                                      );
+                                      setState(() {});
+                                    }
+                                  },
+                                ),
+                            ],
                           ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(ctx, false),
-                              child: const Text('CANCEL'),
-                            ),
-                            TextButton(
-                              onPressed: () => Navigator.pop(ctx, true),
-                              child: const Text('REMOVE'),
-                            ),
-                          ],
                         ),
                       );
-                      if (confirm == true) {
-                        await ref
-                            .read(hiveServiceProvider)
-                            .removeChatWallpaper();
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Wallpaper removed')),
-                          );
-                        }
-                      }
                     },
                   ),
                   // Always Send HD Media Switch
@@ -461,6 +470,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 }
               },
               child: const Text('Logout'),
+            ),
+            const SizedBox(height: 32),
+            Center(
+              child: Text(
+                'developed by ~ Subham 🤍',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
+                  letterSpacing: 0.5,
+                ),
+              ),
             ),
           ],
         ),
