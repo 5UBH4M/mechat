@@ -23,28 +23,40 @@ bool firebaseInitialized = false;
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // dotenv first — fast, and providers need it
   try {
     await dotenv.load(fileName: ".env");
   } catch (e) {
     debugPrint('dotenv load failed: $e');
   }
 
-  try {
-    final hiveService = HiveService();
-    await hiveService.init();
-  } catch (e) {
-    debugPrint('HiveService init failed: $e');
-  }
+  // Run Hive and Firebase in parallel — they're independent
+  bool hiveDone = false;
+  await Future.wait([
+    // Hive init
+    () async {
+      try {
+        final hiveService = HiveService();
+        await hiveService.init();
+        hiveDone = true;
+      } catch (e) {
+        debugPrint('HiveService init failed: $e');
+      }
+    }(),
+    // Firebase init
+    () async {
+      try {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+        firebaseInitialized = true;
+      } catch (e) {
+        firebaseInitialized = false;
+      }
+    }(),
+  ]);
 
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    firebaseInitialized = true;
-  } catch (e) {
-    firebaseInitialized = false;
-  }
-
+  // Non-blocking notification init
   if (firebaseInitialized) {
     NotificationService().init().catchError((_) {});
   }

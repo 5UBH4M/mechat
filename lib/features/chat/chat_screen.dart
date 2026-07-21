@@ -156,8 +156,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     super.dispose();
   }
 
+  bool _hasText = false;
+
   void _onTextChanged(String text) {
-    setState(() {}); // Rebuild to toggle mic/send button
+    // Only rebuild when switching between empty<->non-empty (mic vs send icon)
+    final hasTextNow = text.trim().isNotEmpty;
+    if (hasTextNow != _hasText) {
+      setState(() => _hasText = hasTextNow);
+    }
     if (_isNotesToSelf) return;
 
     ref
@@ -715,7 +721,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         : Theme.of(context);
 
     final messagesAsync = ref.watch(chatMessagesProvider(chatId));
-    final chatsAsync = ref.watch(recentChatsProvider);
+    // Only rebuild when THIS chat's entity changes, not all chats
+    final chatEntity = ref.watch(recentChatsProvider.select((chatsAsync) {
+      return chatsAsync.value?.where((c) => c.id == chatId).firstOrNull;
+    }));
 
     // Merge stream messages with optimistic pending messages
     final streamMessages = messagesAsync.value ?? [];
@@ -734,10 +743,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       });
     }
 
-    // Find the chat entity if it exists
-    final chatEntity = chatsAsync.value
-        ?.where((c) => c.id == chatId)
-        .firstOrNull;
+    // chatEntity already computed above via .select()
     final isConnectionEstablished =
         chatEntity?.isConnectionEstablished ?? false;
     final connectionRequestedBy = chatEntity?.connectionRequestedBy ?? '';
@@ -1130,16 +1136,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                       final isMe =
                                           msg.senderId == currentUser?.uid;
 
-                                      return _buildMessageBubble(
-                                        context,
-                                        msg,
-                                        isMe,
-                                        currentUser,
-                                        theme,
-                                        advTheme,
-                                        useAdvancedThemeData,
-                                        searchState,
-                                        index,
+                                      return RepaintBoundary(
+                                        child: _buildMessageBubble(
+                                          context,
+                                          msg,
+                                          isMe,
+                                          currentUser,
+                                          theme,
+                                          advTheme,
+                                          useAdvancedThemeData,
+                                          searchState,
+                                          index,
+                                        ),
                                       );
                                     },
                                   ),
@@ -2243,7 +2251,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ),
               icon: _isRecording
                   ? Icon(Icons.stop, color: sendIconColor)
-                  : (_messageController.text.trim().isNotEmpty
+                  : (_hasText
                         ? Icon(Icons.send, color: sendIconColor)
                         : Icon(Icons.mic, color: sendIconColor)),
             ),
