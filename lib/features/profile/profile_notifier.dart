@@ -131,7 +131,6 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
 
       await _profileRepository.createUserProfile(updatedUser);
 
-      // Refresh auth state details
       _ref.read(authNotifierProvider.notifier).updateUser(updatedUser);
 
       state = const ProfileState(status: ProfileStatus.success);

@@ -74,9 +74,7 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final profileState = ref.watch(profileNotifierProvider);
-    // Auth state not needed here
 
-    // Listen for success routing
     ref.listen<ProfileState>(profileNotifierProvider, (previous, next) {
       if (next.status == ProfileStatus.success) {
         context.go('/home');
@@ -103,7 +101,6 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
               children: [
                 const SizedBox(height: 20),
 
-                // Beautiful Profile Avatar Picker
                 GestureDetector(
                   onTap: _pickImage,
                   child: Stack(
@@ -148,7 +145,6 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
 
                 const SizedBox(height: 40),
 
-                // Username Text Field
                 TextFormField(
                   controller: _usernameController,
                   validator: (value) {
@@ -178,7 +174,6 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
 
                 const SizedBox(height: 20),
 
-                // Display Name Text Field
                 TextFormField(
                   controller: _nameController,
                   validator: (value) {
@@ -199,7 +194,6 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
 
                 const SizedBox(height: 20),
 
-                // About / Bio Text Field
                 TextFormField(
                   controller: _bioController,
                   maxLines: 3,

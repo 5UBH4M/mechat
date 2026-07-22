@@ -116,7 +116,7 @@ class HiveService {
     _isInitialized = true;
   }
 
-  // --- Auth / User Caching ---
+
   Future<void> saveUser(Map<String, dynamic> userMap) async {
     _checkInitialized();
     await _userBox.put(AppConstants.keyAuthUser, jsonEncode(userMap));
@@ -133,7 +133,7 @@ class HiveService {
     await _userBox.delete(AppConstants.keyAuthUser);
   }
 
-  // --- Theme Mode ---
+
   Future<void> saveThemeMode(String mode) async {
     await _settingsBox.put(AppConstants.keyThemeMode, mode);
   }
@@ -153,7 +153,7 @@ class HiveService {
     return jsonDecode(raw as String) as Map<String, dynamic>;
   }
 
-  // --- Chat List & Message Caching ---
+
   Future<void> cacheChats(List<Map<String, dynamic>> chats) async {
     await _chatBox.put('chats_list', jsonEncode(chats));
   }
@@ -179,7 +179,7 @@ class HiveService {
     return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
   }
 
-  // --- Offline Message Queueing (Outbox) ---
+
   Future<void> queueOfflineMessage(Map<String, dynamic> message) async {
     final List<Map<String, dynamic>> currentQueue = getOfflineMessagesQueue();
     currentQueue.add(message);
@@ -197,7 +197,7 @@ class HiveService {
     await _outboxBox.delete('queue');
   }
 
-  // --- Encryption Keys (stored in encrypted box) ---
+
   Future<void> saveE2EKeys(String privateKey, String publicKey) async {
     _checkInitialized();
     await _secureBox.put(AppConstants.keyE2EPrivateKey, privateKey);
@@ -214,7 +214,7 @@ class HiveService {
     return _secureBox.get(AppConstants.keyE2EPublicKey) as String?;
   }
 
-  // --- Chat Wallpaper ---
+
   Future<void> saveChatWallpaper(String path) async {
     await _settingsBox.put('chat_wallpaper_path', path);
   }

@@ -22,7 +22,7 @@ class ChatRepositoryImpl implements ChatRepository {
 
   @override
   Stream<List<ChatEntity>> getChats(String uid) {
-    // Return a combined stream of Local Cache (immediate) + Firestore stream
+
     final controller = StreamController<List<ChatEntity>>.broadcast();
 
     // 1. Send cached chats immediately

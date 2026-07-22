@@ -80,7 +80,6 @@ class AuthRepositoryImpl implements AuthRepository {
           }
         } catch (_) {}
 
-        // Return a temporary user for profile creation
         return UserModel(
           uid: firebaseUser.uid,
           email: firebaseUser.email ?? '',

@@ -73,7 +73,7 @@ class _ProfileCropScreenState extends State<ProfileCropScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Title bar
+
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Text(
@@ -85,7 +85,7 @@ class _ProfileCropScreenState extends State<ProfileCropScreen> {
               ),
             ),
 
-            // Crop area
+
             Expanded(
               child: Crop(
                 image: _imageBytes,
@@ -102,13 +102,13 @@ class _ProfileCropScreenState extends State<ProfileCropScreen> {
               ),
             ),
 
-            // Bottom buttons
+
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Cancel button
+
                   TextButton.icon(
                     onPressed: () => Navigator.pop(context, null),
                     icon: const Icon(
@@ -122,7 +122,7 @@ class _ProfileCropScreenState extends State<ProfileCropScreen> {
                     ),
                   ),
 
-                  // Confirm button
+
                   FilledButton.icon(
                     onPressed: _isCropping
                         ? null

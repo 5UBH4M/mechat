@@ -26,7 +26,6 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
   void _search() {
     if (!_formKey.currentState!.validate()) return;
 
-    // Hide keyboard
     FocusScope.of(context).unfocus();
     ref
         .read(contactsNotifierProvider.notifier)
@@ -60,7 +59,6 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
               ),
               const SizedBox(height: 12),
 
-              // Username Input Field
               Row(
                 children: [
                   Expanded(
@@ -108,7 +106,6 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
               const Divider(thickness: 0.5),
               const SizedBox(height: 24),
 
-              // Search Results display
               Expanded(
                 child: Builder(
                   builder: (context) {
@@ -247,7 +244,6 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                           ],
                           const SizedBox(height: 24),
 
-                          // Action Buttons
                           Row(
                             children: [
                               Expanded(

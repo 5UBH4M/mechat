@@ -18,23 +18,33 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   }
 
   void _checkAuth() {
-    Future.delayed(const Duration(seconds: 2), () {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
       final authState = ref.read(authNotifierProvider);
-      switch (authState.status) {
-        case AuthStatus.authenticated:
-          context.go('/home');
-        case AuthStatus.profileIncomplete:
-          context.go('/create-profile');
-        case AuthStatus.unauthenticated:
-        case AuthStatus.error:
-        case AuthStatus.initial:
-        case AuthStatus.codeSent:
-        case AuthStatus.loading:
-          context.go('/login');
+      if (authState.status != AuthStatus.initial && authState.status != AuthStatus.loading) {
+        _routeTo(authState.status);
       }
+      // If it's still initial/loading, the listener in build() will handle it once it updates.
     });
+  }
+
+  void _routeTo(AuthStatus status) {
+    switch (status) {
+      case AuthStatus.authenticated:
+        context.go('/home');
+        break;
+      case AuthStatus.profileIncomplete:
+        context.go('/create-profile');
+        break;
+      case AuthStatus.unauthenticated:
+      case AuthStatus.error:
+      case AuthStatus.codeSent:
+        context.go('/login');
+        break;
+      default:
+        break;
+    }
   }
 
   @override
@@ -57,7 +67,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // App Icon
             Container(
               height: 100,
               width: 100,

@@ -12,7 +12,7 @@ import 'hive_service.dart';
 import 'notification_service.dart';
 import 'signaling_service.dart';
 
-// Low-Level Services
+
 final hiveServiceProvider = Provider<HiveService>((ref) {
   return HiveService();
 });
@@ -29,7 +29,7 @@ final signalingServiceProvider = Provider<SignalingService>((ref) {
   return SignalingService();
 });
 
-// Repositories
+
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepositoryImpl();
 });

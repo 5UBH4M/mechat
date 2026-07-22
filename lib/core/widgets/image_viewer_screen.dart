@@ -72,7 +72,7 @@ class _ImageViewerScreenState extends State<ImageViewerScreen>
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Image with pinch-to-zoom
+
           GestureDetector(
             onTap: _toggleOverlay,
             child: Center(
@@ -91,7 +91,7 @@ class _ImageViewerScreenState extends State<ImageViewerScreen>
             ),
           ),
 
-          // Top bar with back button and sender info
+
           Positioned(
             top: 0,
             left: 0,

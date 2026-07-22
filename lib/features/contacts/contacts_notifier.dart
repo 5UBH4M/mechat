@@ -129,7 +129,6 @@ class ContactsNotifier extends StateNotifier<ContactsState> {
     if (currentUser == null) return;
 
     try {
-      // Reload current user to get fresh blocked list
       final freshProfile = await _ref
           .read(profileRepositoryProvider)
           .getUserProfile(currentUser.uid);

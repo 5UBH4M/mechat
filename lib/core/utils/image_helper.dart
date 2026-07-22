@@ -20,22 +20,22 @@ class ImageHelper {
       bytes = await File(imagePath).readAsBytes();
     }
 
-    // Decode image to resize/compress
+
     img.Image? decodedImage = await compute(_decodeImageBackground, bytes);
     if (decodedImage == null) return '';
 
-    // Resize to a maximum width to keep it small (Firestore 1MB limit)
+
     if (decodedImage.width > maxWidth) {
       decodedImage = img.copyResize(decodedImage, width: maxWidth);
     }
 
-    // Compress as JPEG
+
     final compressedBytes = await compute(
       _encodeJpgBackground,
       _EncodeParams(decodedImage, quality),
     );
 
-    // Return Base64
+
     return 'data:image/jpeg;base64,${base64Encode(compressedBytes)}';
   }
 }
@@ -130,7 +130,7 @@ class _Base64ImageState extends State<Base64Image>
       return; // Already decoded, no setState needed during build
     }
 
-    // Decode in background isolate
+
     final base64Data = widget.base64String.split(',').last;
     compute(_decodeBase64, base64Data)
         .then((bytes) {
@@ -196,7 +196,7 @@ class _Base64ImageState extends State<Base64Image>
 
 ImageProvider getBase64ImageProvider(String base64String) {
   if (base64String.startsWith('data:image')) {
-    // Use cached bytes if available
+
     final cached = _Base64Cache.get(base64String);
     if (cached != null) return MemoryImage(cached);
     final base64Data = base64String.split(',').last;

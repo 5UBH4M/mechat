@@ -3,20 +3,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class AppConstants {
   static const String appName = 'MeChat';
 
-  // Firestore Collections
   static const String usersCollection = 'users';
   static const String chatsCollection = 'chats';
   static const String messagesCollection = 'messages';
   static const String callsCollection = 'calls';
   static const String iceCandidatesCollection = 'ice_candidates';
 
-  // Hive Box Names
   static const String userBoxName = 'user_box';
   static const String chatCacheBoxName = 'chat_cache_box';
   static const String settingsBoxName = 'settings_box';
   static const String offlineOutboxBoxName = 'offline_outbox_box';
 
-  // Hive Keys
   static const String keyAuthUser = 'auth_user';
   static const String keyThemeMode = 'theme_mode';
   static const String keyE2EPrivateKey = 'e2e_private_key';
@@ -53,7 +50,6 @@ class AppConstants {
     return fallbackIceServers;
   }
 
-  // UI Default Values
   static const String defaultAbout = 'Hey there! I am using MeChat.';
   static const String notesToSelfId = 'notes_to_self';
   static const String notesToSelfName = 'Notes to Self';

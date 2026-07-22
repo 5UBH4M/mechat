@@ -46,7 +46,6 @@ class NotificationService {
 
   Future<void> init() async {
     try {
-      // 1. Request permission
       await _fcm.requestPermission(
         alert: true,
         announcement: false,
@@ -57,12 +56,10 @@ class NotificationService {
         sound: true,
       );
 
-      // 2. Setup background handler
       FirebaseMessaging.onBackgroundMessage(
         _firebaseMessagingBackgroundHandler,
       );
 
-      // 3. Initialize Local Notifications
       const AndroidInitializationSettings androidSettings =
           AndroidInitializationSettings('@mipmap/ic_launcher');
       const DarwinInitializationSettings iosSettings =
@@ -82,7 +79,6 @@ class NotificationService {
         onDidReceiveNotificationResponse: _handleNotificationTap,
       );
 
-      // Create standard Android Notification Channel
       const AndroidNotificationChannel channel = AndroidNotificationChannel(
         'mechat_channel',
         'MeChat Messages',
@@ -90,7 +86,6 @@ class NotificationService {
         importance: Importance.max,
       );
 
-      // Create incoming call notification channel with full-screen intent
       const AndroidNotificationChannel callChannel = AndroidNotificationChannel(
         'mechat_incoming_call',
         'Incoming Calls',
@@ -107,17 +102,12 @@ class NotificationService {
       await androidPlugin?.createNotificationChannel(channel);
       await androidPlugin?.createNotificationChannel(callChannel);
 
-      // 4. Listen to foreground messages from FCM
-      // We do NOT show local notifications directly here because it doesn't know
-      // which chat screen is active. The listener in main.dart handles foreground
-      // notifications accurately.
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
         if (kDebugMode) {
           dev.log("Foreground FCM message received: ${message.messageId}");
         }
       });
 
-      // 5. Handle notification tap when app was terminated
       final initialMessage = await _fcm.getInitialMessage();
       if (initialMessage != null) {
         final senderId = initialMessage.data['senderId'];
@@ -131,7 +121,6 @@ class NotificationService {
         }
       }
 
-      // 6. Handle notification tap when app was in background
       FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
         final senderId = message.data['senderId'];
         if (senderId != null && _onNotificationTap != null) {
@@ -139,7 +128,6 @@ class NotificationService {
         }
       });
 
-      // 7. Force save token to Firestore immediately
       try {
         final token = await _fcm.getToken();
         if (kDebugMode) {
@@ -160,7 +148,6 @@ class NotificationService {
         }
       }
 
-      // 8. Listen for token refresh — Android can rotate FCM tokens at any time
       _fcm.onTokenRefresh.listen((newToken) async {
         if (kDebugMode) {
           dev.log("FCM Token refreshed");
@@ -252,7 +239,6 @@ class NotificationService {
     );
   }
 
-  // Programmatic local notification (e.g. for missed calls, off-line notifications)
   Future<void> showCustomNotification({
     required int id,
     required String title,
@@ -281,7 +267,6 @@ class NotificationService {
     );
   }
 
-  // Show ongoing call notification (foreground service on Android)
   Future<void> showOngoingCallNotification({
     required int id,
     required String title,
@@ -303,7 +288,6 @@ class NotificationService {
       android: androidDetails,
     );
 
-    // Start foreground service for Android
     await _localNotifications
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin
@@ -315,7 +299,6 @@ class NotificationService {
           notificationDetails: androidDetails,
         );
 
-    // For iOS, just show a normal notification that doesn't auto cancel
     await _localNotifications.show(
       id: id,
       title: title,

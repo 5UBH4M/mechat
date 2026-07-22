@@ -28,9 +28,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // Set user online
     ref.read(profileNotifierProvider.notifier).updateOnlinePresence(true);
-    // Sync offline queue if items exist
     ref.read(chatNotifierProvider.notifier).syncOffline();
     _startHeartbeat();
   }
@@ -103,7 +101,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           IconButton(
             icon: const Icon(Icons.search_rounded),
             onPressed: () {
-              // Toggle search bar expansion
             },
           ),
           IconButton(
@@ -114,7 +111,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       ),
       body: Column(
         children: [
-          // Elegant Search Input
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: 16.0,
@@ -139,7 +135,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           Expanded(
             child: chatsAsync.when(
               data: (chats) {
-                // Filter based on search query
                 final filteredChats = chats.where((chat) {
                   if (chat.isNotesToSelf) return false;
                   if (_searchQuery.isEmpty) return true;
@@ -283,9 +278,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     String? currentUid,
     ThemeData theme,
   ) {
-    // Determine the user's name/avatar.
-    // For 'Notes to Self', we display customizable header.
-    // For general participants, we resolve from participants.
     final isNotes = chat.isNotesToSelf;
     final otherUid = chat.participants.firstWhere(
       (id) => id != currentUid,
@@ -315,7 +307,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       );
     }
 
-    // Resolve user data dynamically using StreamBuilder for real-time online status
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
           .collection('users')
@@ -339,7 +330,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           }
         }
 
-        // Determine if user is truly online (isOnline flag AND heartbeat within 90 seconds)
         final currentUser = ref.read(authNotifierProvider).user;
         final bothAllowLastSeen =
             currentUser != null &&
@@ -398,7 +388,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           return;
         }
 
-        // Check if other user is connected to someone else
         final otherUserDoc = await FirebaseFirestore.instance
             .collection('users')
             .doc(otherUid)

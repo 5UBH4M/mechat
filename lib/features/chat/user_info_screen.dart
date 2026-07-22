@@ -78,7 +78,6 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
         logs.add(doc.data());
       }
 
-      // Sort descending by createdAt
       logs.sort((a, b) {
         final aTime =
             (a['createdAt'] as Timestamp?)?.toDate() ??
@@ -129,31 +128,32 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
         .snapshots()
         .listen((doc) {
           if (doc.exists && doc.data() != null && mounted) {
+            final data = doc.data()!;
             setState(() {
               _user = UserEntity(
                 uid: doc.id,
-                email: doc.data()?['email'] ?? '',
-                username: doc.data()?['username'] ?? '',
-                displayName: doc.data()?['displayName'] ?? 'User',
-                profilePictureUrl: doc.data()?['profilePictureUrl'] ?? '',
-                about: doc.data()?['about'] ?? '',
-                isOnline: doc.data()?['isOnline'] ?? false,
+                email: data['email'] ?? '',
+                username: data['username'] ?? '',
+                displayName: data['displayName'] ?? 'User',
+                profilePictureUrl: data['profilePictureUrl'] ?? '',
+                about: data['about'] ?? '',
+                isOnline: data['isOnline'] ?? false,
                 lastSeen:
-                    (doc.data()?['lastSeen'] as Timestamp?)?.toDate() ??
+                    (data['lastSeen'] as Timestamp?)?.toDate() ??
                     DateTime.now(),
-                publicKey: doc.data()?['publicKey'] ?? '',
+                publicKey: data['publicKey'] ?? '',
                 blockedUsers: List<String>.from(
-                  doc.data()?['blockedUsers'] ?? [],
+                  data['blockedUsers'] ?? [],
                 ),
-                pushToken: doc.data()?['pushToken'] ?? '',
+                pushToken: data['pushToken'] ?? '',
                 createdAt:
-                    (doc.data()?['createdAt'] as Timestamp?)?.toDate() ??
+                    (data['createdAt'] as Timestamp?)?.toDate() ??
                     DateTime.now(),
-                lastSeenVisible: doc.data()?['lastSeenVisible'] ?? true,
+                lastSeenVisible: data['lastSeenVisible'] ?? true,
                 disconnectRequested:
-                    doc.data()?['disconnectRequested'] ?? false,
-                connectedTo: doc.data()?['connectedTo'] ?? '',
-                profilePhotoVisible: doc.data()?['profilePhotoVisible'] ?? true,
+                    data['disconnectRequested'] ?? false,
+                connectedTo: data['connectedTo'] ?? '',
+                profilePhotoVisible: data['profilePhotoVisible'] ?? true,
               );
             });
           }
@@ -246,7 +246,6 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
           SliverToBoxAdapter(
             child: Column(
               children: [
-                // Name and online status section
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),

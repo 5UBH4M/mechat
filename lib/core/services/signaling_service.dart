@@ -14,8 +14,6 @@ class SignalingService {
   MediaStream? localStream;
   MediaStream? remoteStream;
 
-  // Call status, remote stream, etc.
-  // Call status, remote stream, etc.
   Function(MediaStream)? onRemoteStream;
   Function(String)? onCallStatusChanged;
   Function()? onPartnerWantsHangup;
@@ -24,7 +22,7 @@ class SignalingService {
   StreamSubscription<DocumentSnapshot>? _callSubscription;
   StreamSubscription<QuerySnapshot>? _candidatesSubscription;
 
-  // 1. Capture local media stream
+
   Future<MediaStream> getLocalStream(bool videoEnabled) async {
     // Explicitly request permissions before accessing media devices
     await Permission.microphone.request();
@@ -51,7 +49,7 @@ class SignalingService {
     return localStream!;
   }
 
-  // 2. Initialize a call (Caller Side)
+
   Future<String> initCall({
     required String callerId,
     required String callerName,
@@ -61,27 +59,22 @@ class SignalingService {
     final callDoc = _db.collection(AppConstants.callsCollection).doc();
     final callId = callDoc.id;
 
-    // Create RTCPeerConnection
     peerConnection = await createPeerConnection(
       await AppConstants.getIceServers(),
     );
     _registerConnectionListeners();
 
-    // Add local tracks
     localStream?.getTracks().forEach((track) {
       peerConnection?.addTrack(track, localStream!);
     });
 
-    // Handle ICE Candidates
     peerConnection?.onIceCandidate = (RTCIceCandidate candidate) {
       callDoc.collection('callerCandidates').add(candidate.toMap());
     };
 
-    // Create SDP Offer
     final offer = await peerConnection!.createOffer();
     await peerConnection!.setLocalDescription(offer);
 
-    // Save Call Details
     await callDoc.set({
       'id': callId,
       'callerId': callerId,
@@ -93,7 +86,6 @@ class SignalingService {
       'createdAt': FieldValue.serverTimestamp(),
     });
 
-    // Listen for Answer
     _callSubscription = callDoc.snapshots().listen((snapshot) async {
       if (!snapshot.exists) return;
       final currentData = snapshot.data();
@@ -160,7 +152,7 @@ class SignalingService {
     return callId;
   }
 
-  // 3. Join an existing call (Receiver Side)
+
   Future<void> joinCall(String callId) async {
     final callDoc = _db.collection(AppConstants.callsCollection).doc(callId);
     final snapshot = await callDoc.get();
@@ -174,28 +166,23 @@ class SignalingService {
     );
     _registerConnectionListeners();
 
-    // Add local tracks
     localStream?.getTracks().forEach((track) {
       peerConnection?.addTrack(track, localStream!);
     });
 
-    // Handle ICE Candidates
     peerConnection?.onIceCandidate = (RTCIceCandidate candidate) {
       callDoc.collection('receiverCandidates').add(candidate.toMap());
     };
 
-    // Set Remote Description (Offer)
     final offer = RTCSessionDescription(
       sdpOfferData['sdp'],
       sdpOfferData['type'],
     );
     await peerConnection?.setRemoteDescription(offer);
 
-    // Create SDP Answer
     final answer = await peerConnection!.createAnswer();
     await peerConnection!.setLocalDescription(answer);
 
-    // Update Call Status
     await callDoc.update({
       'status': 'connected',
       'startedAt': FieldValue.serverTimestamp(),
@@ -231,7 +218,6 @@ class SignalingService {
       }
     });
 
-    // Listen for Caller ICE Candidates
     _candidatesSubscription = callDoc
         .collection('callerCandidates')
         .snapshots()
@@ -251,7 +237,7 @@ class SignalingService {
         });
   }
 
-  // Register Connection Listeners
+
   void _registerConnectionListeners() {
     peerConnection?.onTrack = (RTCTrackEvent event) {
       if (event.streams.isNotEmpty) {
@@ -263,7 +249,7 @@ class SignalingService {
     };
   }
 
-  // End Call
+
   Future<void> endCall(String callId, {bool isRejected = false}) async {
     try {
       final docRef = _db.collection(AppConstants.callsCollection).doc(callId);
@@ -342,7 +328,7 @@ class SignalingService {
     }
   }
 
-  // Clean up WebRTC peer connections and media streams
+
   void cleanUpCall() {
     _callSubscription?.cancel();
     _candidatesSubscription?.cancel();
@@ -364,7 +350,7 @@ class SignalingService {
     }
   }
 
-  // Controls
+
   void setMicrophoneMute(bool mute) {
     localStream?.getAudioTracks().forEach((track) {
       track.enabled = !mute;

@@ -52,13 +52,8 @@ abstract class AdvancedThemeModel with _$AdvancedThemeModel {
     );
     final Brightness brightness = requestedBrightness ?? defaultBrightness;
 
-    // If a specific brightness is requested, we use color scheme generation from the primary color
-    // to ensure text/backgrounds automatically adapt to light/dark properly.
-    // If no specific brightness is requested, we use the exact hardcoded colors.
-
     if (requestedBrightness != null &&
         requestedBrightness != defaultBrightness) {
-      // We need to invert or adapt to the requested brightness
       final seed = Color(senderBubble.backgroundColor);
       final scheme = ColorScheme.fromSeed(
         seedColor: seed,
@@ -105,7 +100,6 @@ abstract class AdvancedThemeModel with _$AdvancedThemeModel {
       );
     }
 
-    // Default hardcoded colors for exact theme match
     return ThemeData(
       useMaterial3: true,
       brightness: defaultBrightness,
@@ -159,9 +153,6 @@ abstract class AdvancedThemeModel with _$AdvancedThemeModel {
     );
   }
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // 1. WhatsApp
-  // ──────────────────────────────────────────────────────────────────────────
   factory AdvancedThemeModel.presetWhatsApp() => AdvancedThemeModel(
     id: 'whatsapp',
     name: 'WhatsApp',
@@ -230,9 +221,6 @@ abstract class AdvancedThemeModel with _$AdvancedThemeModel {
     ),
   );
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // 2. Telegram
-  // ──────────────────────────────────────────────────────────────────────────
   factory AdvancedThemeModel.presetTelegram() => AdvancedThemeModel(
     id: 'telegram',
     name: 'Telegram',
@@ -301,9 +289,6 @@ abstract class AdvancedThemeModel with _$AdvancedThemeModel {
     ),
   );
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // 3. iMessage
-  // ──────────────────────────────────────────────────────────────────────────
   factory AdvancedThemeModel.presetIMessage() => AdvancedThemeModel(
     id: 'imessage',
     name: 'iMessage',
@@ -372,9 +357,6 @@ abstract class AdvancedThemeModel with _$AdvancedThemeModel {
     ),
   );
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // 4. AMOLED Black
-  // ──────────────────────────────────────────────────────────────────────────
   factory AdvancedThemeModel.presetAmoledBlack() => AdvancedThemeModel(
     id: 'amoled',
     name: 'AMOLED Black',
@@ -443,9 +425,6 @@ abstract class AdvancedThemeModel with _$AdvancedThemeModel {
     ),
   );
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // 5. Discord
-  // ──────────────────────────────────────────────────────────────────────────
   factory AdvancedThemeModel.presetDiscord() => AdvancedThemeModel(
     id: 'discord',
     name: 'Discord',
@@ -514,9 +493,6 @@ abstract class AdvancedThemeModel with _$AdvancedThemeModel {
     ),
   );
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // 6. Material 3
-  // ──────────────────────────────────────────────────────────────────────────
   factory AdvancedThemeModel.presetMaterial3() => AdvancedThemeModel(
     id: 'material3',
     name: 'Material 3',
@@ -585,9 +561,6 @@ abstract class AdvancedThemeModel with _$AdvancedThemeModel {
     ),
   );
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // 7. Terminal
-  // ──────────────────────────────────────────────────────────────────────────
   factory AdvancedThemeModel.presetTerminal() => AdvancedThemeModel(
     id: 'terminal',
     name: 'Terminal',
@@ -656,9 +629,6 @@ abstract class AdvancedThemeModel with _$AdvancedThemeModel {
     ),
   );
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // 8. Matrix
-  // ──────────────────────────────────────────────────────────────────────────
   factory AdvancedThemeModel.presetMatrix() => AdvancedThemeModel(
     id: 'matrix',
     name: 'Matrix',
@@ -727,9 +697,6 @@ abstract class AdvancedThemeModel with _$AdvancedThemeModel {
     ),
   );
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // 9. Cyberpunk
-  // ──────────────────────────────────────────────────────────────────────────
   factory AdvancedThemeModel.presetCyberpunk() => AdvancedThemeModel(
     id: 'cyberpunk',
     name: 'Cyberpunk',
@@ -798,9 +765,6 @@ abstract class AdvancedThemeModel with _$AdvancedThemeModel {
     ),
   );
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // 10. Old Phone
-  // ──────────────────────────────────────────────────────────────────────────
   factory AdvancedThemeModel.presetOldPhone() => AdvancedThemeModel(
     id: 'oldphone',
     name: 'Old Phone',
@@ -869,9 +833,6 @@ abstract class AdvancedThemeModel with _$AdvancedThemeModel {
     ),
   );
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // 11. LCD Display
-  // ──────────────────────────────────────────────────────────────────────────
   factory AdvancedThemeModel.presetLCD() => AdvancedThemeModel(
     id: 'lcd',
     name: 'LCD Display',
@@ -940,9 +901,6 @@ abstract class AdvancedThemeModel with _$AdvancedThemeModel {
     ),
   );
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // 12. CRT Monitor
-  // ──────────────────────────────────────────────────────────────────────────
   factory AdvancedThemeModel.presetCRT() => AdvancedThemeModel(
     id: 'crt',
     name: 'CRT Monitor',
@@ -1011,9 +969,6 @@ abstract class AdvancedThemeModel with _$AdvancedThemeModel {
     ),
   );
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // 13. Windows 95
-  // ──────────────────────────────────────────────────────────────────────────
   factory AdvancedThemeModel.presetWin95() => AdvancedThemeModel(
     id: 'win95',
     name: 'Windows 95',
@@ -1082,9 +1037,6 @@ abstract class AdvancedThemeModel with _$AdvancedThemeModel {
     ),
   );
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // 14. Game Boy
-  // ──────────────────────────────────────────────────────────────────────────
   factory AdvancedThemeModel.presetGameBoy() => AdvancedThemeModel(
     id: 'gameboy',
     name: 'Game Boy',
@@ -1153,9 +1105,6 @@ abstract class AdvancedThemeModel with _$AdvancedThemeModel {
     ),
   );
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // 15. Dot Matrix
-  // ──────────────────────────────────────────────────────────────────────────
   factory AdvancedThemeModel.presetDotMatrix() => AdvancedThemeModel(
     id: 'dotmatrix',
     name: 'Dot Matrix',
@@ -1224,9 +1173,6 @@ abstract class AdvancedThemeModel with _$AdvancedThemeModel {
     ),
   );
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // 16. Glassmorphism
-  // ──────────────────────────────────────────────────────────────────────────
   factory AdvancedThemeModel.presetGlass() => AdvancedThemeModel(
     id: 'glass',
     name: 'Glassmorphism',
@@ -1295,9 +1241,6 @@ abstract class AdvancedThemeModel with _$AdvancedThemeModel {
     ),
   );
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // 17. Neumorphism
-  // ──────────────────────────────────────────────────────────────────────────
   factory AdvancedThemeModel.presetNeumorphism() => AdvancedThemeModel(
     id: 'neumorphism',
     name: 'Neumorphism',
@@ -1366,9 +1309,6 @@ abstract class AdvancedThemeModel with _$AdvancedThemeModel {
     ),
   );
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // 18. Sunset
-  // ──────────────────────────────────────────────────────────────────────────
   factory AdvancedThemeModel.presetSunset() => AdvancedThemeModel(
     id: 'sunset',
     name: 'Sunset',
@@ -1437,9 +1377,6 @@ abstract class AdvancedThemeModel with _$AdvancedThemeModel {
     ),
   );
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // 19. Ocean
-  // ──────────────────────────────────────────────────────────────────────────
   factory AdvancedThemeModel.presetOcean() => AdvancedThemeModel(
     id: 'ocean',
     name: 'Ocean',
@@ -1508,9 +1445,6 @@ abstract class AdvancedThemeModel with _$AdvancedThemeModel {
     ),
   );
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // 20. Forest
-  // ──────────────────────────────────────────────────────────────────────────
   factory AdvancedThemeModel.presetForest() => AdvancedThemeModel(
     id: 'forest',
     name: 'Forest',
@@ -1579,9 +1513,6 @@ abstract class AdvancedThemeModel with _$AdvancedThemeModel {
     ),
   );
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // 21. Lavender
-  // ──────────────────────────────────────────────────────────────────────────
   factory AdvancedThemeModel.presetLavender() => AdvancedThemeModel(
     id: 'lavender',
     name: 'Lavender',
@@ -1650,9 +1581,6 @@ abstract class AdvancedThemeModel with _$AdvancedThemeModel {
     ),
   );
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // 22. Dracula
-  // ──────────────────────────────────────────────────────────────────────────
   factory AdvancedThemeModel.presetDracula() => AdvancedThemeModel(
     id: 'dracula',
     name: 'Dracula',
@@ -1721,9 +1649,6 @@ abstract class AdvancedThemeModel with _$AdvancedThemeModel {
     ),
   );
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // All Presets
-  // ──────────────────────────────────────────────────────────────────────────
   static List<AdvancedThemeModel> get presets => [
     AdvancedThemeModel.presetWhatsApp(),
     AdvancedThemeModel.presetTelegram(),

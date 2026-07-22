@@ -82,7 +82,6 @@ class ChatNotifier extends StateNotifier<double> {
   ChatNotifier(this._chatRepository, this._ref)
     : super(0.0); // State represents upload progress
 
-  // Generate deterministic Chat ID
   String getChatId(String uid1, String uid2) {
     if (uid1 == uid2 || uid2 == 'notes_to_self') return 'notes_$uid1';
     return uid1.compareTo(uid2) < 0 ? '${uid1}_$uid2' : '${uid2}_$uid1';
@@ -91,11 +90,6 @@ class ChatNotifier extends StateNotifier<double> {
   void _addPending(MessageEntity msg) {
     final notifier = _ref.read(pendingMessagesProvider.notifier);
     notifier.state = [...notifier.state, msg];
-  }
-
-  void _removePending(String messageId) {
-    final notifier = _ref.read(pendingMessagesProvider.notifier);
-    notifier.state = notifier.state.where((m) => m.id != messageId).toList();
   }
 
   Future<void> sendTextMessage({
@@ -120,7 +114,6 @@ class ChatNotifier extends StateNotifier<double> {
       repliedToMessageContent: repliedToMessageContent,
     );
 
-    // Show message in UI immediately
     _addPending(message);
 
     // Fire network call in background — don't block the UI
@@ -168,7 +161,6 @@ class ChatNotifier extends StateNotifier<double> {
       localFilePath: filePath,
     );
 
-    // Show preview in UI immediately
     _addPending(message);
 
     // Reset progress and run upload in background — don't block the caller
@@ -211,7 +203,6 @@ class ChatNotifier extends StateNotifier<double> {
 
     final batch = FirebaseFirestore.instance.batch();
 
-    // Update message status
     final msgRef = FirebaseFirestore.instance
         .collection('chats')
         .doc(chatId)
@@ -219,7 +210,6 @@ class ChatNotifier extends StateNotifier<double> {
         .doc(messageId);
     batch.update(msgRef, {'status': 'read'});
 
-    // Reset unread count for current user
     final chatRef = FirebaseFirestore.instance.collection('chats').doc(chatId);
     batch.update(chatRef, {'unreadCounts.${sender.uid}': 0});
 

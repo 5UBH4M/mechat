@@ -61,14 +61,12 @@ class ThemeController extends Notifier<ThemeState> {
       perChatJson.forEach((k, v) => perChat[k.toString()] = v.toString());
     }
 
-    // Load favorites
     final List<dynamic>? favJson = _box.get('favorite_theme_ids');
     Set<String> favorites = {};
     if (favJson != null) {
       favorites = favJson.map((e) => e.toString()).toSet();
     }
 
-    // Load recents
     final List<dynamic>? recentJson = _box.get('recent_theme_ids');
     List<String> recents = [];
     if (recentJson != null) {
@@ -95,7 +93,6 @@ class ThemeController extends Notifier<ThemeState> {
     _box.put('recent_theme_ids', state.recentThemeIds);
   }
 
-  // Find theme by ID (checks presets then custom)
   AdvancedThemeModel getTheme(String id) {
     return AdvancedThemeModel.presets.firstWhere(
       (t) => t.id == id,
@@ -106,7 +103,6 @@ class ThemeController extends Notifier<ThemeState> {
     );
   }
 
-  // Get effective theme for a chat
   AdvancedThemeModel getEffectiveTheme(String? chatId) {
     if (chatId != null && state.perChatThemes.containsKey(chatId)) {
       return getTheme(state.perChatThemes[chatId]!);
@@ -151,21 +147,17 @@ class ThemeController extends Notifier<ThemeState> {
     final newThemes = List<AdvancedThemeModel>.from(state.customThemes);
     newThemes.removeWhere((t) => t.id == id);
 
-    // If it was global, fallback to material3
     String globalId = state.globalThemeId;
     if (globalId == id) {
       globalId = 'material3';
     }
 
-    // Remove from perChat
     final newMap = Map<String, String>.from(state.perChatThemes);
     newMap.removeWhere((k, v) => v == id);
 
-    // Remove from favorites
     final newFavorites = Set<String>.from(state.favoriteThemeIds);
     newFavorites.remove(id);
 
-    // Remove from recents
     final newRecents = List<String>.from(state.recentThemeIds);
     newRecents.remove(id);
 
@@ -179,7 +171,6 @@ class ThemeController extends Notifier<ThemeState> {
     _saveState();
   }
 
-  // Toggle a theme as favorite
   void toggleFavorite(String themeId) {
     final newFavorites = Set<String>.from(state.favoriteThemeIds);
     if (newFavorites.contains(themeId)) {
@@ -191,22 +182,18 @@ class ThemeController extends Notifier<ThemeState> {
     _saveState();
   }
 
-  // Check if a theme is favorited
   bool isFavorite(String themeId) {
     return state.favoriteThemeIds.contains(themeId);
   }
 
-  // Add theme to recent list (max 10, most recent first)
   void addToRecent(String themeId) {
     final newRecents = List<String>.from(state.recentThemeIds);
-    newRecents.remove(themeId); // Remove if already exists
-    newRecents.insert(0, themeId); // Add to front
+    newRecents.remove(themeId);
+    newRecents.insert(0, themeId);
     if (newRecents.length > 10) {
       newRecents.removeRange(10, newRecents.length);
     }
     state = state.copyWith(recentThemeIds: newRecents);
-    // _saveState is typically called by the caller (setGlobalTheme, setPerChatTheme)
-    // but we also save here for direct calls
     _saveState();
   }
 }
@@ -219,7 +206,6 @@ final advancedThemeProvider = Provider.family<AdvancedThemeModel, String?>((
   ref,
   chatId,
 ) {
-  // Watch the state to ensure UI rebuilds when theme changes
   ref.watch(themeControllerProvider);
   return ref.read(themeControllerProvider.notifier).getEffectiveTheme(chatId);
 });

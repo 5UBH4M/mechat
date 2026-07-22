@@ -31,14 +31,14 @@ void main() async {
   }
 
   // Run Hive and Firebase in parallel — they're independent
-  bool hiveDone = false;
+
   await Future.wait([
     // Hive init
     () async {
       try {
         final hiveService = HiveService();
         await hiveService.init();
-        hiveDone = true;
+
       } catch (e) {
         debugPrint('HiveService init failed: $e');
       }

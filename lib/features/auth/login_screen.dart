@@ -20,7 +20,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final theme = Theme.of(context);
     final authState = ref.watch(authNotifierProvider);
 
-    // Listen for auth state changes
     ref.listen<AuthState>(authNotifierProvider, (previous, next) {
       if (next.status == AuthStatus.error && next.errorMessage != null) {
         ScaffoldMessenger.of(context).showSnackBar(
