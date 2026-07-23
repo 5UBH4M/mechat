@@ -172,14 +172,7 @@ class MessageBubbleWidget extends ConsumerWidget {
 
     final bubbleConf = isMe ? advTheme.senderBubble : advTheme.receiverBubble;
 
-    Color baseBubbleColor;
-    if (useAdvancedThemeData) {
-      baseBubbleColor = Color(bubbleConf.backgroundColor);
-    } else {
-      baseBubbleColor = isMe
-          ? theme.colorScheme.primary
-          : theme.colorScheme.secondaryContainer;
-    }
+    Color baseBubbleColor = Color(bubbleConf.backgroundColor);
 
     if (isMatch && searchState.isFuzzy) {
       baseBubbleColor = isCurrentMatch ? Colors.deepOrange : Colors.orange;
@@ -187,44 +180,16 @@ class MessageBubbleWidget extends ConsumerWidget {
 
     final bubbleColor = baseBubbleColor;
 
-    final Color textColor;
-    if (useAdvancedThemeData) {
-      final colorValue = isMe
-          ? advTheme.textTheme.senderMessageColor
-          : advTheme.textTheme.receiverMessageColor;
-      textColor = Color(colorValue);
-    } else {
-      textColor = isMe
-          ? theme.colorScheme.onPrimary
-          : theme.colorScheme.onSecondaryContainer;
-    }
+    final colorValue = isMe
+        ? advTheme.textTheme.senderMessageColor
+        : advTheme.textTheme.receiverMessageColor;
+    final textColor = Color(colorValue);
 
     final alignment = isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start;
-    final isTerminal =
-        theme.appBarTheme.titleTextStyle?.fontFamily == 'monospace';
-
-    double radiusTopLeft = 16.0;
-    double radiusTopRight = 16.0;
-    double radiusBottomLeft = isMe ? 16.0 : 0.0;
-    double radiusBottomRight = isMe ? 0.0 : 16.0;
-
-    if (useAdvancedThemeData) {
-      radiusTopLeft = bubbleConf.radiusTopLeft;
-      radiusTopRight = bubbleConf.radiusTopRight;
-      radiusBottomLeft = bubbleConf.radiusBottomLeft;
-      radiusBottomRight = bubbleConf.radiusBottomRight;
-    } else {
-      if (theme.cardTheme.shape is RoundedRectangleBorder) {
-        final shape = theme.cardTheme.shape as RoundedRectangleBorder;
-        if (shape.borderRadius is BorderRadius) {
-          final rad = (shape.borderRadius as BorderRadius).topLeft.x;
-          radiusTopLeft = rad;
-          radiusTopRight = rad;
-          radiusBottomLeft = isMe ? rad : 0.0;
-          radiusBottomRight = isMe ? 0.0 : rad;
-        }
-      }
-    }
+    double radiusTopLeft = bubbleConf.radiusTopLeft;
+    double radiusTopRight = bubbleConf.radiusTopRight;
+    double radiusBottomLeft = bubbleConf.radiusBottomLeft;
+    double radiusBottomRight = bubbleConf.radiusBottomRight;
 
     return _SwipeToReply(
       key: ValueKey(msg.id),
@@ -252,21 +217,19 @@ class MessageBubbleWidget extends ConsumerWidget {
                       : bubbleColor,
                   border: highlightedMessageId == msg.id
                       ? Border.all(color: theme.colorScheme.primary, width: 2)
-                      : isTerminal
-                          ? Border.all(color: theme.colorScheme.onSurface, width: 1)
+                      : bubbleConf.borderWidth > 0
+                          ? Border.all(color: Color(bubbleConf.borderColor), width: bubbleConf.borderWidth)
                           : null,
-                  borderRadius: isTerminal
-                      ? BorderRadius.zero
-                      : BorderRadius.only(
-                          topLeft: Radius.circular(radiusTopLeft),
-                          topRight: Radius.circular(radiusTopRight),
-                          bottomLeft: Radius.circular(radiusBottomLeft),
-                          bottomRight: Radius.circular(radiusBottomRight),
-                        ),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(radiusTopLeft),
+                    topRight: Radius.circular(radiusTopRight),
+                    bottomLeft: Radius.circular(radiusBottomLeft),
+                    bottomRight: Radius.circular(radiusBottomRight),
+                  ),
                 ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
+                padding: EdgeInsets.symmetric(
+                  horizontal: bubbleConf.paddingHorizontal,
+                  vertical: bubbleConf.paddingVertical,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

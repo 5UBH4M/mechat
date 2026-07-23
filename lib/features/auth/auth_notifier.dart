@@ -41,8 +41,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository _authRepository;
   StreamSubscription<UserEntity?>? _authSub;
 
-  AuthNotifier(this._authRepository) : super(AuthState.initial()) {
+  AuthNotifier(this._authRepository) : super(_getInitialState(_authRepository)) {
     init();
+  }
+
+  static AuthState _getInitialState(AuthRepository repo) {
+    final user = repo.currentUser;
+    if (user == null) return const AuthState(status: AuthStatus.initial);
+    if (user.username.isEmpty) return AuthState(status: AuthStatus.profileIncomplete, user: user);
+    return AuthState(status: AuthStatus.authenticated, user: user);
   }
 
   void init() {

@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../core/utils/image_helper.dart';
+import '../../core/services/service_providers.dart';
 import '../../domain/entities/chat_entity.dart';
 import '../auth/auth_notifier.dart';
 import '../calls/call_notifier.dart';
@@ -20,8 +21,22 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen>
     with WidgetsBindingObserver {
-  final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
+  static const List<String> _quotes = [
+    "Bad days are part of a good life, too.",
+    "The things we do, do things to us.",
+    "What a privilege it is to grow into someone I used to need.",
+    "You already know what to do; you're just negotiating with comfort.",
+    "Supporting another person's success will never ruin yours.",
+    "Worrying doesn't take away tomorrow's trouble; it takes away today's peace.",
+    "You will keep meeting the same person in different bodies until you learn the lesson.",
+    "The art of detachment: Nothing belongs to me. It's all experience.",
+    "You don't have a soul. You are a soul. You have a body.",
+    "The cost of procrastination is the life you could have lived.",
+    "Aksar 12 baje ke baad jo log yaad aate hain na, unhi logon ne 12 bajaye hote hain.",
+    "It is easier to forgive an enemy than to forgive a friend.",
+    "A mosquito can fly, but a fly cannot mosquito.",
+  ];
+  late String _randomQuote;
   Timer? _heartbeatTimer;
 
   @override
@@ -30,6 +45,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     WidgetsBinding.instance.addObserver(this);
     ref.read(profileNotifierProvider.notifier).updateOnlinePresence(true);
     ref.read(chatNotifierProvider.notifier).syncOffline();
+    _randomQuote = _quotes[DateTime.now().millisecond % _quotes.length];
     _startHeartbeat();
   }
 
@@ -57,7 +73,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   void dispose() {
     _heartbeatTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
-    _searchController.dispose();
     super.dispose();
   }
 
@@ -99,11 +114,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.search_rounded),
-            onPressed: () {
-            },
-          ),
-          IconButton(
             icon: const Icon(Icons.settings_outlined),
             onPressed: () => context.push('/settings'),
           ),
@@ -112,22 +122,59 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16.0,
-              vertical: 8.0,
-            ),
-            child: TextField(
-              controller: _searchController,
-              onChanged: (val) {
-                setState(() {
-                  _searchQuery = val.trim().toLowerCase();
-                });
-              },
-              decoration: InputDecoration(
-                hintText: 'Search chats...',
-                prefixIcon: const Icon(Icons.search, size: 20),
-                contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                fillColor: theme.colorScheme.surface.withValues(alpha: 0.5),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20.0),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    theme.colorScheme.primaryContainer.withValues(alpha: 0.6),
+                    theme.colorScheme.secondaryContainer.withValues(alpha: 0.4),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: theme.shadowColor.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+                border: Border.all(
+                  color: theme.colorScheme.outline.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Stack(
+                children: [
+                  Positioned(
+                    top: -10,
+                    left: -10,
+                    child: Icon(
+                      Icons.format_quote_rounded,
+                      size: 48,
+                      color: theme.colorScheme.primary.withValues(alpha: 0.15),
+                    ),
+                  ),
+                  Column(
+                    children: [
+                      const SizedBox(height: 8),
+                      Text(
+                        _randomQuote,
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          fontStyle: FontStyle.italic,
+                          fontWeight: FontWeight.w500,
+                          height: 1.4,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
@@ -135,15 +182,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           Expanded(
             child: chatsAsync.when(
               data: (chats) {
-                final filteredChats = chats.where((chat) {
-                  if (chat.isNotesToSelf) return false;
-                  if (_searchQuery.isEmpty) return true;
-                  return chat.id.toLowerCase().contains(_searchQuery) ||
-                      (chat.lastMessage?.content.toLowerCase().contains(
-                            _searchQuery,
-                          ) ??
-                          false);
-                }).toList();
+                final filteredChats = chats.where((chat) => !chat.isNotesToSelf).toList();
 
                 if (filteredChats.isEmpty) {
                   return _buildEmptyState(theme);
@@ -170,14 +209,45 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   },
                 );
               },
-              loading: () => Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      height: 80,
-                      width: 80,
-                      decoration: BoxDecoration(
+              loading: () {
+                final cachedChats = ref.read(chatRepositoryProvider).getCachedChatsSync();
+                if (cachedChats.isNotEmpty) {
+                  final filteredChats = cachedChats.where((chat) => !chat.isNotesToSelf).toList();
+
+                  if (filteredChats.isEmpty) {
+                    return _buildEmptyState(theme);
+                  }
+
+                  return ListView.separated(
+                    itemCount: filteredChats.length,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    separatorBuilder: (context, index) => const Divider(
+                      height: 1,
+                      thickness: 0.5,
+                      indent: 80,
+                      endIndent: 16,
+                      color: Color(0x1F808080),
+                    ),
+                    itemBuilder: (context, index) {
+                      final chat = filteredChats[index];
+                      return _buildChatItem(
+                        context,
+                        chat,
+                        currentUser?.uid,
+                        theme,
+                      );
+                    },
+                  );
+                }
+                
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        height: 80,
+                        width: 80,
+                        decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
                             theme.colorScheme.primary,
@@ -228,7 +298,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     ),
                   ],
                 ),
-              ),
+              );
+              },
               error: (err, stack) =>
                   Center(child: Text('Error loading chats: $err')),
             ),

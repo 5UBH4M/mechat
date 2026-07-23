@@ -42,17 +42,10 @@ class _ChatInputBarState extends State<ChatInputBar> {
   Widget build(BuildContext context) {
     final theme = widget.theme;
     final advTheme = widget.advTheme;
-    final useAdvancedThemeData = widget.useAdvancedThemeData;
 
-    final defaultIconColor = useAdvancedThemeData
-        ? Color(advTheme.appAppearance.iconColor)
-        : theme.colorScheme.primary;
-    final defaultInputBg = useAdvancedThemeData
-        ? Color(advTheme.appAppearance.inputBackgroundColor)
-        : theme.colorScheme.surface;
-    final defaultInputText = useAdvancedThemeData
-        ? Color(advTheme.appAppearance.inputTextColor)
-        : theme.colorScheme.onSurface;
+    final defaultIconColor = Color(advTheme.appAppearance.iconColor);
+    final defaultInputBg = Color(advTheme.appAppearance.inputBackgroundColor);
+    final defaultInputText = Color(advTheme.appAppearance.inputTextColor);
 
     return Container(
       key: const ValueKey('input_bar'),
@@ -151,9 +144,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
 
           // Send / Voice Record Button
           Builder(builder: (context) {
-            final sendButtonBgColor = useAdvancedThemeData
-                ? Color(advTheme.appAppearance.sendButtonColor)
-                : theme.colorScheme.secondary;
+            final sendButtonBgColor = Color(advTheme.appAppearance.sendButtonColor);
             final sendIconColor = sendButtonBgColor.computeLuminance() > 0.5
                 ? Colors.black
                 : Colors.white;

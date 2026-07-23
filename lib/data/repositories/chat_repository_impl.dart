@@ -21,8 +21,17 @@ class ChatRepositoryImpl implements ChatRepository {
   final EncryptorService _encryptor = EncryptorService();
 
   @override
-  Stream<List<ChatEntity>> getChats(String uid) {
+  List<ChatEntity> getCachedChatsSync() {
+    final cached = _hive.getCachedChats().map((json) {
+      final model = ChatModel.fromJson(json);
+      return _decryptChatLastMessage(model);
+    }).toList();
+    _sortChats(cached);
+    return cached;
+  }
 
+  @override
+  Stream<List<ChatEntity>> getChats(String uid) {
     final controller = StreamController<List<ChatEntity>>.broadcast();
 
     // 1. Send cached chats immediately
