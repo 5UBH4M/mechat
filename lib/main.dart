@@ -20,30 +20,32 @@ final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // dotenv first — fast, and providers need it
-  try {
-    await dotenv.load(fileName: ".env");
-  } catch (e) {
-    debugPrint('dotenv load failed: $e');
-  }
+  // Run Dotenv, Hive, and Firebase initialization in parallel to drastically speed up startup
+  await Future.wait([
+    dotenv.load(fileName: ".env").catchError((e) {
+      debugPrint('dotenv load failed: $e');
+    }),
+    
+    (() async {
+      try {
+        final hiveService = HiveService();
+        await hiveService.init();
+      } catch (e) {
+        debugPrint('HiveService init failed: $e');
+      }
+    })(),
 
-  // Run Hive init (fast)
-  try {
-    final hiveService = HiveService();
-    await hiveService.init();
-  } catch (e) {
-    debugPrint('HiveService init failed: $e');
-  }
-
-  // Initialize Firebase & Router before runApp so the native splash screen stays up
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    NotificationService().init().catchError((_) {});
-  } catch (e) {
-    debugPrint('Firebase init failed: $e');
-  }
+    (() async {
+      try {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+        NotificationService().init().catchError((_) {});
+      } catch (e) {
+        debugPrint('Firebase init failed: $e');
+      }
+    })(),
+  ]);
 
   // Initialize router dynamically based on cached auth state
   initializeRouter();

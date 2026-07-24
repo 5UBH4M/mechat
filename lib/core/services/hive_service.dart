@@ -30,7 +30,7 @@ class HiveService {
   Future<void> init() async {
     await Hive.initFlutter();
 
-    // Open all non-encrypted boxes in parallel — ~2x faster than sequential
+    // 🚀 Open all non-encrypted boxes in parallel
     final results = await Future.wait([
       Hive.openBox(AppConstants.userBoxName),
       Hive.openBox(AppConstants.chatCacheBoxName),
@@ -43,7 +43,16 @@ class HiveService {
     _settingsBox = results[2];
     _outboxBox = results[3];
 
-    // Open encrypted box for sensitive key material
+    _isInitialized = true;
+  }
+
+  bool _isSecureBoxInitialized = false;
+
+  /// Lazy load the secure box only when needed (e.g. for E2E keys)
+  /// This prevents FlutterSecureStorage from blocking app startup.
+  Future<void> _ensureSecureBox() async {
+    if (_isSecureBoxInitialized) return;
+    
     const secureStorage = FlutterSecureStorage();
     String? encryptionKeyBase64;
     bool secureStorageFailed = false;
@@ -112,8 +121,7 @@ class HiveService {
         encryptionCipher: HiveAesCipher(Uint8List.fromList(encryptionKey)),
       );
     }
-
-    _isInitialized = true;
+    _isSecureBoxInitialized = true;
   }
 
 
@@ -200,20 +208,22 @@ class HiveService {
 
   Future<void> saveE2EKeys(String privateKey, String publicKey) async {
     _checkInitialized();
+    await _ensureSecureBox();
     await _secureBox.put(AppConstants.keyE2EPrivateKey, privateKey);
     await _secureBox.put(AppConstants.keyE2EPublicKey, publicKey);
   }
 
-  String? getE2EPrivateKey() {
+  Future<String?> getE2EPrivateKey() async {
     _checkInitialized();
+    await _ensureSecureBox();
     return _secureBox.get(AppConstants.keyE2EPrivateKey) as String?;
   }
 
-  String? getE2EPublicKey() {
+  Future<String?> getE2EPublicKey() async {
     _checkInitialized();
+    await _ensureSecureBox();
     return _secureBox.get(AppConstants.keyE2EPublicKey) as String?;
   }
-
 
   Future<void> saveChatWallpaper(String path) async {
     await _settingsBox.put('chat_wallpaper_path', path);
@@ -232,7 +242,13 @@ class HiveService {
     await _userBox.clear();
     await _chatBox.clear();
     await _outboxBox.clear();
-    await _secureBox.clear();
+    
+    if (_isSecureBoxInitialized) {
+      await _secureBox.clear();
+    } else {
+      // If not initialized, delete it from disk directly to save time
+      await Hive.deleteBoxFromDisk('secure_keys_box');
+    }
     
     // Purge encryption key
     const secureStorage = FlutterSecureStorage();
