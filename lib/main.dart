@@ -20,34 +20,21 @@ final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Run Dotenv, Hive, and Firebase initialization in parallel to drastically speed up startup
-  await Future.wait([
-    dotenv.load(fileName: ".env").catchError((e) {
-      debugPrint('dotenv load failed: $e');
-    }),
-    
-    (() async {
-      try {
-        final hiveService = HiveService();
-        await hiveService.init();
-      } catch (e) {
-        debugPrint('HiveService init failed: $e');
-      }
-    })(),
+  try {
+    await dotenv.load(fileName: ".env");
+  } catch (_) {}
 
-    (() async {
-      try {
-        await Firebase.initializeApp(
-          options: DefaultFirebaseOptions.currentPlatform,
-        );
-        NotificationService().init().catchError((_) {});
-      } catch (e) {
-        debugPrint('Firebase init failed: $e');
-      }
-    })(),
-  ]);
+  try {
+    await HiveService().init();
+  } catch (_) {}
 
-  // Initialize router dynamically based on cached auth state
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    await NotificationService().init();
+  } catch (_) {}
+
   initializeRouter();
 
   runApp(const ProviderScope(child: MeChatApp()));
@@ -140,12 +127,7 @@ class _MeChatAppState extends ConsumerState<MeChatApp>
                   currentRoute ==
                       '/chat/${newChat.participants.firstWhere((id) => id != currentUser.uid, orElse: () => '')}';
 
-              // Don't show notifications when the app is in the foreground
-              final lifecycleState = WidgetsBinding.instance.lifecycleState;
-              final isAppInForeground = lifecycleState == null ||
-                  lifecycleState == AppLifecycleState.resumed;
-
-              if (!isChatScreenActive && !isAppInForeground) {
+              if (!isChatScreenActive) {
                 final hideSender = currentUser.hideNotificationSender;
                 final hideMessage = currentUser.hideNotificationMessage;
 
