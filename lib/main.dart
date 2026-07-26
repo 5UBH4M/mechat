@@ -117,17 +117,11 @@ class _MeChatAppState extends ConsumerState<MeChatApp>
 
           if (newLastMsg != null && newLastMsg.senderId != currentUser.uid) {
             if (oldLastMsg == null || newLastMsg.id != oldLastMsg.id) {
-              final currentRoute = appRouter
-                  .routerDelegate
-                  .currentConfiguration
-                  .last
-                  .matchedLocation;
-              final isChatScreenActive =
-                  currentRoute == '/chat/${newLastMsg.senderId}' ||
-                  currentRoute ==
-                      '/chat/${newChat.participants.firstWhere((id) => id != currentUser.uid, orElse: () => '')}';
+              final lifecycleState = WidgetsBinding.instance.lifecycleState;
+              final isAppInForeground = lifecycleState == null ||
+                  lifecycleState == AppLifecycleState.resumed;
 
-              if (!isChatScreenActive) {
+              if (!isAppInForeground) {
                 final hideSender = currentUser.hideNotificationSender;
                 final hideMessage = currentUser.hideNotificationMessage;
 

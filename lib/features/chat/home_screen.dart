@@ -122,59 +122,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(20.0),
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    theme.colorScheme.primaryContainer.withValues(alpha: 0.6),
-                    theme.colorScheme.secondaryContainer.withValues(alpha: 0.4),
+                    theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
+                    theme.colorScheme.secondaryContainer.withValues(alpha: 0.3),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: theme.shadowColor.withValues(alpha: 0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: theme.colorScheme.outline.withValues(alpha: 0.2),
+                  color: theme.colorScheme.outline.withValues(alpha: 0.12),
                 ),
               ),
-              child: Stack(
-                children: [
-                  Positioned(
-                    top: -10,
-                    left: -10,
-                    child: Icon(
-                      Icons.format_quote_rounded,
-                      size: 48,
-                      color: theme.colorScheme.primary.withValues(alpha: 0.15),
-                    ),
-                  ),
-                  Column(
-                    children: [
-                      const SizedBox(height: 8),
-                      Text(
-                        _randomQuote,
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          fontStyle: FontStyle.italic,
-                          fontWeight: FontWeight.w500,
-                          height: 1.4,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                    ],
-                  ),
-                ],
+              child: Text(
+                '"${_randomQuote}"',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontStyle: FontStyle.italic,
+                  fontWeight: FontWeight.w500,
+                  height: 1.5,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
           ),

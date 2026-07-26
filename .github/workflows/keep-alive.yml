@@ -1,0 +1,19 @@
+name: Keep Backend Alive
+
+on:
+  schedule:
+    - cron: '*/14 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Ping Render backend
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 https://mechat-backend-pmxd.onrender.com/ping)
+          echo "Status: $response"
+          if [ "$response" != "200" ]; then
+            echo "::warning::Server responded with $response"
+          fi
