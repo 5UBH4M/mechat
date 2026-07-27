@@ -21,8 +21,8 @@ class ChatRepositoryImpl implements ChatRepository {
   final EncryptorService _encryptor = EncryptorService();
 
   @override
-  List<ChatEntity> getCachedChatsSync() {
-    final cached = _hive.getCachedChats().map((json) {
+  Future<List<ChatEntity>> getCachedChatsSync() async {
+    final cached = (await _hive.getCachedChats()).map((json) {
       final model = ChatModel.fromJson(json);
       return _decryptChatLastMessage(model);
     }).toList();
@@ -35,14 +35,16 @@ class ChatRepositoryImpl implements ChatRepository {
     final controller = StreamController<List<ChatEntity>>.broadcast();
 
     // 1. Send cached chats immediately
-    final cached = _hive.getCachedChats().map((json) {
-      final model = ChatModel.fromJson(json);
-      return _decryptChatLastMessage(model);
-    }).toList();
-
-    // Sort cached chats (Notes to self on top, then by timestamp desc)
-    _sortChats(cached);
-    controller.add(cached);
+    _hive.getCachedChats().then((cachedJsonList) {
+      final cached = cachedJsonList.map((json) {
+        final model = ChatModel.fromJson(json);
+        return _decryptChatLastMessage(model);
+      }).toList();
+      _sortChats(cached);
+      if (!controller.isClosed) {
+        controller.add(cached);
+      }
+    });
 
     // 2. Stream from Firestore
     final firestoreStream = _db
@@ -115,7 +117,8 @@ class ChatRepositoryImpl implements ChatRepository {
   @override
   Stream<List<MessageEntity>> getMessages(String chatId) async* {
     // 1. Emit cached messages FIRST — instant, no network needed
-    final cached = _hive.getCachedMessages(chatId).map((json) {
+    final cachedJsonList = await _hive.getCachedMessages(chatId);
+    final cached = cachedJsonList.map((json) {
       final model = MessageModel.fromJson(json);
       return _decryptMessage(model, chatId);
     }).toList();
@@ -128,18 +131,21 @@ class ChatRepositoryImpl implements ChatRepository {
         .collection(AppConstants.chatsCollection)
         .doc(chatId)
         .collection(AppConstants.messagesCollection)
-        .orderBy('timestamp', descending: false)
+        .orderBy('timestamp', descending: true)
+        .limit(150)
         .snapshots()
         .map((snapshot) {
       final messages = snapshot.docs
           .map((doc) => MessageModel.fromJson(doc.data()))
+          .toList()
+          .reversed
           .toList();
 
       final decryptedList = messages
           .map((m) => _decryptMessage(m, chatId))
           .toList();
 
-      // Cache in background — fire and forget
+      // Cache only the last 150 messages
       final rawJsonList = messages.map((e) => e.toJson()).toList();
       _hive.cacheMessages(chatId, rawJsonList);
 
@@ -206,7 +212,7 @@ class ChatRepositoryImpl implements ChatRepository {
       });
 
       // Update local message list cache immediately
-      final localMsgs = _hive.getCachedMessages(chatId);
+      final localMsgs = await _hive.getCachedMessages(chatId);
       localMsgs.add(offlineMsg.toJson());
       await _hive.cacheMessages(chatId, localMsgs);
       return;
@@ -383,7 +389,7 @@ class ChatRepositoryImpl implements ChatRepository {
     required String uid,
   }) async {
     // Delete for me: remove message from local cache
-    final localList = _hive.getCachedMessages(chatId);
+    final localList = await _hive.getCachedMessages(chatId);
     localList.removeWhere((element) => element['id'] == messageId);
     await _hive.cacheMessages(chatId, localList);
   }

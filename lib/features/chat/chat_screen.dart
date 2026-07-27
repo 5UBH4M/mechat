@@ -41,7 +41,8 @@ class ChatScreen extends ConsumerStatefulWidget {
   ConsumerState<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends ConsumerState<ChatScreen> {
+class _ChatScreenState extends ConsumerState<ChatScreen>
+    with WidgetsBindingObserver {
   final TextEditingController _messageController = TextEditingController();
   final ItemScrollController _itemScrollController = ItemScrollController();
   final ItemPositionsListener _itemPositionsListener =
@@ -68,6 +69,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _isNotesToSelf = widget.receiverId == 'notes_to_self';
     _loadReceiverProfile();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -130,13 +132,40 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      if (!_isNotesToSelf) {
+        ref
+            .read(chatNotifierProvider.notifier)
+            .setTypingStatus(widget.receiverId, false);
+      }
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _typingDebouncer?.cancel();
+    if (!_isNotesToSelf) {
+      ref
+          .read(chatNotifierProvider.notifier)
+          .setTypingStatus(widget.receiverId, false);
+    }
     _receiverSub?.cancel();
     _messageController.dispose();
     _searchController.dispose();
+    // Stop active recording before disposing to prevent native resource leak
+    if (_isRecording) {
+      _audioRecorder.stop().then((_) {
+        if (_audioPath != null) {
+          File(_audioPath!).delete().ignore();
+        }
+      }).ignore();
+    }
     _audioRecorder.dispose();
     _messageFocusNode.dispose();
-    _typingDebouncer?.cancel();
     _heartbeatTimer?.cancel();
     _recordingTimer?.cancel();
     super.dispose();
@@ -924,7 +953,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                             );
                           },
                           loading: () {
-                            final cachedMsgs = ref.read(cachedMessagesProvider(chatId));
+                            final cachedMsgs = ref.read(cachedMessagesProvider(chatId)).value ?? [];
                             final pending = ref.read(pendingMessagesProvider);
                             final cachedIds = cachedMsgs.map((m) => m.id).toSet();
                             final extraPending = pending.where((m) => !cachedIds.contains(m.id)).toList();

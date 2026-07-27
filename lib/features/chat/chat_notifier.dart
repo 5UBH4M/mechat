@@ -8,6 +8,45 @@ import '../../domain/entities/message_entity.dart';
 import '../../domain/repositories/chat_repository.dart';
 import '../auth/auth_notifier.dart';
 
+/// Cached user profile data for chat tiles (display name, avatar, online status)
+class UserProfileData {
+  final String displayName;
+  final String profilePictureUrl;
+  final bool isOnline;
+  final DateTime lastSeen;
+  final bool lastSeenVisible;
+
+  const UserProfileData({
+    this.displayName = 'Loading...',
+    this.profilePictureUrl = '',
+    this.isOnline = false,
+    required this.lastSeen,
+    this.lastSeenVisible = true,
+  });
+}
+
+/// Single Firestore stream per user uid, auto-disposed when no widget watches it.
+/// Replaces N individual StreamBuilders in HomeScreen chat tiles.
+final userProfileProvider = StreamProvider.autoDispose
+    .family<UserProfileData, String>((ref, uid) {
+  return FirebaseFirestore.instance
+      .collection('users')
+      .doc(uid)
+      .snapshots()
+      .map((snapshot) {
+    if (!snapshot.exists) {
+      return UserProfileData(lastSeen: DateTime.now());
+    }
+    final data = snapshot.data();
+    return UserProfileData(
+      displayName: data?['displayName'] ?? 'Unknown User',
+      profilePictureUrl: data?['profilePictureUrl'] ?? '',
+      isOnline: data?['isOnline'] ?? false,
+      lastSeen: (data?['lastSeen'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      lastSeenVisible: data?['lastSeenVisible'] ?? true,
+    );
+  });
+});
 // 1. Stream Provider for Recent Chats list
 final recentChatsProvider = StreamProvider.autoDispose<List<ChatEntity>>((ref) {
   final authState = ref.watch(authNotifierProvider);
@@ -32,10 +71,11 @@ final pendingMessagesProvider =
 
 // 5. Cached messages for instant display while Firestore loads
 final cachedMessagesProvider =
-    Provider.family<List<MessageEntity>, String>((ref, chatId) {
+    FutureProvider.family<List<MessageEntity>, String>((ref, chatId) async {
   final hive = ref.watch(hiveServiceProvider);
   final encryptor = ref.watch(encryptorServiceProvider);
-  return hive.getCachedMessages(chatId).map((json) {
+  final cachedJsonList = await hive.getCachedMessages(chatId);
+  return cachedJsonList.map((json) {
     final model = MessageModel.fromJson(json);
     String content = model.content;
     String replyContent = model.repliedToMessageContent;

@@ -183,35 +183,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 );
               },
               loading: () {
-                final cachedChats = ref.read(chatRepositoryProvider).getCachedChatsSync();
-                if (cachedChats.isNotEmpty) {
-                  final filteredChats = cachedChats.where((chat) => !chat.isNotesToSelf).toList();
+                return FutureBuilder<List<ChatEntity>>(
+                  future: ref.read(chatRepositoryProvider).getCachedChatsSync(),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasData && snapshot.data!.isNotEmpty) {
+                      final cachedChats = snapshot.data!;
+                      final filteredChats = cachedChats.where((chat) => !chat.isNotesToSelf).toList();
 
-                  if (filteredChats.isEmpty) {
-                    return _buildEmptyState(theme);
-                  }
+                      if (filteredChats.isEmpty) {
+                        return _buildEmptyState(theme);
+                      }
 
-                  return ListView.separated(
-                    itemCount: filteredChats.length,
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    separatorBuilder: (context, index) => const Divider(
-                      height: 1,
-                      thickness: 0.5,
-                      indent: 80,
-                      endIndent: 16,
-                      color: Color(0x1F808080),
-                    ),
-                    itemBuilder: (context, index) {
-                      final chat = filteredChats[index];
-                      return _buildChatItem(
-                        context,
-                        chat,
-                        currentUser?.uid,
-                        theme,
+                      return ListView.separated(
+                        itemCount: filteredChats.length,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        separatorBuilder: (context, index) => const Divider(
+                          height: 1,
+                          thickness: 0.5,
+                          indent: 80,
+                          endIndent: 16,
+                          color: Color(0x1F808080),
+                        ),
+                        itemBuilder: (context, index) {
+                          final chat = filteredChats[index];
+                          return _buildChatItem(
+                            context,
+                            chat,
+                            currentUser?.uid,
+                            theme,
+                          );
+                        },
                       );
-                    },
-                  );
-                }
+                    }
                 
                 return Center(
                   child: Column(
@@ -272,6 +275,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   ],
                 ),
               );
+                  },
+                );
               },
               error: (err, stack) =>
                   Center(child: Text('Error loading chats: $err')),
@@ -351,52 +356,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       );
     }
 
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(otherUid)
-          .snapshots(),
-      builder: (context, snapshot) {
-        String displayName = 'Loading...';
-        String avatarUrl = '';
-        bool isOnline = false;
-        DateTime lastSeen = DateTime.now();
-        bool lastSeenVisible = true;
-        if (snapshot.hasData && snapshot.data!.exists) {
-          final data = snapshot.data!.data() as Map<String, dynamic>?;
-          if (data != null) {
-            displayName = data['displayName'] ?? 'Unknown User';
-            avatarUrl = data['profilePictureUrl'] ?? '';
-            isOnline = data['isOnline'] ?? false;
-            lastSeen =
-                (data['lastSeen'] as Timestamp?)?.toDate() ?? DateTime.now();
-            lastSeenVisible = data['lastSeenVisible'] ?? true;
-          }
-        }
+    final profileAsync = ref.watch(userProfileProvider(otherUid));
+    final profile = profileAsync.valueOrNull ??
+        UserProfileData(lastSeen: DateTime.now());
 
-        final currentUser = ref.read(authNotifierProvider).user;
-        final bothAllowLastSeen =
-            currentUser != null &&
-            currentUser.lastSeenVisible &&
-            lastSeenVisible;
-        final isActuallyOnline =
-            isOnline && DateTime.now().difference(lastSeen).inSeconds < 90;
-        final showOnlineIndicator = bothAllowLastSeen && isActuallyOnline;
+    final currentUser = ref.read(authNotifierProvider).user;
+    final bothAllowLastSeen =
+        currentUser != null &&
+        currentUser.lastSeenVisible &&
+        profile.lastSeenVisible;
+    final isActuallyOnline =
+        profile.isOnline && DateTime.now().difference(profile.lastSeen).inSeconds < 90;
+    final showOnlineIndicator = bothAllowLastSeen && isActuallyOnline;
 
-        return _buildTile(
-          context,
-          chat,
-          theme,
-          currentUid,
-          otherUid,
-          displayName,
-          false,
-          avatarUrl,
-          unreadCount,
-          isTyping,
-          showOnlineIndicator,
-        );
-      },
+    return _buildTile(
+      context,
+      chat,
+      theme,
+      currentUid,
+      otherUid,
+      profile.displayName,
+      false,
+      profile.profilePictureUrl,
+      unreadCount,
+      isTyping,
+      showOnlineIndicator,
     );
   }
 

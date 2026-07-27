@@ -3,7 +3,7 @@ import '../entities/message_entity.dart';
 
 abstract class ChatRepository {
   Stream<List<ChatEntity>> getChats(String uid);
-  List<ChatEntity> getCachedChatsSync();
+  Future<List<ChatEntity>> getCachedChatsSync();
 
   Stream<List<MessageEntity>> getMessages(String chatId);
 

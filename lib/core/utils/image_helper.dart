@@ -65,7 +65,7 @@ Uint8List _decodeBase64(String data) {
 /// recreation (which happens every time the message list rebuilds).
 class _Base64Cache {
   static final Map<int, Uint8List> _cache = {};
-  static const int _maxEntries = 100;
+  static const int _maxEntries = 30;
 
   static Uint8List? get(String key) => _cache[key.hashCode];
 
@@ -96,13 +96,9 @@ class Base64Image extends StatefulWidget {
   State<Base64Image> createState() => _Base64ImageState();
 }
 
-class _Base64ImageState extends State<Base64Image>
-    with AutomaticKeepAliveClientMixin {
+class _Base64ImageState extends State<Base64Image> {
   Uint8List? _bytes;
   bool _hasError = false;
-
-  @override
-  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -152,7 +148,6 @@ class _Base64ImageState extends State<Base64Image>
 
   @override
   Widget build(BuildContext context) {
-    super.build(context); // Required by AutomaticKeepAliveClientMixin
 
     if (widget.base64String.isEmpty) {
       return Icon(Icons.person, size: widget.width ?? 50, color: Colors.grey);

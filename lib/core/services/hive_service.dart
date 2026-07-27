@@ -12,7 +12,7 @@ class HiveService {
   HiveService._internal();
 
   late Box _userBox;
-  late Box _chatBox;
+  late LazyBox _chatBox;
   late Box _settingsBox;
   late Box _outboxBox;
   late Box _secureBox;
@@ -30,18 +30,19 @@ class HiveService {
   Future<void> init() async {
     await Hive.initFlutter();
 
-    // 🚀 Open all non-encrypted boxes in parallel
+    // Open regular boxes in parallel
     final results = await Future.wait([
       Hive.openBox(AppConstants.userBoxName),
-      Hive.openBox(AppConstants.chatCacheBoxName),
       Hive.openBox(AppConstants.settingsBoxName),
       Hive.openBox(AppConstants.offlineOutboxBoxName),
       Hive.openBox(ThemeController.boxName),
     ]);
     _userBox = results[0];
-    _chatBox = results[1];
-    _settingsBox = results[2];
-    _outboxBox = results[3];
+    _settingsBox = results[1];
+    _outboxBox = results[2];
+
+    // Open chat cache as LazyBox (data stays on disk, loaded on demand)
+    _chatBox = await Hive.openLazyBox(AppConstants.chatCacheBoxName);
 
     _isInitialized = true;
   }
@@ -166,8 +167,8 @@ class HiveService {
     await _chatBox.put('chats_list', jsonEncode(chats));
   }
 
-  List<Map<String, dynamic>> getCachedChats() {
-    final raw = _chatBox.get('chats_list');
+  Future<List<Map<String, dynamic>>> getCachedChats() async {
+    final raw = await _chatBox.get('chats_list');
     if (raw == null) return [];
     final list = jsonDecode(raw as String) as List<dynamic>;
     return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
@@ -180,8 +181,8 @@ class HiveService {
     await _chatBox.put('messages_$chatId', jsonEncode(messages));
   }
 
-  List<Map<String, dynamic>> getCachedMessages(String chatId) {
-    final raw = _chatBox.get('messages_$chatId');
+  Future<List<Map<String, dynamic>>> getCachedMessages(String chatId) async {
+    final raw = await _chatBox.get('messages_$chatId');
     if (raw == null) return [];
     final list = jsonDecode(raw as String) as List<dynamic>;
     return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
