@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/services/service_providers.dart';
+import '../../core/utils/local_media_store.dart';
 import '../../data/models/message_model.dart';
 import '../../domain/entities/chat_entity.dart';
 import '../../domain/entities/message_entity.dart';
@@ -120,7 +121,35 @@ class ChatNotifier extends StateNotifier<double> {
   final Ref _ref;
 
   ChatNotifier(this._chatRepository, this._ref)
-    : super(0.0); // State represents upload progress
+    : super(0.0) { // State represents upload progress
+    loadPersistedPending();
+  }
+
+  void loadPersistedPending() {
+    final hive = _ref.read(hiveServiceProvider);
+    final saved = hive.getPendingMessages();
+    if (saved.isEmpty) return;
+    
+    final messages = saved.map((json) => MessageEntity(
+      id: json['id'] as String? ?? '',
+      senderId: json['senderId'] as String? ?? '',
+      receiverId: json['receiverId'] as String? ?? '',
+      content: json['content'] as String? ?? '',
+      type: json['type'] as String? ?? 'text',
+      timestamp: DateTime.tryParse(json['timestamp'] as String? ?? '') ?? DateTime.now(),
+      status: json['status'] as String? ?? 'sending',
+      fileUrl: json['fileUrl'] as String? ?? '',
+      fileName: json['fileName'] as String? ?? '',
+      fileSize: json['fileSize'] as int? ?? 0,
+      duration: json['duration'] as int? ?? 0,
+      repliedToMessageId: json['repliedToMessageId'] as String? ?? '',
+      repliedToMessageContent: json['repliedToMessageContent'] as String? ?? '',
+      localFilePath: json['localFilePath'] as String? ?? '',
+    )).toList();
+    
+    final notifier = _ref.read(pendingMessagesProvider.notifier);
+    notifier.state = messages;
+  }
 
   String getChatId(String uid1, String uid2) {
     if (uid1 == uid2 || uid2 == 'notes_to_self') return 'notes_$uid1';
@@ -130,6 +159,35 @@ class ChatNotifier extends StateNotifier<double> {
   void _addPending(MessageEntity msg) {
     final notifier = _ref.read(pendingMessagesProvider.notifier);
     notifier.state = [...notifier.state, msg];
+    _persistPending();
+  }
+
+  void _persistPending() {
+    final hive = _ref.read(hiveServiceProvider);
+    final pending = _ref.read(pendingMessagesProvider);
+    final jsonList = pending.map((m) => {
+      'id': m.id,
+      'senderId': m.senderId,
+      'receiverId': m.receiverId,
+      'content': m.content,
+      'type': m.type,
+      'timestamp': m.timestamp.toIso8601String(),
+      'status': m.status,
+      'fileUrl': m.fileUrl,
+      'fileName': m.fileName,
+      'fileSize': m.fileSize,
+      'duration': m.duration,
+      'repliedToMessageId': m.repliedToMessageId,
+      'repliedToMessageContent': m.repliedToMessageContent,
+      'localFilePath': m.localFilePath,
+    }).toList();
+    hive.savePendingMessages(jsonList);
+  }
+
+  void _removePending(String messageId) {
+    final notifier = _ref.read(pendingMessagesProvider.notifier);
+    notifier.state = notifier.state.where((m) => m.id != messageId).toList();
+    _persistPending();
   }
 
   Future<void> sendTextMessage({
@@ -159,6 +217,8 @@ class ChatNotifier extends StateNotifier<double> {
     // Fire network call in background — don't block the UI
     _initializeChatThread(chatId, sender.uid, receiverId).then((_) {
       return _chatRepository.sendMessage(message, chatId);
+    }).then((_) {
+      _removePending(message.id);
     }).catchError((_) {});
   }
 
@@ -185,8 +245,20 @@ class ChatNotifier extends StateNotifier<double> {
     if (sender == null) return;
 
     final chatId = getChatId(sender.uid, receiverId);
+    final messageId = const Uuid().v4();
+
+    // Copy to persistent local storage so it survives app restart
+    String localPath = filePath;
+    if (type == 'image' || type == 'video') {
+      try {
+        localPath = await LocalMediaStore.saveFile(filePath, messageId, fileName);
+      } catch (_) {
+        // Fall back to original temp path
+      }
+    }
+
     final message = MessageEntity(
-      id: const Uuid().v4(),
+      id: messageId,
       senderId: sender.uid,
       receiverId: receiverId == 'notes_to_self' ? sender.uid : receiverId,
       content: '',
@@ -198,7 +270,7 @@ class ChatNotifier extends StateNotifier<double> {
       duration: duration,
       repliedToMessageId: repliedToMessageId,
       repliedToMessageContent: repliedToMessageContent,
-      localFilePath: filePath,
+      localFilePath: localPath,
     );
 
     _addPending(message);
@@ -215,6 +287,8 @@ class ChatNotifier extends StateNotifier<double> {
           state = progress;
         },
       );
+    }).then((_) {
+      _removePending(message.id);
     }).catchError((_) {
       state = -1.0;
       Future.delayed(const Duration(seconds: 3), () {
@@ -315,11 +389,15 @@ class ChatNotifier extends StateNotifier<double> {
   }
 
   // Helper to ensure firestore has a chat document ready
+  static final Set<String> _initializedChats = {};
+
   Future<void> _initializeChatThread(
     String chatId,
     String senderId,
     String receiverId,
   ) async {
+    if (_initializedChats.contains(chatId)) return;
+
     final isNotes = receiverId == 'notes_to_self' || receiverId == senderId;
     final chatDoc = FirebaseFirestore.instance.collection('chats').doc(chatId);
     final snap = await chatDoc.get();
@@ -335,6 +413,8 @@ class ChatNotifier extends StateNotifier<double> {
         'lastMessage': null,
       });
     }
+
+    _initializedChats.add(chatId);
   }
 
   Future<void> syncOffline() async {

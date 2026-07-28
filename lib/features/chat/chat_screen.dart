@@ -76,6 +76,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       ref
           .read(chatNotifierProvider.notifier)
           .resetUnreadCount(widget.receiverId);
+          
+      final hive = ref.read(hiveServiceProvider);
+      final uid = ref.read(authNotifierProvider).user?.uid ?? '';
+      final chatId = ref.read(chatNotifierProvider.notifier).getChatId(uid, widget.receiverId);
+      final draft = hive.getDraft(chatId);
+      if (draft.isNotEmpty) {
+        _messageController.text = draft;
+        setState(() => _hasText = true);
+      }
     });
 
     _startHeartbeat();
@@ -146,6 +155,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
   @override
   void dispose() {
+    final uid = ref.read(authNotifierProvider).user?.uid ?? '';
+    final chatId = ref.read(chatNotifierProvider.notifier).getChatId(uid, widget.receiverId);
+    final hive = ref.read(hiveServiceProvider);
+    hive.saveDraft(chatId, _messageController.text.trim());
+
     WidgetsBinding.instance.removeObserver(this);
     _typingDebouncer?.cancel();
     if (!_isNotesToSelf) {
@@ -197,6 +211,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     if (text.isEmpty) return;
 
     _messageController.clear();
+    final hive = ref.read(hiveServiceProvider);
+    final uid = ref.read(authNotifierProvider).user?.uid ?? '';
+    final chatId = ref.read(chatNotifierProvider.notifier).getChatId(uid, widget.receiverId);
+    hive.saveDraft(chatId, '');
+
     ref
         .read(chatNotifierProvider.notifier)
         .setTypingStatus(widget.receiverId, false);
@@ -363,7 +382,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         } else {
           size = await File(picked.path).length();
         }
-        await ref
+        ref
             .read(chatNotifierProvider.notifier)
             .sendFileMessage(
               receiverId: widget.receiverId,
@@ -430,7 +449,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               type = 'audio';
             }
 
-            await ref
+            ref
                 .read(chatNotifierProvider.notifier)
                 .sendFileMessage(
                   receiverId: widget.receiverId,

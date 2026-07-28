@@ -162,6 +162,33 @@ class HiveService {
     return jsonDecode(raw as String) as Map<String, dynamic>;
   }
 
+  Future<void> savePendingMessages(List<Map<String, dynamic>> messages) async {
+    await _settingsBox.put('pending_messages', jsonEncode(messages));
+  }
+
+  List<Map<String, dynamic>> getPendingMessages() {
+    final raw = _settingsBox.get('pending_messages');
+    if (raw == null) return [];
+    final list = jsonDecode(raw as String) as List<dynamic>;
+    return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  Future<void> clearPendingMessages() async {
+    await _settingsBox.delete('pending_messages');
+  }
+
+  Future<void> saveDraft(String chatId, String text) async {
+    if (text.isEmpty) {
+      await _settingsBox.delete('draft_$chatId');
+    } else {
+      await _settingsBox.put('draft_$chatId', text);
+    }
+  }
+
+  String getDraft(String chatId) {
+    return _settingsBox.get('draft_$chatId', defaultValue: '') as String;
+  }
+
 
   Future<void> cacheChats(List<Map<String, dynamic>> chats) async {
     await _chatBox.put('chats_list', jsonEncode(chats));

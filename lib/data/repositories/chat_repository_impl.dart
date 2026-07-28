@@ -200,56 +200,50 @@ class ChatRepositoryImpl implements ChatRepository {
           : '',
     );
 
-    // Check internet connectivity
-    // If offline, queue message
-    final isOnline = await _isNetworkAvailable();
-    if (!isOnline) {
-      // Cache with status 'sending'
+    try {
+      // Write to messages subcollection
+      final chatRef = _db.collection(AppConstants.chatsCollection).doc(chatId);
+      final msgRef = chatRef
+          .collection(AppConstants.messagesCollection)
+          .doc(message.id);
+
+      final chatDoc = await chatRef.get();
+      final batch = _db.batch();
+      batch.set(msgRef, msgModel.toFirestore());
+
+      if (chatDoc.exists) {
+        // Chat exists — just update lastMessage and unreadCounts (no participants change)
+        batch.update(chatRef, {
+          'lastMessage': msgModel.toFirestore(),
+          'unreadCounts.${message.receiverId}': FieldValue.increment(1),
+        });
+      } else {
+        // Chat doesn't exist — create it with participants
+        batch.set(chatRef, {
+          'lastMessage': msgModel.toFirestore(),
+          'unreadCounts': {
+            message.receiverId: FieldValue.increment(1),
+          },
+          'participants': message.senderId == message.receiverId
+              ? [message.senderId]
+              : (message.senderId.compareTo(message.receiverId) < 0
+                  ? [message.senderId, message.receiverId]
+                  : [message.receiverId, message.senderId]),
+        });
+      }
+
+      await batch.commit();
+    } catch (e) {
+      // Queue to outbox on failure
       final offlineMsg = msgModel.copyWith(status: 'sending');
       await _hive.queueOfflineMessage({
         'chatId': chatId,
         'message': offlineMsg.toJson(),
       });
-
-      // Update local message list cache immediately
       final localMsgs = await _hive.getCachedMessages(chatId);
       localMsgs.add(offlineMsg.toJson());
       await _hive.cacheMessages(chatId, localMsgs);
-      return;
     }
-
-    // Write to messages subcollection
-    final chatRef = _db.collection(AppConstants.chatsCollection).doc(chatId);
-    final msgRef = chatRef
-        .collection(AppConstants.messagesCollection)
-        .doc(message.id);
-
-    final chatDoc = await chatRef.get();
-    final batch = _db.batch();
-    batch.set(msgRef, msgModel.toFirestore());
-
-    if (chatDoc.exists) {
-      // Chat exists — just update lastMessage and unreadCounts (no participants change)
-      batch.update(chatRef, {
-        'lastMessage': msgModel.toFirestore(),
-        'unreadCounts.${message.receiverId}': FieldValue.increment(1),
-      });
-    } else {
-      // Chat doesn't exist — create it with participants
-      batch.set(chatRef, {
-        'lastMessage': msgModel.toFirestore(),
-        'unreadCounts': {
-          message.receiverId: FieldValue.increment(1),
-        },
-        'participants': message.senderId == message.receiverId
-            ? [message.senderId]
-            : (message.senderId.compareTo(message.receiverId) < 0
-                ? [message.senderId, message.receiverId]
-                : [message.receiverId, message.senderId]),
-      });
-    }
-
-    await batch.commit();
   }
 
   @override
@@ -461,16 +455,6 @@ class ChatRepositoryImpl implements ChatRepository {
       }
     }
     await _hive.clearOfflineMessagesQueue();
-  }
-
-  Future<bool> _isNetworkAvailable() async {
-    if (kIsWeb) return true;
-    try {
-      final result = await InternetAddress.lookup('google.com');
-      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
-    } on SocketException catch (_) {
-      return false;
-    }
   }
 
   @override
