@@ -272,10 +272,7 @@ class MessageBubbleWidget extends ConsumerWidget {
                             ),
                           ));
                           final streamMsgs = messagesAsync.value ?? [];
-                          final pending = ref.read(pendingMessagesProvider);
-                          final ids = streamMsgs.map((m) => m.id).toSet();
-                          final extra = pending.where((m) => !ids.contains(m.id)).toList();
-                          final allMsgs = [...streamMsgs, ...extra].reversed.toList();
+                          final allMsgs = streamMsgs.reversed.toList();
                           onScrollToMessage(msg.repliedToMessageId, allMsgs);
                         },
                         child: Container(

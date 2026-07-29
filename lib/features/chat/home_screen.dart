@@ -51,7 +51,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   void _startHeartbeat() {
     _heartbeatTimer?.cancel();
-    _heartbeatTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 120), (_) {
       ref.read(profileNotifierProvider.notifier).updateOnlinePresence(true);
     });
   }
@@ -366,7 +366,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         currentUser.lastSeenVisible &&
         profile.lastSeenVisible;
     final isActuallyOnline =
-        profile.isOnline && DateTime.now().difference(profile.lastSeen).inSeconds < 90;
+        profile.isOnline && DateTime.now().difference(profile.lastSeen).inSeconds < 180;
     final showOnlineIndicator = bothAllowLastSeen && isActuallyOnline;
 
     return _buildTile(

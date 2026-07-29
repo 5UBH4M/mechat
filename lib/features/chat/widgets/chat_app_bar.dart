@@ -226,7 +226,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
     if (!bothAllowLastSeen) return const SizedBox.shrink();
 
     final isOnlineNow = receiverUser!.isOnline &&
-        DateTime.now().difference(receiverUser!.lastSeen).inSeconds < 90;
+        DateTime.now().difference(receiverUser!.lastSeen).inSeconds < 180;
 
     return Text(
       isOnlineNow

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/services/service_providers.dart';
 import '../../core/utils/local_media_store.dart';
-import '../../data/models/message_model.dart';
 import '../../domain/entities/chat_entity.dart';
 import '../../domain/entities/message_entity.dart';
 import '../../domain/repositories/chat_repository.dart';
@@ -66,54 +65,7 @@ final chatMessagesProvider = StreamProvider.autoDispose
       return chatRepo.getMessages(chatId);
     });
 
-// 4. Pending messages for optimistic UI updates (instant message display)
-final pendingMessagesProvider =
-    StateProvider<List<MessageEntity>>((_) => []);
-
-// 5. Cached messages for instant display while Firestore loads
-final cachedMessagesProvider =
-    FutureProvider.family<List<MessageEntity>, String>((ref, chatId) async {
-  final hive = ref.watch(hiveServiceProvider);
-  final encryptor = ref.watch(encryptorServiceProvider);
-  final cachedJsonList = await hive.getCachedMessages(chatId);
-  return cachedJsonList.map((json) {
-    final model = MessageModel.fromJson(json);
-    String content = model.content;
-    String replyContent = model.repliedToMessageContent;
-    if (model.type == 'text' || model.content.isNotEmpty) {
-      try {
-        content = encryptor.decrypt(model.content, chatId);
-      } catch (_) {
-        content = model.content;
-      }
-    }
-    if (model.repliedToMessageContent.isNotEmpty) {
-      try {
-        replyContent = encryptor.decrypt(model.repliedToMessageContent, chatId);
-      } catch (_) {
-        replyContent = model.repliedToMessageContent;
-      }
-    }
-    return MessageEntity(
-      id: model.id,
-      senderId: model.senderId,
-      receiverId: model.receiverId,
-      content: content,
-      type: model.type,
-      timestamp: model.timestamp,
-      status: model.status,
-      fileUrl: model.fileUrl,
-      fileName: model.fileName,
-      fileSize: model.fileSize,
-      duration: model.duration,
-      repliedToMessageId: model.repliedToMessageId,
-      repliedToMessageContent: replyContent,
-      reactions: model.reactions,
-      starredBy: model.starredBy,
-      isForwarded: model.isForwarded,
-    );
-  }).toList();
-});
+// 3. Notifier for sending messages and performing actions
 
 // 3. Notifier for sending messages and performing actions
 class ChatNotifier extends StateNotifier<double> {
@@ -121,73 +73,11 @@ class ChatNotifier extends StateNotifier<double> {
   final Ref _ref;
 
   ChatNotifier(this._chatRepository, this._ref)
-    : super(0.0) { // State represents upload progress
-    loadPersistedPending();
-  }
-
-  void loadPersistedPending() {
-    final hive = _ref.read(hiveServiceProvider);
-    final saved = hive.getPendingMessages();
-    if (saved.isEmpty) return;
-    
-    final messages = saved.map((json) => MessageEntity(
-      id: json['id'] as String? ?? '',
-      senderId: json['senderId'] as String? ?? '',
-      receiverId: json['receiverId'] as String? ?? '',
-      content: json['content'] as String? ?? '',
-      type: json['type'] as String? ?? 'text',
-      timestamp: DateTime.tryParse(json['timestamp'] as String? ?? '') ?? DateTime.now(),
-      status: json['status'] as String? ?? 'sending',
-      fileUrl: json['fileUrl'] as String? ?? '',
-      fileName: json['fileName'] as String? ?? '',
-      fileSize: json['fileSize'] as int? ?? 0,
-      duration: json['duration'] as int? ?? 0,
-      repliedToMessageId: json['repliedToMessageId'] as String? ?? '',
-      repliedToMessageContent: json['repliedToMessageContent'] as String? ?? '',
-      localFilePath: json['localFilePath'] as String? ?? '',
-    )).toList();
-    
-    final notifier = _ref.read(pendingMessagesProvider.notifier);
-    notifier.state = messages;
-  }
+    : super(0.0); // State represents upload progress
 
   String getChatId(String uid1, String uid2) {
     if (uid1 == uid2 || uid2 == 'notes_to_self') return 'notes_$uid1';
     return uid1.compareTo(uid2) < 0 ? '${uid1}_$uid2' : '${uid2}_$uid1';
-  }
-
-  void _addPending(MessageEntity msg) {
-    final notifier = _ref.read(pendingMessagesProvider.notifier);
-    notifier.state = [...notifier.state, msg];
-    _persistPending();
-  }
-
-  void _persistPending() {
-    final hive = _ref.read(hiveServiceProvider);
-    final pending = _ref.read(pendingMessagesProvider);
-    final jsonList = pending.map((m) => {
-      'id': m.id,
-      'senderId': m.senderId,
-      'receiverId': m.receiverId,
-      'content': m.content,
-      'type': m.type,
-      'timestamp': m.timestamp.toIso8601String(),
-      'status': m.status,
-      'fileUrl': m.fileUrl,
-      'fileName': m.fileName,
-      'fileSize': m.fileSize,
-      'duration': m.duration,
-      'repliedToMessageId': m.repliedToMessageId,
-      'repliedToMessageContent': m.repliedToMessageContent,
-      'localFilePath': m.localFilePath,
-    }).toList();
-    hive.savePendingMessages(jsonList);
-  }
-
-  void _removePending(String messageId) {
-    final notifier = _ref.read(pendingMessagesProvider.notifier);
-    notifier.state = notifier.state.where((m) => m.id != messageId).toList();
-    _persistPending();
   }
 
   Future<void> sendTextMessage({
@@ -212,13 +102,9 @@ class ChatNotifier extends StateNotifier<double> {
       repliedToMessageContent: repliedToMessageContent,
     );
 
-    _addPending(message);
-
     // Fire network call in background — don't block the UI
     _initializeChatThread(chatId, sender.uid, receiverId).then((_) {
       return _chatRepository.sendMessage(message, chatId);
-    }).then((_) {
-      _removePending(message.id);
     }).catchError((_) {});
   }
 
@@ -273,8 +159,6 @@ class ChatNotifier extends StateNotifier<double> {
       localFilePath: localPath,
     );
 
-    _addPending(message);
-
     // Reset progress and run upload in background — don't block the caller
     state = 0.0;
 
@@ -287,8 +171,6 @@ class ChatNotifier extends StateNotifier<double> {
           state = progress;
         },
       );
-    }).then((_) {
-      _removePending(message.id);
     }).catchError((_) {
       state = -1.0;
       Future.delayed(const Duration(seconds: 3), () {

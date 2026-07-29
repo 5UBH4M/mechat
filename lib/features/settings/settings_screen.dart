@@ -426,6 +426,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       );
                     },
                   ),
+
+                  // Backup & Restore tile
+                  ListTile(
+                    leading: Icon(
+                      Icons.cloud_download_outlined,
+                      color: theme.colorScheme.primary,
+                    ),
+                    title: const Text('Backup & Restore'),
+                    subtitle: const Text('Local backup of chats and media'),
+                    trailing: const Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 16,
+                    ),
+                    onTap: () => context.push('/backup-restore'),
+                  ),
                 ],
               ),
             ),

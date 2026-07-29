@@ -12,6 +12,7 @@ import '../../features/settings/privacy_settings_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/settings/advanced_appearance_screen.dart';
 import '../../features/profile/notification_settings_screen.dart';
+import '../../features/settings/backup_restore_screen.dart';
 import '../services/hive_service.dart';
 
 late final GoRouter appRouter;
@@ -78,6 +79,10 @@ void initializeRouter() {
       GoRoute(
         path: '/ongoing-call',
         builder: (context, state) => const OngoingCallScreen(),
+      ),
+      GoRoute(
+        path: '/backup-restore',
+        builder: (context, state) => const BackupRestoreScreen(),
       ),
     ],
   );

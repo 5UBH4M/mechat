@@ -196,7 +196,7 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
 
     final isOnlineNow =
         _user.isOnline &&
-        DateTime.now().difference(_user.lastSeen).inSeconds < 90;
+        DateTime.now().difference(_user.lastSeen).inSeconds < 180;
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,

@@ -103,7 +103,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
   void _startHeartbeat() {
     _heartbeatTimer?.cancel();
-    _heartbeatTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 120), (_) {
       ref.read(profileNotifierProvider.notifier).updateOnlinePresence(true);
     });
   }
@@ -717,18 +717,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       return chatsAsync.value?.where((c) => c.id == chatId).firstOrNull;
     }));
     final streamMessages = messagesAsync.value ?? [];
-    final pendingMessages = ref.watch(pendingMessagesProvider);
-    final streamIds = streamMessages.map((m) => m.id).toSet();
-    final unsyncedPending = pendingMessages.where((m) => !streamIds.contains(m.id)).toList();
-    final mergedMessages = [...streamMessages, ...unsyncedPending];
-    final messagesList = mergedMessages.reversed.toList();
-    if (pendingMessages.isNotEmpty && unsyncedPending.length < pendingMessages.length) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          ref.read(pendingMessagesProvider.notifier).state = unsyncedPending;
-        }
-      });
-    }
+    final messagesList = streamMessages.reversed.toList();
     final isConnectionEstablished =
         chatEntity?.isConnectionEstablished ?? false;
     final connectionRequestedBy = chatEntity?.connectionRequestedBy ?? '';
@@ -737,7 +726,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         ? (chatEntity.typingStatus[_receiverUser!.uid] ?? false)
         : false;
 
-    final messageCount = mergedMessages.length;
+    final messageCount = streamMessages.length;
     final limitReached = messageCount >= 5 && !isConnectionEstablished;
 
     final partnerRequestedDisconnect =
@@ -971,55 +960,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                               ],
                             );
                           },
-                          loading: () {
-                            final cachedMsgs = ref.read(cachedMessagesProvider(chatId)).value ?? [];
-                            final pending = ref.read(pendingMessagesProvider);
-                            final cachedIds = cachedMsgs.map((m) => m.id).toSet();
-                            final extraPending = pending.where((m) => !cachedIds.contains(m.id)).toList();
-                            final loadingMessages = [...cachedMsgs, ...extraPending].reversed.toList();
-
-                            if (loadingMessages.isNotEmpty) {
-                              return GestureDetector(
-                                onTap: () => FocusScope.of(context).unfocus(),
-                                child: ScrollablePositionedList.builder(
-                                  reverse: true,
-                                  itemScrollController: _itemScrollController,
-                                  itemPositionsListener: _itemPositionsListener,
-                                  itemCount: loadingMessages.length,
-                                  padding: const EdgeInsets.all(16),
-                                  itemBuilder: (context, index) {
-                                    final msg = loadingMessages[index];
-                                    final isMe = msg.senderId == currentUser?.uid;
-                                    return MessageBubbleWidget(
-                                      msg: msg,
-                                      isMe: isMe,
-                                      currentUser: currentUser,
-                                      theme: theme,
-                                      advTheme: advTheme,
-                                      useAdvancedThemeData: useAdvancedThemeData,
-                                      searchState: searchState,
-                                      index: index,
-                                      highlightedMessageId: _highlightedMessageId,
-                                      messageFocusNode: _messageFocusNode,
-                                      receiverId: widget.receiverId,
-                                      receiverUser: _receiverUser,
-                                      onReply: (msg) {
-                                        setState(() {
-                                          _replyingToMessage = msg;
-                                        });
-                                        if (mounted) {
-                                          _messageFocusNode.requestFocus();
-                                        }
-                                      },
-                                      onShowActions: _showMessageActions,
-                                      onScrollToMessage: _scrollToMessage,
-                                    );
-                                  },
-                                ),
-                              );
-                            }
-                            return const Center(child: CircularProgressIndicator());
-                          },
+                          loading: () =>
+                              const Center(child: CircularProgressIndicator()),
                           error: (err, stack) =>
                               Center(child: Text('Error: $err')),
                         ),
