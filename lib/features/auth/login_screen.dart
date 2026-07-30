@@ -66,7 +66,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   icon: authState.status == AuthStatus.loading
                       ? const SizedBox.shrink()
                       : Image.asset(
-                          'assets/images/google_logo.png', // Note: Need to make sure we have this or use a different icon
+                          'assets/images/google_logo.png',
                           height: 24,
                           errorBuilder: (context, error, stackTrace) =>
                               const Icon(Icons.g_mobiledata, size: 32),

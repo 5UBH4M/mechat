@@ -5,8 +5,7 @@ import 'package:sqflite/sqflite.dart';
 import '../../domain/entities/message_entity.dart';
 import '../../domain/entities/chat_entity.dart';
 
-/// Local-first SQLite database. Primary source of truth for messages and chats.
-/// Firestore acts as a relay/sync layer, not the source of truth.
+
 class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
   AppDatabase._();
@@ -99,7 +98,6 @@ class AppDatabase {
     ''');
   }
 
-  // ==================== Messages ====================
 
   Future<void> insertMessage(MessageEntity msg, String chatId,
       {bool synced = false}) async {
@@ -126,7 +124,7 @@ class AppDatabase {
   Future<List<MessageEntity>> getMessages(String chatId,
       {int limit = 50, int offset = 0}) async {
     final db = await database;
-    // Query in descending order for pagination, then reverse for display
+
     final rows = await db.query(
       'messages',
       where: 'chat_id = ?',
@@ -135,7 +133,7 @@ class AppDatabase {
       limit: limit,
       offset: offset,
     );
-    // Reverse so oldest is first (chronological order)
+
     return rows.reversed.map(_rowToMessage).toList();
   }
 
@@ -227,6 +225,14 @@ class AppDatabase {
     return (count ?? 0) > 0;
   }
 
+
+  Future<Set<String>> getMessageIds(String chatId) async {
+    final db = await database;
+    final rows = await db.query('messages',
+        columns: ['id'], where: 'chat_id = ?', whereArgs: [chatId]);
+    return rows.map((r) => r['id'] as String).toSet();
+  }
+
   Future<void> deleteMessage(String messageId) async {
     final db = await database;
     await db.delete('messages', where: 'id = ?', whereArgs: [messageId]);
@@ -249,7 +255,6 @@ class AppDatabase {
     return rows.map(_rowToMessage).toList();
   }
 
-  // ==================== Chats ====================
 
   Future<void> upsertChat(ChatEntity chat) async {
     final db = await database;
@@ -305,7 +310,6 @@ class AppDatabase {
     await db.delete('chats', where: 'id = ?', whereArgs: [chatId]);
   }
 
-  // ==================== User Profiles ====================
 
   Future<void> cacheUserProfile(String uid, Map<String, dynamic> data) async {
     final db = await database;
@@ -341,7 +345,7 @@ class AppDatabase {
     final fetchedAt = row['fetched_at'] as int;
     final age =
         DateTime.now().millisecondsSinceEpoch - fetchedAt;
-    if (age > maxAge.inMilliseconds) return null; // stale
+    if (age > maxAge.inMilliseconds) return null;
     return {
       'displayName': row['display_name'],
       'profilePictureUrl': row['profile_picture_url'],
@@ -352,7 +356,6 @@ class AppDatabase {
     };
   }
 
-  // ==================== Utilities ====================
 
   Future<void> close() async {
     await _db?.close();
@@ -366,7 +369,6 @@ class AppDatabase {
     await db.delete('user_profiles');
   }
 
-  // ==================== Mapping Helpers ====================
 
   Map<String, dynamic> _messageToRow(
       MessageEntity msg, String chatId, bool synced) {

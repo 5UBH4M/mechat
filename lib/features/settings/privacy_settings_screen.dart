@@ -215,7 +215,7 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
         style: TextStyle(color: theme.colorScheme.primary),
       ),
       onTap: () {
-        // Toggle simply
+
         onChanged(!value);
       },
       trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),

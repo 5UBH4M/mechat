@@ -38,7 +38,7 @@ class _OngoingCallScreenState extends ConsumerState<OngoingCallScreen>
       parent: _fadeController,
       curve: Curves.easeInOut,
     );
-    _fadeController.value = 1.0; // Start visible
+    _fadeController.value = 1.0;
   }
 
   @override
@@ -75,7 +75,7 @@ class _OngoingCallScreenState extends ConsumerState<OngoingCallScreen>
     final disableMute = user?.disableMute ?? false;
     final disableCameraOff = user?.disableCameraOff ?? false;
 
-    // Automatically navigate home if the call is closed
+
     ref.listen<CallState>(callNotifierProvider, (previous, next) {
       if (previous?.status != next.status) {
         if (next.status == 'idle' ||
@@ -141,19 +141,19 @@ class _OngoingCallScreenState extends ConsumerState<OngoingCallScreen>
                 child: SafeArea(
                   child: Stack(
                     children: [
-                      // Core content
+
                       if (callState.isVideo)
                         _buildVideoCallStream(callState, notifier)
                       else
                         _buildVoiceCallView(callState),
 
-                      // Top bar with caller info
+
                       FadeTransition(
                         opacity: _fadeAnimation,
                         child: _buildTopBar(callState),
                       ),
 
-                      // Bottom controls
+
                       FadeTransition(
                         opacity: _fadeAnimation,
                         child: _buildBottomControls(
@@ -256,7 +256,7 @@ class _OngoingCallScreenState extends ConsumerState<OngoingCallScreen>
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            // Mute Mic
+
             if (!disableMute)
               _buildControlButton(
                 icon: callState.isMicMuted
@@ -267,7 +267,7 @@ class _OngoingCallScreenState extends ConsumerState<OngoingCallScreen>
                 onTap: notifier.toggleMute,
               ),
 
-            // Speaker (Voice) or Camera Toggle (Video)
+
             if (callState.isVideo)
               if (!disableCameraOff)
                 _buildControlButton(
@@ -290,7 +290,7 @@ class _OngoingCallScreenState extends ConsumerState<OngoingCallScreen>
                 onTap: notifier.toggleSpeaker,
               ),
 
-            // Camera Flip (Video only)
+
             if (callState.isVideo)
               _buildControlButton(
                 icon: Icons.flip_camera_ios_rounded,
@@ -298,14 +298,14 @@ class _OngoingCallScreenState extends ConsumerState<OngoingCallScreen>
                 onTap: notifier.switchCamera,
               ),
 
-            // PIP
+
             _buildControlButton(
               icon: Icons.picture_in_picture_alt_rounded,
               label: 'PIP',
               onTap: () => _pip.enterPipMode(),
             ),
 
-            // End Call
+
             _buildEndCallButton(notifier, callState),
           ],
         ),
@@ -416,7 +416,7 @@ class _OngoingCallScreenState extends ConsumerState<OngoingCallScreen>
         notifier.remoteRenderer.srcObject != null;
     return Stack(
       children: [
-        // Remote stream (full screen)
+
         if (hasRemote)
           RTCVideoView(
             notifier.remoteRenderer,
@@ -451,7 +451,7 @@ class _OngoingCallScreenState extends ConsumerState<OngoingCallScreen>
             ),
           ),
 
-        // Local camera preview (PiP corner)
+
         if (state.isCameraEnabled && notifier.localRenderer.srcObject != null)
           Positioned(
             right: 16,
@@ -495,7 +495,7 @@ class _OngoingCallScreenState extends ConsumerState<OngoingCallScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Large avatar with gradient border
+
           Container(
             width: 140,
             height: 140,
@@ -524,7 +524,7 @@ class _OngoingCallScreenState extends ConsumerState<OngoingCallScreen>
             ),
           ),
           const SizedBox(height: 48),
-          // Audio waveform indicator
+
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(7, (index) {

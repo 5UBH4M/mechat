@@ -44,7 +44,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
 
       final trimmedUsername = username.trim();
 
-      // Validate username format: only alphabets, numbers, _, -, .
+
       final usernameRegex = RegExp(r'^[a-zA-Z0-9._-]+$');
       if (!usernameRegex.hasMatch(trimmedUsername)) {
         state = const ProfileState(
@@ -71,12 +71,12 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
         return;
       }
 
-      // Prevent username change if already set
+
       final effectiveUsername = (currentUser.username.isNotEmpty)
           ? currentUser.username
           : trimmedUsername;
 
-      // Check for username uniqueness (case-sensitive)
+
       final db = FirebaseFirestore.instance;
       final existingUsers = await db
           .collection('users')

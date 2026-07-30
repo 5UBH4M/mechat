@@ -7,7 +7,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cross_file/cross_file.dart';
 
 class ImageHelper {
-  /// Compresses the image and converts it to a base64 string.
+
   static Future<String> convertToBase64(
     String imagePath, {
     int maxWidth = 300,
@@ -60,9 +60,7 @@ Uint8List _decodeBase64(String data) {
   return base64Decode(data);
 }
 
-/// Static in-memory cache for decoded base64 image bytes.
-/// Keyed by the base64 string's hashCode to avoid re-decoding on widget
-/// recreation (which happens every time the message list rebuilds).
+
 class _Base64Cache {
   static final Map<int, Uint8List> _cache = {};
   static const int _maxEntries = 30;
@@ -119,11 +117,11 @@ class _Base64ImageState extends State<Base64Image> {
     if (widget.base64String.isEmpty) return;
     if (!widget.base64String.startsWith('data:image')) return;
 
-    // Check static cache first — instant, no flicker
+
     final cached = _Base64Cache.get(widget.base64String);
     if (cached != null) {
       _bytes = cached;
-      return; // Already decoded, no setState needed during build
+      return;
     }
 
 
@@ -158,7 +156,7 @@ class _Base64ImageState extends State<Base64Image> {
         return Icon(Icons.error, size: widget.width ?? 50, color: Colors.grey);
       }
       if (_bytes == null) {
-        // Show a fixed-size placeholder so layout doesn't jump
+
         return SizedBox(
           width: widget.width ?? 200,
           height: widget.height ?? 200,
@@ -173,7 +171,7 @@ class _Base64ImageState extends State<Base64Image> {
       );
     }
 
-    // Network URL — CachedNetworkImage handles its own disk/memory cache
+
     return CachedNetworkImage(
       imageUrl: widget.base64String,
       width: widget.width,

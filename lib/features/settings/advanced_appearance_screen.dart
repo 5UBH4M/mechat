@@ -91,7 +91,7 @@ class _AdvancedAppearanceScreenState
     final controller = ref.read(themeControllerProvider.notifier);
     _theme = controller.getEffectiveTheme(widget.chatId);
 
-    // Find which preset is currently active
+
     final allThemes = _getAllThemes();
     final idx = allThemes.indexWhere((t) => t.id == _theme.id);
     if (idx >= 0) _selectedIndex = idx;
@@ -142,7 +142,7 @@ class _AdvancedAppearanceScreenState
     } else {
       controller.setGlobalTheme(_theme.id);
 
-      // Sync themeModeProvider for special built-in themes
+
       final themeId = _theme.id.toLowerCase();
       if (themeId == 'terminal') {
         ref.read(themeModeProvider.notifier).setTheme(AppThemeType.terminal);
@@ -326,12 +326,12 @@ class _AdvancedAppearanceScreenState
       ),
       body: Column(
         children: [
-          // ─── LIVE PREVIEW (top) ───
+
           _buildLivePreview(),
 
           const SizedBox(height: 8),
 
-          // ─── THEME LIST + CUSTOMIZATION (scrollable below) ───
+
           Expanded(
             child: DefaultTabController(
               length: 2,
@@ -351,7 +351,7 @@ class _AdvancedAppearanceScreenState
                   Expanded(
                     child: TabBarView(
                       children: [
-                        // ── Tab 1: Theme name list ──
+
                         ListView.builder(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           itemCount: allThemes.length,
@@ -409,7 +409,7 @@ class _AdvancedAppearanceScreenState
                           },
                         ),
 
-                        // ── Tab 2: Customization panels ──
+
                         ListView(
                           padding: const EdgeInsets.all(16),
                           children: [
@@ -435,9 +435,7 @@ class _AdvancedAppearanceScreenState
     );
   }
 
-  // ══════════════════════════════════════════════════
-  // LIVE PREVIEW
-  // ══════════════════════════════════════════════════
+
   Widget _buildLivePreview() {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
@@ -457,7 +455,7 @@ class _AdvancedAppearanceScreenState
       ),
       child: Column(
         children: [
-          // Fake AppBar
+
           AnimatedContainer(
             duration: const Duration(milliseconds: 300),
             color: Color(_theme.appAppearance.appBarColor),
@@ -494,7 +492,7 @@ class _AdvancedAppearanceScreenState
             ),
           ),
 
-          // Chat area
+
           Expanded(
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 300),
@@ -539,7 +537,7 @@ class _AdvancedAppearanceScreenState
                     ),
                   ),
 
-                  // Fake input field
+
                   Positioned(
                     bottom: 0,
                     left: 0,
@@ -691,9 +689,6 @@ class _AdvancedAppearanceScreenState
     );
   }
 
-  // ══════════════════════════════════════════════════
-  // CUSTOMIZATION PANELS
-  // ══════════════════════════════════════════════════
 
   Widget _buildCustomizationCard({
     required String title,
@@ -780,7 +775,7 @@ class _AdvancedAppearanceScreenState
     );
   }
 
-  // ── Sender Bubble ──
+
   Widget _buildSenderBubblePanel() {
     return _buildCustomizationCard(
       title: 'Sender Bubble',
@@ -835,7 +830,7 @@ class _AdvancedAppearanceScreenState
     );
   }
 
-  // ── Receiver Bubble ──
+
   Widget _buildReceiverBubblePanel() {
     return _buildCustomizationCard(
       title: 'Receiver Bubble',
@@ -892,7 +887,7 @@ class _AdvancedAppearanceScreenState
     );
   }
 
-  // ── Typography ──
+
   Widget _buildTypographyPanel() {
     return _buildCustomizationCard(
       title: 'Typography',
@@ -962,7 +957,7 @@ class _AdvancedAppearanceScreenState
     );
   }
 
-  // ── Chat Background ──
+
   Widget _buildBackgroundPanel() {
     return _buildCustomizationCard(
       title: 'Chat Background',

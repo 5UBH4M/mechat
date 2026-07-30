@@ -19,6 +19,15 @@ class ChatRepositoryImpl implements ChatRepository {
   FirebaseFirestore get _db => FirebaseFirestore.instance;
   final EncryptorService _encryptor = EncryptorService();
   final AppDatabase _localDb = AppDatabase.instance;
+  final Map<String, StreamController<List<MessageEntity>>> _messageControllers = {};
+
+  Future<void> _emitLocalMessages(String chatId) async {
+    final ctrl = _messageControllers[chatId];
+    if (ctrl != null && !ctrl.isClosed) {
+      final msgs = await _localDb.getAllMessages(chatId);
+      ctrl.add(msgs);
+    }
+  }
 
   @override
   Future<List<ChatEntity>> getCachedChatsSync() async {
@@ -27,16 +36,14 @@ class ChatRepositoryImpl implements ChatRepository {
 
   @override
   Stream<List<ChatEntity>> getChats(String uid) {
-    final controller = StreamController<List<ChatEntity>>.broadcast();
+    final controller = StreamController<List<ChatEntity>>();
 
-    // 1. Send cached chats immediately
     _localDb.getAllChats().then((cached) {
       if (!controller.isClosed) {
         controller.add(cached);
       }
     });
 
-    // 2. Stream from Firestore (process docChanges only)
     final firestoreStream = _db
         .collection(AppConstants.chatsCollection)
         .where('participants', arrayContains: uid)
@@ -50,7 +57,7 @@ class ChatRepositoryImpl implements ChatRepository {
           if (data != null) {
             final chatModel = ChatModel.fromJson(data);
             final decryptedChat = _decryptChatLastMessage(chatModel);
-            
+
             if (change.type == DocumentChangeType.removed) {
               await _localDb.deleteChat(decryptedChat.id);
             } else {
@@ -91,17 +98,20 @@ class ChatRepositoryImpl implements ChatRepository {
 
   @override
   Stream<List<MessageEntity>> getMessages(String chatId) {
-    final controller = StreamController<List<MessageEntity>>.broadcast();
+    final existing = _messageControllers[chatId];
+    if (existing != null && !existing.isClosed) {
+      existing.close();
+    }
 
-    // 1. Load ALL messages from SQLite for this chatId → emit immediately
+    final controller = StreamController<List<MessageEntity>>();
+    _messageControllers[chatId] = controller;
+
     _localDb.getAllMessages(chatId).then((cached) {
       if (!controller.isClosed) {
         controller.add(cached);
       }
-      _fetchAndSyncNewMessages(chatId, controller);
     });
 
-    // 4. Start Firestore snapshot listener on messages collection for this chat
     final firestoreStream = _db
         .collection(AppConstants.chatsCollection)
         .doc(chatId)
@@ -111,33 +121,56 @@ class ChatRepositoryImpl implements ChatRepository {
         .snapshots();
 
     StreamSubscription? sub;
+    bool isFirstSnapshot = true;
     sub = firestoreStream.listen(
       (snapshot) async {
         bool hasChanges = false;
-        for (final change in snapshot.docChanges) {
-          final data = change.doc.data();
-          if (data == null) continue;
 
-          final msgModel = MessageModel.fromJson(data);
-          final decryptedMsg = _decryptMessage(msgModel, chatId);
+        if (isFirstSnapshot) {
+          isFirstSnapshot = false;
+          final localIds = await _localDb.getMessageIds(chatId);
+          final newMsgs = <MessageEntity>[];
+          for (final change in snapshot.docChanges) {
+            final data = change.doc.data();
+            if (data == null) continue;
+            final msgModel = MessageModel.fromJson(data);
+            final decryptedMsg = _decryptMessage(msgModel, chatId);
+            if (!localIds.contains(decryptedMsg.id)) {
+              newMsgs.add(decryptedMsg);
+            }
+          }
+          if (newMsgs.isNotEmpty) {
+            await _localDb.insertMessages(newMsgs, chatId, synced: true);
+            hasChanges = true;
+          }
+          final unsynced = await _localDb.getUnsyncedMessages();
+          if (unsynced.isNotEmpty) {
+            for (final msg in unsynced) {
+              await _localDb.updateMessageStatus(msg.id, 'sent');
+              await _localDb.markSynced(msg.id);
+            }
+            hasChanges = true;
+          }
+        } else {
+          for (final change in snapshot.docChanges) {
+            final data = change.doc.data();
+            if (data == null) continue;
+            final msgModel = MessageModel.fromJson(data);
+            final decryptedMsg = _decryptMessage(msgModel, chatId);
 
-          if (change.type == DocumentChangeType.added) {
-            if (!(await _localDb.hasMessage(decryptedMsg.id))) {
+            if (change.type == DocumentChangeType.added ||
+                change.type == DocumentChangeType.modified) {
               await _localDb.insertMessage(decryptedMsg, chatId, synced: true);
               hasChanges = true;
+            } else if (change.type == DocumentChangeType.removed) {
+              await _localDb.deleteMessage(decryptedMsg.id);
+              hasChanges = true;
             }
-          } else if (change.type == DocumentChangeType.modified) {
-            await _localDb.insertMessage(decryptedMsg, chatId, synced: true);
-            hasChanges = true;
-          } else if (change.type == DocumentChangeType.removed) {
-            await _localDb.deleteMessage(decryptedMsg.id);
-            hasChanges = true;
           }
         }
 
-        if (hasChanges && !controller.isClosed) {
-          final updatedMessages = await _localDb.getAllMessages(chatId);
-          controller.add(updatedMessages);
+        if (hasChanges) {
+          await _emitLocalMessages(chatId);
         }
       },
       onError: (err) {
@@ -147,47 +180,11 @@ class ChatRepositoryImpl implements ChatRepository {
 
     controller.onCancel = () {
       sub?.cancel();
+      _messageControllers.remove(chatId);
       controller.close();
     };
 
     return controller.stream;
-  }
-  
-  Future<void> _fetchAndSyncNewMessages(String chatId, StreamController<List<MessageEntity>> controller) async {
-    // 3. Fetch from Firestore: messages newer than latest local timestamp
-    final latestTimestamp = await _localDb.getLatestMessageTimestamp(chatId);
-    
-    Query query = _db
-        .collection(AppConstants.chatsCollection)
-        .doc(chatId)
-        .collection(AppConstants.messagesCollection)
-        .orderBy('timestamp', descending: true);
-        
-    if (latestTimestamp != null) {
-        query = query.where('timestamp', isGreaterThan: latestTimestamp.toIso8601String());
-    } else {
-        query = query.limit(150);
-    }
-    
-    final snapshot = await query.get();
-    
-    if (snapshot.docs.isNotEmpty) {
-        bool hasNew = false;
-        for (final doc in snapshot.docs) {
-           final msgModel = MessageModel.fromJson(doc.data() as Map<String, dynamic>);
-           final decryptedMsg = _decryptMessage(msgModel, chatId);
-           
-           if (!(await _localDb.hasMessage(decryptedMsg.id))) {
-               await _localDb.insertMessage(decryptedMsg, chatId, synced: true);
-               hasNew = true;
-           }
-        }
-        
-        if (hasNew && !controller.isClosed) {
-            final updatedMessages = await _localDb.getAllMessages(chatId);
-            controller.add(updatedMessages);
-        }
-    }
   }
 
   MessageEntity _decryptMessage(MessageModel msg, String chatId) {
@@ -221,14 +218,29 @@ class ChatRepositoryImpl implements ChatRepository {
 
   @override
   Future<void> sendMessage(MessageEntity message, String chatId) async {
-    // 1. Insert DECRYPTED message into SQLite
-    final localMsg = (message as MessageModel).copyWith(status: 'sending');
+    final localMsg = MessageEntity(
+      id: message.id,
+      senderId: message.senderId,
+      receiverId: message.receiverId,
+      content: message.content,
+      type: message.type,
+      timestamp: message.timestamp,
+      status: 'sending',
+      fileUrl: message.fileUrl,
+      fileName: message.fileName,
+      fileSize: message.fileSize,
+      duration: message.duration,
+      repliedToMessageId: message.repliedToMessageId,
+      repliedToMessageContent: message.repliedToMessageContent,
+      reactions: message.reactions,
+      starredBy: message.starredBy,
+      isForwarded: message.isForwarded,
+      localFilePath: message.localFilePath,
+    );
     await _localDb.insertMessage(localMsg, chatId, synced: false);
-    
-    // Update local chat's last message
     await _localDb.updateChatLastMessage(chatId, localMsg);
+    await _emitLocalMessages(chatId);
 
-    // 2. Encrypt content for Firestore
     final encryptedContent = _encryptor.encrypt(message.content, chatId);
     final encryptedReplyContent = message.repliedToMessageContent.isNotEmpty
         ? _encryptor.encrypt(message.repliedToMessageContent, chatId)
@@ -258,8 +270,6 @@ class ChatRepositoryImpl implements ChatRepository {
 
       final batch = _db.batch();
       batch.set(msgRef, msgModel.toFirestore());
-
-      // Chat doc is guaranteed to exist by _initializeChatThread
       batch.update(chatRef, {
         'lastMessage': msgModel.toFirestore(),
         'unreadCounts.${message.receiverId}': FieldValue.increment(1),
@@ -267,15 +277,28 @@ class ChatRepositoryImpl implements ChatRepository {
 
       await batch.commit();
 
-      // 4. On success: update SQLite status='sent', synced=1
       await _localDb.updateMessageStatus(message.id, 'sent');
       await _localDb.markSynced(message.id);
-      
-      final sentMsgLocal = localMsg.copyWith(status: 'sent');
+
+      final sentMsgLocal = MessageEntity(
+        id: localMsg.id,
+        senderId: localMsg.senderId,
+        receiverId: localMsg.receiverId,
+        content: localMsg.content,
+        type: localMsg.type,
+        timestamp: localMsg.timestamp,
+        status: 'sent',
+        fileUrl: localMsg.fileUrl,
+        fileName: localMsg.fileName,
+        fileSize: localMsg.fileSize,
+        duration: localMsg.duration,
+        repliedToMessageId: localMsg.repliedToMessageId,
+        repliedToMessageContent: localMsg.repliedToMessageContent,
+      );
       await _localDb.updateChatLastMessage(chatId, sentMsgLocal);
-      
+      await _emitLocalMessages(chatId);
     } catch (e) {
-      // 5. On failure: leave in SQLite as synced=0
+      // noop
     }
   }
 
@@ -286,17 +309,31 @@ class ChatRepositoryImpl implements ChatRepository {
     required String filePath,
     required void Function(double progress) onProgress,
   }) async {
-    // Insert into SQLite first
-    final localMsg = (message as MessageModel).copyWith(status: 'sending');
+    final localMsg = MessageEntity(
+      id: message.id,
+      senderId: message.senderId,
+      receiverId: message.receiverId,
+      content: message.content,
+      type: message.type,
+      timestamp: message.timestamp,
+      status: 'sending',
+      fileUrl: message.fileUrl,
+      fileName: message.fileName,
+      fileSize: message.fileSize,
+      duration: message.duration,
+      repliedToMessageId: message.repliedToMessageId,
+      repliedToMessageContent: message.repliedToMessageContent,
+      localFilePath: message.localFilePath,
+    );
     await _localDb.insertMessage(localMsg, chatId, synced: false);
     await _localDb.updateChatLastMessage(chatId, localMsg);
-    
+    await _emitLocalMessages(chatId);
+
     try {
       onProgress(0.01);
 
       String fileUrl = '';
 
-      // Try Firebase Storage first for proper file handling
       try {
         final storageRef = FirebaseStorage.instance
             .ref()
@@ -321,17 +358,14 @@ class ChatRepositoryImpl implements ChatRepository {
           );
         }
 
-        // Listen to real upload progress
         uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
           final progress = snapshot.bytesTransferred / snapshot.totalBytes;
           onProgress(progress.clamp(0.01, 0.99));
         });
 
-        // Wait for upload to complete
         final snapshot = await uploadTask;
         fileUrl = await snapshot.ref.getDownloadURL();
       } catch (_) {
-        // Fallback to base64 for images if Storage fails
         if (message.type == 'image') {
           fileUrl = await ImageHelper.convertToBase64(
             filePath,
@@ -355,7 +389,7 @@ class ChatRepositoryImpl implements ChatRepository {
         content: message.content,
         type: message.type,
         timestamp: message.timestamp,
-        status: 'sent', // Will be set to sent upon successful sendMessage
+        status: 'sent',
         fileUrl: fileUrl,
         fileName: message.fileName,
         fileSize: message.fileSize,
@@ -363,8 +397,7 @@ class ChatRepositoryImpl implements ChatRepository {
         repliedToMessageId: message.repliedToMessageId,
         repliedToMessageContent: message.repliedToMessageContent,
       );
-      
-      // Update local db with fileUrl so UI can access it
+
       await _localDb.updateMessageField(message.id, {'fileUrl': fileUrl});
 
       await sendMessage(mediaMessage, chatId);
@@ -398,10 +431,9 @@ class ChatRepositoryImpl implements ChatRepository {
     required String messageId,
     required String status,
   }) async {
-    // Update local SQLite
     await _localDb.updateMessageStatus(messageId, status);
-  
-    // Update Firestore
+    await _emitLocalMessages(chatId);
+
     await _db
         .collection(AppConstants.chatsCollection)
         .doc(chatId)
@@ -428,6 +460,7 @@ class ChatRepositoryImpl implements ChatRepository {
     required String uid,
   }) async {
     await _localDb.deleteMessage(messageId);
+    await _emitLocalMessages(chatId);
   }
 
   @override
@@ -435,7 +468,6 @@ class ChatRepositoryImpl implements ChatRepository {
     required String chatId,
     required String messageId,
   }) async {
-    // Delete for everyone: update Firestore message document
     final docRef = _db
         .collection(AppConstants.chatsCollection)
         .doc(chatId)
@@ -456,21 +488,21 @@ class ChatRepositoryImpl implements ChatRepository {
   Future<void> syncOfflineMessages() async {
     await syncToFirestore();
   }
-  
+
   @override
   Future<void> syncToFirestore() async {
     final unsynced = await _localDb.getUnsyncedMessages();
     if (unsynced.isEmpty) return;
-    
+
     for (final localMsg in unsynced) {
       final chatId = await _localDb.getUnsyncedChatId(localMsg.id);
       if (chatId == null) continue;
-      
+
       final encryptedContent = _encryptor.encrypt(localMsg.content, chatId);
       final encryptedReplyContent = localMsg.repliedToMessageContent.isNotEmpty
           ? _encryptor.encrypt(localMsg.repliedToMessageContent, chatId)
           : '';
-          
+
       final msgModel = MessageModel(
           id: localMsg.id,
           senderId: localMsg.senderId,
@@ -486,7 +518,7 @@ class ChatRepositoryImpl implements ChatRepository {
           repliedToMessageId: localMsg.repliedToMessageId,
           repliedToMessageContent: encryptedReplyContent,
       );
-      
+
       try {
         final chatRef = _db.collection(AppConstants.chatsCollection).doc(chatId);
         final msgRef = chatRef
@@ -516,42 +548,40 @@ class ChatRepositoryImpl implements ChatRepository {
           });
         }
         await batch.commit();
-        
+
         await _localDb.updateMessageStatus(localMsg.id, 'sent');
         await _localDb.markSynced(localMsg.id);
       } catch (_) {
-        // Will retry later
       }
     }
   }
-  
+
   @override
   Future<void> pullNewMessages(String chatId) async {
-      // One-time fetch from Firestore of messages newer than latest local
       final latestTimestamp = await _localDb.getLatestMessageTimestamp(chatId);
-      
+
       Query query = _db
           .collection(AppConstants.chatsCollection)
           .doc(chatId)
           .collection(AppConstants.messagesCollection)
           .orderBy('timestamp', descending: true);
-          
+
       if (latestTimestamp != null) {
           query = query.where('timestamp', isGreaterThan: latestTimestamp.toIso8601String());
       }
-      
+
       final snapshot = await query.get();
-      
+
       for (final doc in snapshot.docs) {
          final msgModel = MessageModel.fromJson(doc.data() as Map<String, dynamic>);
          final decryptedMsg = _decryptMessage(msgModel, chatId);
-         
+
          if (!(await _localDb.hasMessage(decryptedMsg.id))) {
              await _localDb.insertMessage(decryptedMsg, chatId, synced: true);
          }
       }
   }
-  
+
   @override
   Future<List<MessageEntity>> getLocalMessages(String chatId, {int limit = 50, int offset = 0}) async {
     return _localDb.getMessages(chatId, limit: limit, offset: offset);
@@ -564,7 +594,6 @@ class ChatRepositoryImpl implements ChatRepository {
     required String userId,
     required String reaction,
   }) async {
-    // Update Firestore — the snapshot listener will sync back to local SQLite
     final msgRef = _db
         .collection(AppConstants.chatsCollection)
         .doc(chatId)

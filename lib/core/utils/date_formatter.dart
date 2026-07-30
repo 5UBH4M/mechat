@@ -8,13 +8,13 @@ class DateFormatter {
     final msgDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
 
     if (msgDate == today) {
-      return DateFormat.jm().format(dateTime); // e.g. 10:30 AM
+      return DateFormat.jm().format(dateTime);
     } else if (msgDate == yesterday) {
       return 'Yesterday';
     } else if (now.difference(msgDate).inDays < 7) {
-      return DateFormat.E().format(dateTime); // e.g. Mon, Tue
+      return DateFormat.E().format(dateTime);
     } else {
-      return DateFormat.yMd().format(dateTime); // e.g. 6/8/2026
+      return DateFormat.yMd().format(dateTime);
     }
   }
 

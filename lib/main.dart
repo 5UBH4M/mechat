@@ -36,7 +36,7 @@ void main() async {
     await NotificationService().init();
   } catch (_) {}
 
-  // Init SQLite database
+
   try {
     await AppDatabase.instance.database;
   } catch (_) {}
@@ -55,7 +55,7 @@ class MeChatApp extends ConsumerStatefulWidget {
 
 class _MeChatAppState extends ConsumerState<MeChatApp>
     with WidgetsBindingObserver {
-  /// Cache of userId -> displayName for notification sender names
+
   final Map<String, String> _userNameCache = {};
 
   @override
@@ -77,7 +77,7 @@ class _MeChatAppState extends ConsumerState<MeChatApp>
     super.dispose();
   }
 
-  /// Look up a user's display name, with in-memory caching
+
   Future<String> _getSenderName(String uid) async {
     if (_userNameCache.containsKey(uid)) return _userNameCache[uid]!;
     try {
@@ -101,7 +101,7 @@ class _MeChatAppState extends ConsumerState<MeChatApp>
 
         final oldChats = previous?.value;
         if (oldChats == null) {
-          return; // Prevent notifying for all messages on app startup
+          return;
         }
         final newChats = next.value ?? [];
 

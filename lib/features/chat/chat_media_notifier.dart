@@ -3,7 +3,7 @@ import 'package:mechat/domain/entities/message_entity.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ChatMediaState {
-  final List<MessageEntity> mediaMessages; // images, videos
+  final List<MessageEntity> mediaMessages;
   final List<MessageEntity> documentMessages;
   final List<MessageEntity> voiceMessages;
   final List<MessageEntity> links;
@@ -108,7 +108,7 @@ class ChatMediaNotifier extends StateNotifier<ChatMediaState> {
     state = state.copyWith(bookmarkedIds: ids);
     _saveBookmarks(ids);
 
-    // We don't re-process everything, just add/remove from current list for efficiency
+
     final bookmarks = List<MessageEntity>.from(state.bookmarkedMessages);
     if (isBookmarked) {
       bookmarks.removeWhere((m) => m.id == message.id);
@@ -116,7 +116,7 @@ class ChatMediaNotifier extends StateNotifier<ChatMediaState> {
       bookmarks.add(message);
       bookmarks.sort(
         (a, b) => b.timestamp.compareTo(a.timestamp),
-      ); // Newest first
+      );
     }
     state = state.copyWith(bookmarkedMessages: bookmarks);
   }

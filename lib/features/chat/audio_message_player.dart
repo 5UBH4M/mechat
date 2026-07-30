@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 
 class AudioMessagePlayer extends StatefulWidget {
   final String audioUrl;
-  final int duration; // In seconds
+  final int duration;
   final bool isSender;
 
   const AudioMessagePlayer({

@@ -25,7 +25,7 @@ class AuthRepositoryImpl implements AuthRepository {
   final HiveService _hive = HiveService();
 
   AuthRepositoryImpl() {
-    // Desktop initialization
+
     if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.linux || defaultTargetPlatform == TargetPlatform.windows)) {
       _googleSignInLinux = gsia.GoogleSignIn(
         params: gsia.GoogleSignInParams(
@@ -46,15 +46,15 @@ class AuthRepositoryImpl implements AuthRepository {
           return null;
         }
 
-        // Always try local cache first — instant, works offline
+
         final cached = _hive.getUser();
         if (cached != null) {
-          // Refresh from Firestore in the background (non-blocking)
+
           _refreshUserFromFirestore(firebaseUser.uid);
           return UserModel.fromJson(cached);
         }
 
-        // No cache — must fetch from Firestore (with timeout for offline safety)
+
         try {
           final doc = await _db
               .collection(AppConstants.usersCollection)
@@ -100,7 +100,7 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 
-  /// Refreshes user data from Firestore and updates local cache (non-blocking)
+
   Future<void> _refreshUserFromFirestore(String uid) async {
     try {
       final doc = await _db
@@ -158,9 +158,8 @@ class AuthRepositoryImpl implements AuthRepository {
       UserCredential userCredential;
 
       if (kIsWeb) {
-        // Use Firebase Auth's built-in popup for Web
-        // This avoids the deprecated google_sign_in web package issues
-        // and works much better with third-party cookie blockers.
+
+
         final provider = GoogleAuthProvider();
         userCredential = await _auth.signInWithPopup(provider);
       } else if (defaultTargetPlatform == TargetPlatform.linux || defaultTargetPlatform == TargetPlatform.windows) {
@@ -175,11 +174,11 @@ class AuthRepositoryImpl implements AuthRepository {
         }
         final credential = GoogleAuthProvider.credential(
           accessToken: credentials.accessToken,
-          idToken: null, // Often null for desktop offline flow
+          idToken: null,
         );
         userCredential = await _auth.signInWithCredential(credential);
       } else {
-        // Mobile (Android/iOS/MacOS)
+
         final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
         if (googleUser == null) {
           onSignInFailed('Sign in aborted by user');
@@ -202,11 +201,10 @@ class AuthRepositoryImpl implements AuthRepository {
         return;
       }
 
-      // Add a small delay to ensure FirebaseAuth state propagates to Firestore WebChannel
-      // This prevents a known race condition where get() throws permission-denied.
+
       await Future.delayed(const Duration(milliseconds: 1000));
 
-      // Check if user profile already exists
+
       final userDoc = await _db
           .collection(AppConstants.usersCollection)
           .doc(firebaseUser.uid)
@@ -230,7 +228,7 @@ class AuthRepositoryImpl implements AuthRepository {
           blockedUsers: const [],
           pushToken: '',
         );
-        // Wait to save to firestore until they complete the profile
+
       }
 
       await _hive.saveUser(userModel.toJson());
@@ -244,7 +242,7 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       final uid = _auth.currentUser?.uid;
       if (uid != null) {
-        // Set offline status
+
         await _db.collection(AppConstants.usersCollection).doc(uid).update({
           'isOnline': false,
           'lastSeen': FieldValue.serverTimestamp(),

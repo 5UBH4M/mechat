@@ -17,12 +17,12 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen>
   Timer? _autoAcceptTimer;
   int _autoAcceptCountdown = 5;
 
-  // Ripple animation
+
   late AnimationController _rippleController;
-  // Pulse animation for the avatar
+
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
-  // Slide-up animation for buttons
+
   late AnimationController _slideController;
   late Animation<Offset> _slideAnimation;
 
@@ -30,13 +30,13 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen>
   void initState() {
     super.initState();
 
-    // Ripple rings expanding outward
+
     _rippleController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 3),
     )..repeat();
 
-    // Avatar pulsing gently
+
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
@@ -45,7 +45,7 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen>
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
-    // Slide-up entrance for buttons
+
     _slideController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
@@ -102,7 +102,7 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen>
     final autoAccept = user?.autoAcceptCalls == true;
     final screenSize = MediaQuery.of(context).size;
 
-    // Navigate based on call status changes
+
     ref.listen<CallState>(callNotifierProvider, (previous, next) {
       if (previous?.status != next.status) {
         if (next.status == 'idle') {
@@ -137,7 +137,7 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen>
         child: SafeArea(
           child: Stack(
             children: [
-              // Animated ripple rings behind avatar
+
               Center(
                 child: AnimatedBuilder(
                   animation: _rippleController,
@@ -155,12 +155,12 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen>
                 ),
               ),
 
-              // Main content
+
               Column(
                 children: [
                   const Spacer(flex: 2),
 
-                  // Call type label
+
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
@@ -201,7 +201,7 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen>
 
                   const SizedBox(height: 32),
 
-                  // Pulsing avatar
+
                   ScaleTransition(
                     scale: _pulseAnimation,
                     child: Container(
@@ -243,7 +243,7 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen>
 
                   const SizedBox(height: 24),
 
-                  // Caller name
+
                   Text(
                     callState.remoteUserName,
                     style: const TextStyle(
@@ -256,7 +256,7 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen>
 
                   const SizedBox(height: 10),
 
-                  // Status text
+
                   Text(
                     callState.isVideo
                         ? 'Incoming Video Call...'
@@ -268,7 +268,7 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen>
                     ),
                   ),
 
-                  // Auto-accept countdown
+
                   if (autoAccept) ...[
                     const SizedBox(height: 24),
                     _buildAutoAcceptCountdown(),
@@ -276,7 +276,7 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen>
 
                   const Spacer(flex: 3),
 
-                  // Action buttons with slide-up animation
+
                   if (!autoAccept)
                     SlideTransition(
                       position: _slideAnimation,
@@ -410,7 +410,7 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen>
   }
 }
 
-/// Draws expanding concentric ripple rings
+
 class _RipplePainter extends CustomPainter {
   final double progress;
   final Color color;

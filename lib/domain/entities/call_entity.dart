@@ -5,9 +5,9 @@ class CallEntity extends Equatable {
   final String callerId;
   final String callerName;
   final String receiverId;
-  final String type; // 'voice', 'video'
+  final String type;
   final String
-  status; // 'dialing', 'ringing', 'connected', 'ended', 'rejected', 'missed'
+  status;
   final DateTime createdAt;
 
   const CallEntity({

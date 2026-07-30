@@ -17,11 +17,11 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
   bool _isBackingUp = false;
   bool _isRestoring = false;
   bool _includeMedia = true;
-  
+
   int _dbSize = 0;
   int _mediaSize = 0;
   DateTime? _lastBackupDate;
-  
+
   String _statusStage = '';
   double _statusProgress = 0.0;
 
@@ -76,7 +76,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           }
         },
       );
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Backup created successfully at: $path')),
@@ -107,7 +107,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
 
     if (result != null && result.files.single.path != null) {
       final path = result.files.single.path!;
-      
+
       if (!path.toLowerCase().endsWith('.zip')) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -158,7 +158,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
               }
             },
           );
-          
+
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Backup restored successfully')),
@@ -225,7 +225,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           ListView(
             padding: const EdgeInsets.all(24.0),
             children: [
-              // Header
+
               Icon(Icons.cloud_sync_outlined, size: 64, color: theme.colorScheme.primary),
               const SizedBox(height: 16),
               Text(
@@ -237,7 +237,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
               ),
               const SizedBox(height: 32),
 
-              // Backup Section
+
               Text('Create Backup', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
               Card(
@@ -300,7 +300,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
 
               const SizedBox(height: 32),
 
-              // Restore Section
+
               Text('Restore Backup', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
               Card(
@@ -330,7 +330,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
               ),
             ],
           ),
-          
+
           if (_isBackingUp) _buildProgressOverlay('Creating Backup...'),
           if (_isRestoring) _buildProgressOverlay('Restoring Backup...'),
         ],

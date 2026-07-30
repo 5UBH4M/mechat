@@ -108,7 +108,7 @@ class ChatSearchNotifier extends StateNotifier<ChatSearchState> {
       return;
     }
 
-    // Exact search first (case-insensitive)
+
     final exactMatches = <int>[];
     final lowerQuery = query.toLowerCase();
 
@@ -124,14 +124,13 @@ class ChatSearchNotifier extends StateNotifier<ChatSearchState> {
         matchIndices: exactMatches,
         currentMatchIndex:
             exactMatches.length -
-            1, // Start at bottom-most match (since messages are usually reversed or ordered, let's say index 0 is latest. Wait, indices depend on the provided list)
+            1,
         isFuzzy: false,
       );
       return;
     }
 
-    // If no exact matches, try fuzzy
-    // We only fuzzy search if query is at least 4 chars long
+
     if (query.length < 4) {
       state = state.copyWith(
         query: query,
@@ -149,7 +148,7 @@ class ChatSearchNotifier extends StateNotifier<ChatSearchState> {
           WeightedKey(name: 'content', getter: (i) => i.content, weight: 1),
         ],
         threshold:
-            0.3, // 0 is perfect, 1 is anything. 0.3 allows minor spelling mistakes
+            0.3,
         minMatchCharLength: 3,
       ),
     );
@@ -159,8 +158,8 @@ class ChatSearchNotifier extends StateNotifier<ChatSearchState> {
 
     for (var result in results) {
       if (result.score < 0.4) {
-        // Only good matches
-        // Find the index in original list
+
+
         final idx = messages.indexOf(result.item);
         if (idx != -1) {
           fuzzyIndices.add(idx);
@@ -168,7 +167,7 @@ class ChatSearchNotifier extends StateNotifier<ChatSearchState> {
       }
     }
 
-    // Sort to keep order consistent with the list
+
     fuzzyIndices.sort();
 
     if (fuzzyIndices.isNotEmpty) {

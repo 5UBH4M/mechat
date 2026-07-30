@@ -35,7 +35,7 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
     final currentUser = ref.read(authNotifierProvider).user;
     if (currentUser == null) return;
 
-    // We need to calculate the chat ID. The current implementation in chat_notifier is:
+
     final uid1 = currentUser.uid;
     final uid2 = widget.user.uid;
     final uids = [uid1, uid2]..sort();
@@ -178,7 +178,7 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
       });
     }
 
-    // Refresh auth state
+
     ref.read(authNotifierProvider.notifier).init();
   }
 
@@ -202,7 +202,7 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
       backgroundColor: theme.colorScheme.surface,
       body: CustomScrollView(
         slivers: [
-          // Hero profile picture as app bar
+
           SliverAppBar(
             expandedHeight: 300,
             pinned: true,
@@ -305,7 +305,7 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
 
                 const SizedBox(height: 8),
 
-                // About section
+
                 if (_user.about.isNotEmpty)
                   Container(
                     width: double.infinity,
@@ -329,7 +329,7 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
 
                 const SizedBox(height: 8),
 
-                // Email section
+
                 if (_user.email.isNotEmpty)
                   Container(
                     width: double.infinity,
@@ -365,7 +365,7 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
 
                 const SizedBox(height: 8),
 
-                // Message Stats section
+
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
@@ -433,7 +433,7 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
                   ),
                 ),
 
-                // Call Logs Section
+
                 const SizedBox(height: 16),
                 Container(
                   decoration: BoxDecoration(

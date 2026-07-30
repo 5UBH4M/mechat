@@ -12,7 +12,7 @@ class ContactRepositoryImpl implements ContactRepository {
   @override
   Future<UserEntity?> searchUserByUsername(String username) async {
     try {
-      // First try exact match
+
       var snap = await _db
           .collection(AppConstants.usersCollection)
           .where('username', isEqualTo: username.trim())
@@ -21,7 +21,7 @@ class ContactRepositoryImpl implements ContactRepository {
 
       if (snap.docs.isEmpty &&
           username.trim() != username.toLowerCase().trim()) {
-        // Fallback to lowercase match if exact match fails
+
         snap = await _db
             .collection(AppConstants.usersCollection)
             .where('username', isEqualTo: username.toLowerCase().trim())
@@ -42,7 +42,7 @@ class ContactRepositoryImpl implements ContactRepository {
       'blockedUsers': FieldValue.arrayUnion([blockUid]),
     });
 
-    // Update local cache
+
     final localUser = _hive.getUser();
     if (localUser != null) {
       final model = UserModel.fromJson(localUser);
@@ -59,7 +59,7 @@ class ContactRepositoryImpl implements ContactRepository {
       'blockedUsers': FieldValue.arrayRemove([unblockUid]),
     });
 
-    // Update local cache
+
     final localUser = _hive.getUser();
     if (localUser != null) {
       final model = UserModel.fromJson(localUser);
@@ -89,8 +89,8 @@ class ContactRepositoryImpl implements ContactRepository {
     if (blockedUids.isEmpty) return [];
 
     final List<UserEntity> blockedUsers = [];
-    // Firestore whereIn has a limit of 10 items, but for general messaging list it is fine.
-    // Let's do chunking or fetch individually to make it fully production-grade.
+
+
     for (final uid in blockedUids) {
       try {
         final doc = await _db

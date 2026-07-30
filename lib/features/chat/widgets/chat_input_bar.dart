@@ -62,7 +62,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
       ),
       child: Row(
         children: [
-          // Media attachments button
+
           IconButton(
             icon: Icon(
               Icons.add_circle_outline_rounded,
@@ -71,7 +71,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
             onPressed: widget.onShowMediaOptions,
           ),
 
-          // Main text entry field
+
           Expanded(
             child: Container(
               decoration: BoxDecoration(
@@ -101,7 +101,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                           ),
                           const Spacer(),
                           TextButton(
-                            onPressed: () => widget.onStopRecording(false), // Cancel
+                            onPressed: () => widget.onStopRecording(false),
                             child: const Text(
                               'Cancel',
                               style: TextStyle(color: Colors.red),
@@ -115,8 +115,8 @@ class _ChatInputBarState extends State<ChatInputBar> {
                       focusNode: widget.messageFocusNode,
                       onChanged: widget.onTextChanged,
                       onTapOutside: (event) {
-                        // Prevent keyboard from closing automatically when tapping outside (e.g. starting a swipe).
-                        // It will close on drag due to ListView's keyboardDismissBehavior.
+
+
                       },
                       textCapitalization: TextCapitalization.sentences,
                       maxLines: null,
@@ -142,7 +142,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
 
           const SizedBox(width: 8),
 
-          // Send / Voice Record Button
+
           Builder(builder: (context) {
             final sendButtonBgColor = Color(advTheme.appAppearance.sendButtonColor);
             final sendIconColor = sendButtonBgColor.computeLuminance() > 0.5

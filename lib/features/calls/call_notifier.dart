@@ -12,12 +12,12 @@ import '../auth/auth_notifier.dart';
 class CallState {
   final String? callId;
   final String
-  status; // 'idle', 'dialing', 'ringing', 'connected', 'ended', 'rejected', 'missed'
+  status;
   final bool isVideo;
   final bool isMicMuted;
   final bool isCameraEnabled;
   final bool isSpeakerOn;
-  final int duration; // In seconds
+  final int duration;
   final String remoteUserName;
   final String remoteUserAvatar;
   final String callerId;
@@ -108,7 +108,7 @@ class CallNotifier extends StateNotifier<CallState> {
     await remoteRenderer.initialize();
   }
 
-  // Monitor incoming call documents
+
   void _listenForIncomingCalls() {
     _ref.listen(authNotifierProvider, (previous, next) {
       final user = next.user;
@@ -128,7 +128,7 @@ class CallNotifier extends StateNotifier<CallState> {
               final doc = snapshot.docs.first;
               final data = doc.data();
 
-              // Set the ringing status locally
+
               state = CallState(
                 callId: doc.id,
                 status: 'ringing',
@@ -138,16 +138,16 @@ class CallNotifier extends StateNotifier<CallState> {
                 isSpeakerOn: data['type'] == 'video',
                 duration: 0,
                 remoteUserName: data['callerName'] ?? 'Unknown Caller',
-                remoteUserAvatar: '', // Resolve from user details later
+                remoteUserAvatar: '',
                 callerId: data['callerId'],
                 receiverId: data['receiverId'],
                 partnerWantsHangup: false,
               );
 
-              // Setup local/remote signaling callbacks
+
               _setupSignalingCallbacks();
 
-              // Show full-screen incoming call notification (works over lock screen and other apps)
+
               final lifecycleState = WidgetsBinding.instance.lifecycleState;
               if (lifecycleState != AppLifecycleState.resumed) {
                 _ref
@@ -199,7 +199,7 @@ class CallNotifier extends StateNotifier<CallState> {
 
     signaling.onPartnerHangupRejected = () {
       state = state.copyWith(partnerHangupRejected: true);
-      // Reset it shortly so it can trigger again if needed
+
       Future.delayed(const Duration(seconds: 1), () {
         if (mounted) {
           state = state.copyWith(partnerHangupRejected: false);
@@ -208,7 +208,7 @@ class CallNotifier extends StateNotifier<CallState> {
     };
   }
 
-  // Start outgoing call
+
   Future<void> makeCall({
     required String receiverId,
     required String receiverName,
@@ -236,11 +236,11 @@ class CallNotifier extends StateNotifier<CallState> {
     final signaling = _ref.read(signalingServiceProvider);
 
     try {
-      // Setup local audio/video stream
+
       final stream = await signaling.getLocalStream(isVideo);
       localRenderer.srcObject = stream;
 
-      // Initialize Firestore WebRTC call
+
       final callId = await signaling.initCall(
         callerId: sender.uid,
         callerName: sender.displayName,
@@ -256,12 +256,12 @@ class CallNotifier extends StateNotifier<CallState> {
     }
   }
 
-  // Answer call
+
   Future<void> answerCall() async {
     final callId = state.callId;
     if (callId == null) return;
 
-    // Cancel the incoming call notification
+
     _ref.read(notificationServiceProvider)
         .cancelIncomingCallNotification(callId.hashCode);
 
@@ -279,12 +279,12 @@ class CallNotifier extends StateNotifier<CallState> {
     }
   }
 
-  // Reject call
+
   Future<void> rejectCall() async {
     final callId = state.callId;
     if (callId == null) return;
 
-    // Cancel the incoming call notification
+
     _ref.read(notificationServiceProvider)
         .cancelIncomingCallNotification(callId.hashCode);
 
@@ -293,19 +293,19 @@ class CallNotifier extends StateNotifier<CallState> {
     state = CallState.idle();
   }
 
-  // Reject a hangup request
+
   Future<void> rejectHangupRequest() async {
     final callId = state.callId;
     if (callId == null) return;
 
-    // Clear local hangup request dialog state
+
     state = state.copyWith(partnerWantsHangup: false);
 
     final signaling = _ref.read(signalingServiceProvider);
     await signaling.rejectHangup(callId);
   }
 
-  // End active call
+
   Future<void> endCall() async {
     final callId = state.callId;
     if (callId == null) {
@@ -317,7 +317,7 @@ class CallNotifier extends StateNotifier<CallState> {
     await signaling.endCall(callId);
   }
 
-  // Actions
+
   void toggleMute() {
     final newValue = !state.isMicMuted;
     _ref.read(signalingServiceProvider).setMicrophoneMute(newValue);

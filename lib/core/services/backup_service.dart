@@ -8,9 +8,30 @@ import '../database/app_database.dart';
 
 class BackupService {
   static const String _backupDateKey = 'last_backup_date';
+  static const String _appDirName = 'MeChat';
+  static const String _packageName = 'com.mechat.mechat';
 
-  /// Create a backup zip containing the SQLite DB and sent_media folder
-  /// Returns the path to the created zip file
+
+  Future<Directory> _getAppMediaDir() async {
+
+    final dir = Directory('/storage/emulated/0/Android/media/$_packageName/$_appDirName');
+    if (!dir.existsSync()) {
+      dir.createSync(recursive: true);
+    }
+    return dir;
+  }
+
+
+  Future<Directory> _getSubDir(String name) async {
+    final base = await _getAppMediaDir();
+    final dir = Directory(p.join(base.path, name));
+    if (!dir.existsSync()) {
+      dir.createSync(recursive: true);
+    }
+    return dir;
+  }
+
+
   Future<String> createBackup({
     bool includeMedia = true,
     void Function(String stage, double progress)? onProgress,
@@ -25,11 +46,11 @@ class BackupService {
       final archive = Archive();
 
       onProgress?.call('Reading database...', 0.3);
-      _addFileToArchive(archive, File(dbPath), 'mechat.db');
-      
-      // Also copy WAL and SHM if they exist
-      _addFileToArchive(archive, File('$dbPath-wal'), 'mechat.db-wal');
-      _addFileToArchive(archive, File('$dbPath-shm'), 'mechat.db-shm');
+      _addFileToArchive(archive, File(dbPath), 'Databases/mechat.db');
+
+
+      _addFileToArchive(archive, File('$dbPath-wal'), 'Databases/mechat.db-wal');
+      _addFileToArchive(archive, File('$dbPath-shm'), 'Databases/mechat.db-shm');
 
       if (includeMedia) {
         onProgress?.call('Reading media files...', 0.6);
@@ -39,8 +60,8 @@ class BackupService {
           final files = mediaDir.listSync(recursive: true);
           for (final entity in files) {
             if (entity is File) {
-              final relativePath = p.relative(entity.path, from: appDocsDir.path);
-              _addFileToArchive(archive, entity, relativePath);
+              final relativePath = p.relative(entity.path, from: mediaDir.path);
+              _addFileToArchive(archive, entity, 'Media/$relativePath');
             }
           }
         }
@@ -49,19 +70,20 @@ class BackupService {
       onProgress?.call('Zipping backup...', 0.8);
       final zipBytes = ZipEncoder().encode(archive);
 
-      final docsDir = await getApplicationDocumentsDirectory();
-      final zipPath = p.join(docsDir.path, 'mechat_backup_${DateTime.now().millisecondsSinceEpoch}.zip');
+      final backupsDir = await _getSubDir('Backups');
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final zipPath = p.join(backupsDir.path, 'mechat_backup_$timestamp.zip');
       final zipFile = File(zipPath);
       await zipFile.writeAsBytes(zipBytes);
 
-      // Save backup date
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_backupDateKey, DateTime.now().toIso8601String());
 
       onProgress?.call('Backup complete!', 1.0);
       return zipPath;
     } finally {
-      // Reopen database
+
       await AppDatabase.instance.database;
     }
   }
@@ -73,7 +95,7 @@ class BackupService {
     }
   }
 
-  /// Restore from a zip file
+
   Future<void> restoreBackup(
     String zipFilePath, {
     void Function(String stage, double progress)? onProgress,
@@ -84,11 +106,11 @@ class BackupService {
     try {
       final dbPath = AppDatabase.instance.databasePath;
       if (dbPath == null) throw Exception('Database path is null');
-      
+
       onProgress?.call('Extracting backup...', 0.4);
       final bytes = File(zipFilePath).readAsBytesSync();
       final archive = ZipDecoder().decodeBytes(bytes);
-      
+
       final appDocsDir = await getApplicationDocumentsDirectory();
 
       for (final file in archive) {
@@ -97,13 +119,19 @@ class BackupService {
         final filename = file.name;
         final data = file.content as List<int>;
 
-        if (filename == 'mechat.db') {
+        if (filename == 'Databases/mechat.db' || filename == 'mechat.db') {
           File(dbPath).writeAsBytesSync(data);
-        } else if (filename == 'mechat.db-wal') {
+        } else if (filename == 'Databases/mechat.db-wal' || filename == 'mechat.db-wal') {
           File('$dbPath-wal').writeAsBytesSync(data);
-        } else if (filename == 'mechat.db-shm') {
+        } else if (filename == 'Databases/mechat.db-shm' || filename == 'mechat.db-shm') {
           File('$dbPath-shm').writeAsBytesSync(data);
+        } else if (filename.startsWith('Media/')) {
+          final relativePath = filename.substring('Media/'.length);
+          final outFile = File(p.join(appDocsDir.path, 'sent_media', relativePath));
+          outFile.parent.createSync(recursive: true);
+          outFile.writeAsBytesSync(data);
         } else if (filename.startsWith('sent_media/')) {
+
           final outFile = File(p.join(appDocsDir.path, filename));
           outFile.parent.createSync(recursive: true);
           outFile.writeAsBytesSync(data);
@@ -112,7 +140,7 @@ class BackupService {
 
       onProgress?.call('Restore complete!', 1.0);
     } finally {
-      // Reopen database
+
       await AppDatabase.instance.database;
     }
   }
@@ -121,10 +149,10 @@ class BackupService {
     int dbSize = 0;
     int mediaSize = 0;
 
-    // Ensure _dbPath is populated
+
     await AppDatabase.instance.database;
     final dbPath = AppDatabase.instance.databasePath;
-    
+
     if (dbPath != null) {
       final dbFile = File(dbPath);
       if (dbFile.existsSync()) {
@@ -148,6 +176,20 @@ class BackupService {
     }
 
     return {'database': dbSize, 'media': mediaSize};
+  }
+
+
+  Future<String> getBackupDirPath() async {
+    final dir = await _getSubDir('Backups');
+    return dir.path;
+  }
+
+
+  Future<List<FileSystemEntity>> listBackups() async {
+    final dir = await _getSubDir('Backups');
+    if (!dir.existsSync()) return [];
+    return dir.listSync().where((f) => f.path.endsWith('.zip')).toList()
+      ..sort((a, b) => b.path.compareTo(a.path));
   }
 
   Future<DateTime?> getLastBackupDate() async {

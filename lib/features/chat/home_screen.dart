@@ -82,13 +82,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final chatsAsync = ref.watch(recentChatsProvider);
     final currentUser = ref.watch(authNotifierProvider).user;
 
-    // Call state listener: redirect to call page if status ringing, dialing or connected
+
     ref.listen<CallState>(callNotifierProvider, (previous, next) {
       if (previous?.status != next.status) {
         if (next.status == 'ringing') {
           context.push('/incoming-call');
         } else if (next.status == 'dialing' || next.status == 'connected') {
-          // Avoid pushing again if already connected or if we were dialing and are now connected
+
           if (previous?.status != 'dialing') {
             context.push('/ongoing-call');
           }
@@ -215,7 +215,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         },
                       );
                     }
-                
+
                 return Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -463,7 +463,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 width: 14,
                 height: 14,
                 decoration: BoxDecoration(
-                  color: Colors.green, // Visual indicator online
+                  color: Colors.green,
                   shape: BoxShape.circle,
                   border: Border.all(
                     color: theme.colorScheme.surface,

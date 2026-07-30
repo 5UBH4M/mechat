@@ -30,7 +30,7 @@ class ContactsState {
   }) {
     return ContactsState(
       status: status ?? this.status,
-      searchResult: searchResult, // Can be set to null
+      searchResult: searchResult,
       blockedUsers: blockedUsers ?? this.blockedUsers,
       errorMessage: errorMessage ?? this.errorMessage,
     );

@@ -56,8 +56,8 @@ abstract class ChatRepository {
   });
 
   Future<List<MessageEntity>> getLocalMessages(String chatId, {int limit = 50, int offset = 0});
-  
+
   Future<void> syncToFirestore();
-  
+
   Future<void> pullNewMessages(String chatId);
 }

@@ -115,7 +115,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
     };
     await _db.collection(AppConstants.usersCollection).doc(uid).update(data);
 
-    // Update local user cache if it's the current user
+
     final currentUser = _hive.getUser();
     if (currentUser != null && currentUser['uid'] == uid) {
       final model = UserModel.fromJson(

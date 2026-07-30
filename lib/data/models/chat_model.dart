@@ -17,7 +17,7 @@ class ChatModel extends ChatEntity {
   factory ChatModel.fromJson(Map<String, dynamic> json) {
     final lastMsgData = json['lastMessage'] as Map<String, dynamic>?;
 
-    // Parse maps defensively
+
     final unreadMap = json['unreadCounts'] as Map<dynamic, dynamic>? ?? {};
     final typingMap = json['typingStatus'] as Map<dynamic, dynamic>? ?? {};
 

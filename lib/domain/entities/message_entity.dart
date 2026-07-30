@@ -5,19 +5,19 @@ class MessageEntity extends Equatable {
   final String senderId;
   final String receiverId;
   final String content;
-  final String type; // 'text', 'image', 'video', 'audio', 'document'
+  final String type;
   final DateTime timestamp;
-  final String status; // 'sending', 'sent', 'delivered', 'read'
+  final String status;
   final String fileUrl;
   final String fileName;
   final int fileSize;
-  final int duration; // for audio/video duration in seconds
+  final int duration;
   final String repliedToMessageId;
   final String repliedToMessageContent;
-  final Map<String, String> reactions; // userId -> emoji
-  final List<String> starredBy; // List of userIds who starred this message
+  final Map<String, String> reactions;
+  final List<String> starredBy;
   final bool isForwarded;
-  final String localFilePath; // Client-only: for optimistic image preview
+  final String localFilePath;
 
   const MessageEntity({
     required this.id,

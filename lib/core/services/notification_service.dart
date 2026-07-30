@@ -5,17 +5,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-/// Top-level background handler — must be top-level function
+
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   if (kDebugMode) {
     dev.log("Handling background message: ${message.messageId}");
   }
-  // FCM will auto-display the notification from the `notification` payload
-  // sent by our Cloud Function, so we don't need to do anything extra here.
+
+
 }
 
-/// Global callback for notification tap — set from MeChatApp
+
 typedef NotificationTapCallback = void Function(String? payload);
 
 class NotificationService {
@@ -29,13 +29,12 @@ class NotificationService {
 
   NotificationTapCallback? _onNotificationTap;
 
-  /// Queued initial payload when app launched from terminated state
-  /// before onNotificationTap callback is set.
+
   String? _pendingInitialPayload;
 
   set onNotificationTap(NotificationTapCallback? callback) {
     _onNotificationTap = callback;
-    // Replay any queued initial payload
+
     if (callback != null && _pendingInitialPayload != null) {
       callback(_pendingInitialPayload);
       _pendingInitialPayload = null;
@@ -196,7 +195,7 @@ class NotificationService {
     }
   }
 
-  /// Show a message notification with proper sender name and content
+
   Future<void> showMessageNotification({
     required int id,
     required String senderName,
@@ -316,13 +315,12 @@ class NotificationService {
     await _localNotifications.cancel(id: id);
   }
 
-  /// Cancel a specific notification by ID
+
   Future<void> cancelNotification(int id) async {
     await _localNotifications.cancel(id: id);
   }
 
-  /// Show a full-screen incoming call notification that displays over
-  /// the lock screen and other apps
+
   Future<void> showIncomingCallNotification({
     required int id,
     required String callerName,
@@ -359,7 +357,7 @@ class NotificationService {
     );
   }
 
-  /// Cancel incoming call notification
+
   Future<void> cancelIncomingCallNotification(int id) async {
     await _localNotifications.cancel(id: id);
   }

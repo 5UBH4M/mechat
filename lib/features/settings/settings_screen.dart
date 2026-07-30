@@ -127,7 +127,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
-            // User Avatar Picker / Viewer
+
             Center(
               child: GestureDetector(
                 onTap: () {
@@ -185,11 +185,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
             const SizedBox(height: 24),
 
-            // Profile Fields
+
             if (_isEditing) ...[
               TextFormField(
                 controller: _usernameController,
-                readOnly: true, // Username cannot be changed once set
+                readOnly: true,
                 decoration: InputDecoration(
                   labelText: 'Username',
                   suffixIcon: const Icon(Icons.lock_outline, size: 18),
@@ -241,12 +241,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const Divider(thickness: 0.5),
             const SizedBox(height: 20),
 
-            // Application settings options
+
             Card(
               child: Column(
                 children: [
-                  // Dark Mode Switch Option
-                  // Appearance Settings Link
+
+
                   ListTile(
                     leading: Icon(
                       Icons.palette_rounded,
@@ -260,7 +260,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     onTap: () => context.push('/appearance'),
                   ),
 
-                  // Privacy Settings Link
+
                   ListTile(
                     leading: Icon(
                       Icons.privacy_tip_rounded,
@@ -274,7 +274,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     onTap: () => context.push('/privacy-settings'),
                   ),
 
-                  // Notification Settings Link
+
                   ListTile(
                     leading: Icon(
                       Icons.notifications_rounded,
@@ -288,7 +288,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     onTap: () => context.push('/notification-settings'),
                   ),
 
-                  // Wallpaper Settings Link
+
                   ListTile(
                     leading: Icon(
                       Icons.wallpaper_rounded,
@@ -359,7 +359,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       );
                     },
                   ),
-                  // Always Send HD Media Switch
+
                   SwitchListTile(
                     secondary: Icon(
                       Icons.high_quality_rounded,
@@ -382,7 +382,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     },
                   ),
 
-                  // Blocked Users Screen Link
+
                   ListTile(
                     leading: Icon(
                       Icons.block_rounded,
@@ -396,7 +396,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     onTap: () => context.push('/blocked-users'),
                   ),
 
-                  // Security info tile
+
                   ListTile(
                     leading: Icon(
                       Icons.lock_rounded,
@@ -427,7 +427,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     },
                   ),
 
-                  // Backup & Restore tile
+
                   ListTile(
                     leading: Icon(
                       Icons.cloud_download_outlined,
@@ -447,7 +447,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
             const SizedBox(height: 32),
 
-            // Logout Action Button
+
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: theme.colorScheme.error.withValues(alpha: 0.1),
@@ -478,9 +478,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 );
 
                 if (confirm == true && context.mounted) {
-                  // Perform signout
+
                   ref.read(authNotifierProvider.notifier).signOut();
-                  // Re-route to login
+
                   context.go('/login');
                 }
               },

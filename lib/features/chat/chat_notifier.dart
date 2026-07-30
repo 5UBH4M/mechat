@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -8,7 +10,7 @@ import '../../domain/entities/message_entity.dart';
 import '../../domain/repositories/chat_repository.dart';
 import '../auth/auth_notifier.dart';
 
-/// Cached user profile data for chat tiles (display name, avatar, online status)
+
 class UserProfileData {
   final String displayName;
   final String profilePictureUrl;
@@ -25,8 +27,7 @@ class UserProfileData {
   });
 }
 
-/// Single Firestore stream per user uid, auto-disposed when no widget watches it.
-/// Replaces N individual StreamBuilders in HomeScreen chat tiles.
+
 final userProfileProvider = StreamProvider.autoDispose
     .family<UserProfileData, String>((ref, uid) {
   return FirebaseFirestore.instance
@@ -47,7 +48,7 @@ final userProfileProvider = StreamProvider.autoDispose
     );
   });
 });
-// 1. Stream Provider for Recent Chats list
+
 final recentChatsProvider = StreamProvider.autoDispose<List<ChatEntity>>((ref) {
   final authState = ref.watch(authNotifierProvider);
   final user = authState.user;
@@ -57,7 +58,7 @@ final recentChatsProvider = StreamProvider.autoDispose<List<ChatEntity>>((ref) {
   return chatRepo.getChats(user.uid);
 });
 
-// 2. Stream Provider for Messages in a specific chat
+
 final chatMessagesProvider = StreamProvider.autoDispose
     .family<List<MessageEntity>, String>((ref, chatId) {
       final chatRepo = ref.watch(chatRepositoryProvider);
@@ -65,15 +66,13 @@ final chatMessagesProvider = StreamProvider.autoDispose
       return chatRepo.getMessages(chatId);
     });
 
-// 3. Notifier for sending messages and performing actions
 
-// 3. Notifier for sending messages and performing actions
 class ChatNotifier extends StateNotifier<double> {
   final ChatRepository _chatRepository;
   final Ref _ref;
 
   ChatNotifier(this._chatRepository, this._ref)
-    : super(0.0); // State represents upload progress
+    : super(0.0);
 
   String getChatId(String uid1, String uid2) {
     if (uid1 == uid2 || uid2 == 'notes_to_self') return 'notes_$uid1';
@@ -102,10 +101,8 @@ class ChatNotifier extends StateNotifier<double> {
       repliedToMessageContent: repliedToMessageContent,
     );
 
-    // Fire network call in background — don't block the UI
-    _initializeChatThread(chatId, sender.uid, receiverId).then((_) {
-      return _chatRepository.sendMessage(message, chatId);
-    }).catchError((_) {});
+    unawaited(_initializeChatThread(chatId, sender.uid, receiverId));
+    await _chatRepository.sendMessage(message, chatId);
   }
 
   Future<void> sendMessage(MessageEntity message, String receiverId) async {
@@ -122,7 +119,7 @@ class ChatNotifier extends StateNotifier<double> {
     required String filePath,
     required String fileName,
     required int fileSize,
-    required String type, // 'image', 'video', 'audio', 'document'
+    required String type,
     int duration = 0,
     String repliedToMessageId = '',
     String repliedToMessageContent = '',
@@ -133,13 +130,13 @@ class ChatNotifier extends StateNotifier<double> {
     final chatId = getChatId(sender.uid, receiverId);
     final messageId = const Uuid().v4();
 
-    // Copy to persistent local storage so it survives app restart
+
     String localPath = filePath;
     if (type == 'image' || type == 'video') {
       try {
         localPath = await LocalMediaStore.saveFile(filePath, messageId, fileName);
       } catch (_) {
-        // Fall back to original temp path
+
       }
     }
 
@@ -159,11 +156,12 @@ class ChatNotifier extends StateNotifier<double> {
       localFilePath: localPath,
     );
 
-    // Reset progress and run upload in background — don't block the caller
+
     state = 0.0;
 
-    _initializeChatThread(chatId, sender.uid, receiverId).then((_) {
-      return _chatRepository.sendMediaMessage(
+    try {
+      await _initializeChatThread(chatId, sender.uid, receiverId);
+      await _chatRepository.sendMediaMessage(
         message: message,
         chatId: chatId,
         filePath: filePath,
@@ -171,12 +169,12 @@ class ChatNotifier extends StateNotifier<double> {
           state = progress;
         },
       );
-    }).catchError((_) {
+    } catch (_) {
       state = -1.0;
       Future.delayed(const Duration(seconds: 3), () {
         if (state == -1.0) state = 0.0;
       });
-    });
+    }
   }
 
   Future<void> setTypingStatus(String receiverId, bool isTyping) async {
@@ -270,7 +268,7 @@ class ChatNotifier extends StateNotifier<double> {
     );
   }
 
-  // Helper to ensure firestore has a chat document ready
+
   static final Set<String> _initializedChats = {};
 
   Future<void> _initializeChatThread(

@@ -9,7 +9,7 @@ class ChatEntity extends Equatable {
   final Map<String, bool> typingStatus;
   final bool isNotesToSelf;
   final int
-  disappearingTimer; // 0 means disabled, otherwise duration in seconds
+  disappearingTimer;
   final bool isConnectionEstablished;
   final String connectionRequestedBy;
 

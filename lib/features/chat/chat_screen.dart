@@ -76,7 +76,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       ref
           .read(chatNotifierProvider.notifier)
           .resetUnreadCount(widget.receiverId);
-          
+
       final hive = ref.read(hiveServiceProvider);
       final uid = ref.read(authNotifierProvider).user?.uid ?? '';
       final chatId = ref.read(chatNotifierProvider.notifier).getChatId(uid, widget.receiverId);
@@ -115,8 +115,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         .doc(widget.receiverId)
         .snapshots()
         .listen((doc) {
+          if (!mounted) return;
           final data = doc.data();
-          if (doc.exists && data != null && mounted) {
+          if (doc.exists && data != null) {
             setState(() {
               _receiverUser = UserEntity(
                 uid: doc.id,
@@ -170,7 +171,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     _receiverSub?.cancel();
     _messageController.dispose();
     _searchController.dispose();
-    // Stop active recording before disposing to prevent native resource leak
+
     if (_isRecording) {
       _audioRecorder.stop().then((_) {
         if (_audioPath != null) {

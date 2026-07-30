@@ -30,7 +30,7 @@ class HiveService {
   Future<void> init() async {
     await Hive.initFlutter();
 
-    // Open regular boxes in parallel
+
     final results = await Future.wait([
       Hive.openBox(AppConstants.userBoxName),
       Hive.openBox(AppConstants.settingsBoxName),
@@ -41,7 +41,7 @@ class HiveService {
     _settingsBox = results[1];
     _outboxBox = results[2];
 
-    // Open chat cache as LazyBox (data stays on disk, loaded on demand)
+
     _chatBox = await Hive.openLazyBox(AppConstants.chatCacheBoxName);
 
     _isInitialized = true;
@@ -49,11 +49,10 @@ class HiveService {
 
   bool _isSecureBoxInitialized = false;
 
-  /// Lazy load the secure box only when needed (e.g. for E2E keys)
-  /// This prevents FlutterSecureStorage from blocking app startup.
+
   Future<void> _ensureSecureBox() async {
     if (_isSecureBoxInitialized) return;
-    
+
     const secureStorage = FlutterSecureStorage();
     String? encryptionKeyBase64;
     bool secureStorageFailed = false;
@@ -70,15 +69,15 @@ class HiveService {
     if (encryptionKeyBase64 != null) {
       encryptionKey = base64Url.decode(encryptionKeyBase64);
     } else {
-      // Check for legacy key in unencrypted box (migration or fallback)
+
       final legacyKeyRaw = _settingsBox.get('_hive_encryption_key');
       if (legacyKeyRaw != null) {
         encryptionKey = List<int>.from(legacyKeyRaw as List);
-        
+
         if (!secureStorageFailed) {
           try {
             await secureStorage.write(
-              key: '_hive_encryption_key', 
+              key: '_hive_encryption_key',
               value: base64Url.encode(encryptionKey)
             );
             await _settingsBox.delete('_hive_encryption_key');
@@ -88,12 +87,12 @@ class HiveService {
         }
       } else {
         encryptionKey = Hive.generateSecureKey();
-        
+
         bool wroteToSecureStorage = false;
         if (!secureStorageFailed) {
           try {
             await secureStorage.write(
-              key: '_hive_encryption_key', 
+              key: '_hive_encryption_key',
               value: base64Url.encode(encryptionKey)
             );
             wroteToSecureStorage = true;
@@ -102,7 +101,7 @@ class HiveService {
           }
         }
 
-        // If secure storage couldn't be written to, store in settings box
+
         if (!wroteToSecureStorage) {
           await _settingsBox.put('_hive_encryption_key', encryptionKey);
         }
@@ -265,22 +264,22 @@ class HiveService {
     await _settingsBox.delete('chat_wallpaper_path');
   }
 
-  // Clear all caches on logout
+
   Future<void> clearAllCache() async {
     await _userBox.clear();
     await _chatBox.clear();
     await _outboxBox.clear();
-    
+
     if (_isSecureBoxInitialized) {
       await _secureBox.clear();
     } else {
-      // If not initialized, delete it from disk directly to save time
+
       await Hive.deleteBoxFromDisk('secure_keys_box');
     }
-    
-    // Purge encryption key
+
+
     const secureStorage = FlutterSecureStorage();
     await secureStorage.delete(key: '_hive_encryption_key');
-    // Keep settings (like theme)
+
   }
 }

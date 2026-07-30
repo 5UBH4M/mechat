@@ -34,9 +34,9 @@ class _CustomThemeScreenState extends ConsumerState<CustomThemeScreen> {
     Colors.brown,
     Colors.grey,
     Colors.blueGrey,
-    const Color(0xFF0E131F), // Dark slate
-    const Color(0xFFF8FAFC), // Light slate
-    const Color(0xFF1E293B), // Slate 800
+    const Color(0xFF0E131F),
+    const Color(0xFFF8FAFC),
+    const Color(0xFF1E293B),
     Colors.white,
     Colors.black,
   ];
@@ -201,7 +201,7 @@ class _CustomThemeScreenState extends ConsumerState<CustomThemeScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          // Receiver Bubble
+
           Align(
             alignment: Alignment.centerLeft,
             child: Container(
@@ -224,7 +224,7 @@ class _CustomThemeScreenState extends ConsumerState<CustomThemeScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          // Sender Bubble
+
           Align(
             alignment: Alignment.centerRight,
             child: Container(

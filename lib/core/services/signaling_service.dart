@@ -24,7 +24,7 @@ class SignalingService {
 
 
   Future<MediaStream> getLocalStream(bool videoEnabled) async {
-    // Explicitly request permissions before accessing media devices
+
     await Permission.microphone.request();
     if (videoEnabled) {
       await Permission.camera.request();
@@ -109,11 +109,11 @@ class SignalingService {
       if (otherWantsHangup && onPartnerWantsHangup != null) {
         onPartnerWantsHangup!();
       } else if (!otherWantsHangup && currentData['rejectedHangup'] == true) {
-        // Partner rejected our hangup request
+
         if (onPartnerHangupRejected != null) {
           onPartnerHangupRejected!();
         }
-        // Clear the rejected flag so it doesn't trigger again immediately
+
         callDoc.update({'rejectedHangup': FieldValue.delete()});
       }
 
@@ -126,7 +126,7 @@ class SignalingService {
           );
           await peerConnection?.setRemoteDescription(sdpAnswer);
 
-          // Now it's safe to listen for Receiver ICE Candidates
+
           _candidatesSubscription ??= callDoc
               .collection('receiverCandidates')
               .snapshots()
@@ -189,7 +189,7 @@ class SignalingService {
       'sdpAnswer': {'type': answer.type, 'sdp': answer.sdp},
     });
 
-    // Listen to changes (e.g. ended by caller)
+
     _callSubscription = callDoc.snapshots().listen((snap) {
       if (!snap.exists) return;
       final snapData = snap.data();
@@ -269,7 +269,7 @@ class SignalingService {
         return;
       }
 
-      // Check mutual disconnect
+
       final myUid = FirebaseAuth.instance.currentUser?.uid;
       final callerId = data['callerId'];
 
@@ -279,32 +279,31 @@ class SignalingService {
           : data['callerHangup'] == true;
 
       if (otherWantsHangup) {
-        // Both agreed
+
         await docRef.update({
           'status': 'ended',
           'endedAt': FieldValue.serverTimestamp(),
         });
         cleanUpCall();
       } else {
-        // I am the first to request hangup
+
         if (isCaller) {
           await docRef.update({'callerHangup': true});
         } else {
           await docRef.update({'receiverHangup': true});
         }
-        // Do not cleanUpCall yet, wait for other user.
-        // We can update local state to show "Waiting for other to end..." if we want,
-        // but for now, we just stay in the call.
+
+
       }
     } catch (e) {
       if (kDebugMode) {
         dev.log("Error ending call: $e");
       }
-      cleanUpCall(); // Fallback
+      cleanUpCall();
     }
   }
 
-  // Reject a hangup request from the other party
+
   Future<void> rejectHangup(String callId) async {
     try {
       final docRef = _db.collection(AppConstants.callsCollection).doc(callId);
@@ -315,7 +314,7 @@ class SignalingService {
       final myUid = FirebaseAuth.instance.currentUser?.uid;
       final isCaller = myUid == data['callerId'];
 
-      // If they asked to hang up, we reject it by setting their flag to false and adding a rejected marker
+
       if (isCaller) {
         await docRef.update({'receiverHangup': false, 'rejectedHangup': true});
       } else {
@@ -370,7 +369,7 @@ class SignalingService {
   }
 
   void setSpeakerphoneOn(bool on) {
-    // Note: platform specific adjustments if using specialized WebRTC helpers,
-    // e.g. Helper.selectAudioOutput or simple speaker activation.
+
+
   }
 }

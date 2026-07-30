@@ -86,14 +86,14 @@ class AppearanceScreen extends ConsumerWidget {
           : null,
       onTap: () {
         if (themeType == AppThemeType.light || themeType == AppThemeType.dark) {
-          // Just change the brightness mode, keep the advanced theme
+
           ref.read(themeModeProvider.notifier).setTheme(themeType);
         } else {
-          // Standard full themes (Terminal, Cyberpunk, Old Phone)
-          // Set the old theme mode
+
+
           ref.read(themeModeProvider.notifier).setTheme(themeType);
 
-          // Also try to find a matching advanced theme to keep things perfectly synced
+
           if (themeType == AppThemeType.terminal) {
             ref
                 .read(themeControllerProvider.notifier)
