@@ -66,6 +66,7 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
     try {
       if (_isPlaying) {
         await _audioPlayer.pause();
+        if (!mounted) return;
         setState(() {
           _isPlaying = false;
         });
@@ -78,6 +79,7 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
           source = UrlSource(widget.audioUrl);
         }
         await _audioPlayer.play(source);
+        if (!mounted) return;
         setState(() {
           _isPlaying = true;
         });

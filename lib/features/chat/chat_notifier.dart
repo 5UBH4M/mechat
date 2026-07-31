@@ -1,4 +1,4 @@
-import 'dart:async';
+
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -101,8 +101,9 @@ class ChatNotifier extends StateNotifier<double> {
       repliedToMessageContent: repliedToMessageContent,
     );
 
-    unawaited(_initializeChatThread(chatId, sender.uid, receiverId));
-    await _chatRepository.sendMessage(message, chatId);
+    await _chatRepository.insertLocalMessage(message, chatId);
+    await _initializeChatThread(chatId, sender.uid, receiverId);
+    await _chatRepository.syncMessageToFirestore(message, chatId);
   }
 
   Future<void> sendMessage(MessageEntity message, String receiverId) async {

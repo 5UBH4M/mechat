@@ -9,6 +9,10 @@ abstract class ChatRepository {
 
   Future<void> sendMessage(MessageEntity message, String chatId);
 
+  Future<void> insertLocalMessage(MessageEntity message, String chatId);
+
+  Future<void> syncMessageToFirestore(MessageEntity message, String chatId);
+
   Future<void> sendMediaMessage({
     required MessageEntity message,
     required String chatId,

@@ -48,6 +48,7 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
             builder: (_) => ProfileCropScreen(imagePath: picked.path),
           ),
         );
+        if (!mounted) return;
         if (croppedPath != null) {
           setState(() {
             _localImagePath = croppedPath;

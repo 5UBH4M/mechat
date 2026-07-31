@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -17,6 +18,7 @@ class UserInfoScreen extends ConsumerStatefulWidget {
 
 class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
   late UserEntity _user;
+  StreamSubscription? _userSub;
   int _sentCount = 0;
   int _receivedCount = 0;
   bool _isLoadingCounts = true;
@@ -29,6 +31,12 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
     _user = widget.user;
     _listenToUserUpdates();
     _fetchMessageCounts();
+  }
+
+  @override
+  void dispose() {
+    _userSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _fetchMessageCounts() async {
@@ -122,7 +130,7 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
   }
 
   void _listenToUserUpdates() {
-    FirebaseFirestore.instance
+    _userSub = FirebaseFirestore.instance
         .collection('users')
         .doc(widget.user.uid)
         .snapshots()

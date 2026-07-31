@@ -32,6 +32,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
   }
 
   Future<void> _loadData() async {
+    if (!mounted) return;
     setState(() => _isLoadingSizes = true);
     try {
       final sizes = await _backupService.getBackupSizes();
