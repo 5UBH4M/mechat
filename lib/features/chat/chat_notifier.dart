@@ -101,9 +101,8 @@ class ChatNotifier extends StateNotifier<double> {
       repliedToMessageContent: repliedToMessageContent,
     );
 
-    await _chatRepository.insertLocalMessage(message, chatId);
     await _initializeChatThread(chatId, sender.uid, receiverId);
-    await _chatRepository.syncMessageToFirestore(message, chatId);
+    await _chatRepository.sendMessage(message, chatId);
   }
 
   Future<void> sendMessage(MessageEntity message, String receiverId) async {

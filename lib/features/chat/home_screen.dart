@@ -52,6 +52,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   void _startHeartbeat() {
     _heartbeatTimer?.cancel();
     _heartbeatTimer = Timer.periodic(const Duration(seconds: 120), (_) {
+      if (!mounted) return;
       ref.read(profileNotifierProvider.notifier).updateOnlinePresence(true);
     });
   }

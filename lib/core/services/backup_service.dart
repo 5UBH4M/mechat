@@ -9,7 +9,7 @@ import '../database/app_database.dart';
 class BackupService {
   static const String _backupDateKey = 'last_backup_date';
   static const String _appDirName = 'MeChat';
-  static const String _packageName = 'com.mechat.mechat';
+  static const String _packageName = 'com.mechat';
 
 
   Future<Directory> _getAppMediaDir() async {
