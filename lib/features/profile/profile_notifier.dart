@@ -206,7 +206,9 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       );
 
       await _profileRepository.createUserProfile(updatedUser);
-      _ref.read(authNotifierProvider.notifier).updateUser(updatedUser);
+      Future.microtask(() {
+        _ref.read(authNotifierProvider.notifier).updateUser(updatedUser);
+      });
     } catch (e) {
       state = ProfileState(
         status: ProfileStatus.error,

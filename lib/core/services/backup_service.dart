@@ -13,8 +13,8 @@ class BackupService {
 
 
   Future<Directory> _getAppMediaDir() async {
-
-    final dir = Directory('/storage/emulated/0/Android/media/$_packageName/$_appDirName');
+    final extDir = await getExternalStorageDirectory();
+    final dir = Directory(p.join(extDir?.path ?? (await getApplicationDocumentsDirectory()).path, _appDirName));
     if (!dir.existsSync()) {
       dir.createSync(recursive: true);
     }

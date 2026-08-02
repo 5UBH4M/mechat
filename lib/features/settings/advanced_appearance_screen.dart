@@ -142,15 +142,16 @@ class _AdvancedAppearanceScreenState
     } else {
       controller.setGlobalTheme(_theme.id);
 
-
       final themeId = _theme.id.toLowerCase();
-      if (themeId == 'terminal') {
-        ref.read(themeModeProvider.notifier).setTheme(AppThemeType.terminal);
-      } else if (themeId == 'cyberpunk') {
-        ref.read(themeModeProvider.notifier).setTheme(AppThemeType.cyberpunk);
-      } else if (themeId == 'oldphone') {
-        ref.read(themeModeProvider.notifier).setTheme(AppThemeType.oldPhone);
-      }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (themeId == 'terminal') {
+          ref.read(themeModeProvider.notifier).setTheme(AppThemeType.terminal);
+        } else if (themeId == 'cyberpunk') {
+          ref.read(themeModeProvider.notifier).setTheme(AppThemeType.cyberpunk);
+        } else if (themeId == 'oldphone') {
+          ref.read(themeModeProvider.notifier).setTheme(AppThemeType.oldPhone);
+        }
+      });
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
