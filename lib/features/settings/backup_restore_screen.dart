@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../../core/services/backup_service.dart';
 
@@ -67,6 +68,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
 
     try {
       final path = await _backupService.createBackup(
+        ownerUid: FirebaseAuth.instance.currentUser?.uid ?? '',
         includeMedia: _includeMedia,
         onProgress: (stage, progress) {
           if (mounted) {
@@ -150,6 +152,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         try {
           await _backupService.restoreBackup(
             path,
+            currentUid: FirebaseAuth.instance.currentUser?.uid ?? '',
             onProgress: (stage, progress) {
               if (mounted) {
                 setState(() {

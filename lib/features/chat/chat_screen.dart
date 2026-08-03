@@ -119,25 +119,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           if (!mounted) return;
           final data = doc.data();
           if (doc.exists && data != null) {
-            setState(() {
-              _receiverUser = UserEntity(
-                uid: doc.id,
-                email: data['email'] ?? '',
-                username: data['username'] ?? '',
-                displayName: data['displayName'] ?? 'User',
-                profilePictureUrl: data['profilePictureUrl'] ?? '',
-                about: data['about'] ?? '',
-                isOnline: data['isOnline'] ?? false,
-                lastSeen: (data['lastSeen'] as Timestamp?)?.toDate() ?? DateTime.now(),
-                publicKey: data['publicKey'] ?? '',
-                blockedUsers: List<String>.from(data['blockedUsers'] ?? []),
-                pushToken: data['pushToken'] ?? '',
-                createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-                lastSeenVisible: data['lastSeenVisible'] ?? true,
-                disconnectRequested: data['disconnectRequested'] ?? false,
-                connectedTo: data['connectedTo'] ?? '',
-              );
-            });
+            try {
+              setState(() {
+                _receiverUser = UserEntity(
+                  uid: doc.id,
+                  email: data['email'] ?? '',
+                  username: data['username'] ?? '',
+                  displayName: data['displayName'] ?? 'User',
+                  profilePictureUrl: data['profilePictureUrl'] ?? '',
+                  about: data['about'] ?? '',
+                  isOnline: data['isOnline'] ?? false,
+                  lastSeen: (data['lastSeen'] as Timestamp?)?.toDate() ?? DateTime.now(),
+                  publicKey: data['publicKey'] ?? '',
+                  blockedUsers: List<String>.from(data['blockedUsers'] ?? []),
+                  pushToken: data['pushToken'] ?? '',
+                  createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+                  lastSeenVisible: data['lastSeenVisible'] ?? true,
+                  disconnectRequested: data['disconnectRequested'] ?? false,
+                  connectedTo: data['connectedTo'] ?? '',
+                );
+              });
+            } catch (_) {}
           }
         });
   }
@@ -157,19 +159,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
   @override
   void dispose() {
+    _receiverSub?.cancel();
+    _heartbeatTimer?.cancel();
+    _typingDebouncer?.cancel();
+
     final uid = ref.read(authNotifierProvider).user?.uid ?? '';
     final chatId = ref.read(chatNotifierProvider.notifier).getChatId(uid, widget.receiverId);
     final hive = ref.read(hiveServiceProvider);
     hive.saveDraft(chatId, _messageController.text.trim());
 
     WidgetsBinding.instance.removeObserver(this);
-    _typingDebouncer?.cancel();
     if (!_isNotesToSelf) {
       ref
           .read(chatNotifierProvider.notifier)
           .setTypingStatus(widget.receiverId, false);
     }
-    _receiverSub?.cancel();
     _messageController.dispose();
     _searchController.dispose();
 
@@ -182,7 +186,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     }
     _audioRecorder.dispose();
     _messageFocusNode.dispose();
-    _heartbeatTimer?.cancel();
     _recordingTimer?.cancel();
     super.dispose();
   }
@@ -477,28 +480,37 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
     if (!currentUser.disconnectRequested) {
       if (_receiverUser?.disconnectRequested == true) {
-        final batch = db.batch();
-        batch.update(myDoc, {'connectedTo': '', 'disconnectRequested': false});
-        batch.update(remoteDoc, {
-          'connectedTo': '',
-          'disconnectRequested': false,
-        });
+        try {
+          await myDoc.update({'connectedTo': '', 'disconnectRequested': false});
+          await remoteDoc.update({
+            'connectedTo': '',
+            'disconnectRequested': false,
+          });
 
-        final chatId = ref
-            .read(chatNotifierProvider.notifier)
-            .getChatId(currentUser.uid, widget.receiverId);
-        final chatDoc = db.collection('chats').doc(chatId);
-        batch.update(chatDoc, {
-          'isConnectionEstablished': false,
-          'connectionRequestedBy': '',
-        });
+          final chatId = ref
+              .read(chatNotifierProvider.notifier)
+              .getChatId(currentUser.uid, widget.receiverId);
+          try {
+            await db.collection('chats').doc(chatId).update({
+              'isConnectionEstablished': false,
+              'connectionRequestedBy': '',
+            });
+          } catch (e) {
+            // Ignore if chat doc doesn't exist yet
+          }
 
-        await batch.commit();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Disconnected successfully.')),
-          );
-          context.pop();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Disconnected successfully.')),
+            );
+            context.pop();
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Disconnect failed: $e')),
+            );
+          }
         }
       } else {
         await myDoc.update({'disconnectRequested': true});
@@ -553,9 +565,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         .read(chatNotifierProvider.notifier)
         .getChatId(currentUser.uid, widget.receiverId);
     final db = FirebaseFirestore.instance;
-    await db.collection('chats').doc(chatId).update({
-      'connectionRequestedBy': currentUser.uid,
-    });
+    try {
+      await db.collection('chats').doc(chatId).set({
+        'connectionRequestedBy': currentUser.uid,
+        'participants': [currentUser.uid, widget.receiverId],
+      }, SetOptions(merge: true));
+    } catch (_) {}
   }
 
   Future<void> _handleAcceptConnection() async {

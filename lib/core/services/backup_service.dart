@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:archive/archive.dart';
 import 'package:path/path.dart' as p;
@@ -33,6 +34,7 @@ class BackupService {
 
 
   Future<String> createBackup({
+    required String ownerUid,
     bool includeMedia = true,
     void Function(String stage, double progress)? onProgress,
   }) async {
@@ -44,6 +46,10 @@ class BackupService {
       if (dbPath == null) throw Exception('Database path is null');
 
       final archive = Archive();
+
+      final metaJson = jsonEncode({'uid': ownerUid, 'createdAt': DateTime.now().toIso8601String()});
+      final metaBytes = utf8.encode(metaJson);
+      archive.addFile(ArchiveFile('metadata.json', metaBytes.length, metaBytes));
 
       onProgress?.call('Reading database...', 0.3);
       _addFileToArchive(archive, File(dbPath), 'Databases/mechat.db');
@@ -98,6 +104,7 @@ class BackupService {
 
   Future<void> restoreBackup(
     String zipFilePath, {
+    required String currentUid,
     void Function(String stage, double progress)? onProgress,
   }) async {
     onProgress?.call('Closing database...', 0.1);
@@ -107,10 +114,21 @@ class BackupService {
       final dbPath = AppDatabase.instance.databasePath;
       if (dbPath == null) throw Exception('Database path is null');
 
-      onProgress?.call('Extracting backup...', 0.4);
+      onProgress?.call('Verifying backup...', 0.2);
       final bytes = File(zipFilePath).readAsBytesSync();
       final archive = ZipDecoder().decodeBytes(bytes);
 
+      final metaFile = archive.findFile('metadata.json');
+      if (metaFile != null) {
+        final metaStr = utf8.decode(metaFile.content as List<int>);
+        final meta = jsonDecode(metaStr) as Map<String, dynamic>;
+        final backupUid = meta['uid'] as String?;
+        if (backupUid != null && backupUid != currentUid) {
+          throw Exception('This backup belongs to a different account');
+        }
+      }
+
+      onProgress?.call('Extracting backup...', 0.4);
       final appDocsDir = await getApplicationDocumentsDirectory();
 
       for (final file in archive) {

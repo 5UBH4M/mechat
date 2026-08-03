@@ -77,9 +77,9 @@ service cloud.firestore {
       // Only the owner can update their own profile.
       // The uid field is immutable — it must not change.
       allow update: if isOwner(userId)
-        && request.resource.data.uid == resource.data.uid          // uid is immutable
-        && request.resource.data.email == resource.data.email      // email is immutable
-        && request.resource.data.createdAt == resource.data.createdAt // createdAt is immutable
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.uid is string
         && request.resource.data.displayName is string
         && request.resource.data.about is string
@@ -90,8 +90,10 @@ service cloud.firestore {
         && request.resource.data.get('lastSeenVisible', true) is bool
         && request.resource.data.get('profilePhotoVisible', true) is bool;
 
-      // --- DELETE ---
-      // Only the owner can delete their profile.
+      allow update: if isAuthenticated()
+        && resource.data.connectedTo == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['connectedTo', 'disconnectRequested', 'previouslyConnected']);
+
       allow delete: if isOwner(userId);
     }
 

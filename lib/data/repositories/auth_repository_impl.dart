@@ -7,6 +7,7 @@ import '../../core/constants/app_constants.dart';
 import '../../domain/entities/user_entity.dart';
 import '../../core/services/notification_service.dart';
 import '../../core/services/hive_service.dart';
+import '../../core/database/app_database.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../models/user_model.dart';
 
@@ -250,6 +251,7 @@ class AuthRepositoryImpl implements AuthRepository {
       }
     } catch (_) {}
 
+    await AppDatabase.instance.clearAll();
     await _googleSignIn.signOut();
     await _auth.signOut();
     await _hive.clearAllCache();
