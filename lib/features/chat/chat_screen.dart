@@ -482,6 +482,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       if (_receiverUser?.disconnectRequested == true) {
         try {
           await myDoc.update({'connectedTo': '', 'disconnectRequested': false});
+          ref.read(authNotifierProvider.notifier).updateUser(
+            currentUser.copyWith(connectedTo: '', disconnectRequested: false),
+          );
+
           await remoteDoc.update({
             'connectedTo': '',
             'disconnectRequested': false,
@@ -495,9 +499,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               'isConnectionEstablished': false,
               'connectionRequestedBy': '',
             });
-          } catch (e) {
-            // Ignore if chat doc doesn't exist yet
-          }
+          } catch (_) {}
 
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -513,22 +515,43 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           }
         }
       } else {
-        await myDoc.update({'disconnectRequested': true});
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Disconnect requested. Waiting for partner.'),
-            ),
+        try {
+          await myDoc.update({'disconnectRequested': true});
+          ref.read(authNotifierProvider.notifier).updateUser(
+            currentUser.copyWith(disconnectRequested: true),
           );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Disconnect requested. Waiting for partner.'),
+              ),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Failed: $e')),
+            );
+          }
         }
       }
     } else {
-
-      await myDoc.update({'disconnectRequested': false});
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Disconnect request cancelled.')),
+      try {
+        await myDoc.update({'disconnectRequested': false});
+        ref.read(authNotifierProvider.notifier).updateUser(
+          currentUser.copyWith(disconnectRequested: false),
         );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Disconnect request cancelled.')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed: $e')),
+          );
+        }
       }
     }
   }
@@ -541,18 +564,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     final myDoc = db.collection('users').doc(currentUser.uid);
     final remoteDoc = db.collection('users').doc(widget.receiverId);
 
-    final batch = db.batch();
-    if (currentUser.connectedTo == widget.receiverId) {
-      batch.update(myDoc, {'connectedTo': '', 'disconnectRequested': false});
-    }
-    if (_receiverUser?.connectedTo == currentUser.uid) {
-      batch.update(remoteDoc, {
-        'connectedTo': '',
-        'disconnectRequested': false,
-      });
-    }
+    try {
+      if (currentUser.connectedTo == widget.receiverId) {
+        await myDoc.update({'connectedTo': '', 'disconnectRequested': false});
+        ref.read(authNotifierProvider.notifier).updateUser(
+          currentUser.copyWith(connectedTo: '', disconnectRequested: false),
+        );
+      }
+      if (_receiverUser?.connectedTo == currentUser.uid) {
+        await remoteDoc.update({
+          'connectedTo': '',
+          'disconnectRequested': false,
+        });
+      }
+    } catch (_) {}
 
-    await batch.commit();
     if (mounted) {
       context.pop();
     }
@@ -586,30 +612,36 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     final remoteDoc = db.collection('users').doc(widget.receiverId);
     final chatDoc = db.collection('chats').doc(chatId);
 
-    final batch = db.batch();
+    try {
+      await chatDoc.update({
+        'isConnectionEstablished': true,
+        'connectionRequestedBy': '',
+      });
 
-    batch.update(chatDoc, {
-      'isConnectionEstablished': true,
-      'connectionRequestedBy': '',
-    });
+      await myDoc.update({
+        'connectedTo': widget.receiverId,
+        'disconnectRequested': false,
+        'previouslyConnected': FieldValue.arrayUnion([widget.receiverId]),
+      });
+      ref.read(authNotifierProvider.notifier).updateUser(
+        currentUser.copyWith(
+          connectedTo: widget.receiverId,
+          disconnectRequested: false,
+        ),
+      );
 
-    batch.update(myDoc, {
-      'connectedTo': widget.receiverId,
-      'disconnectRequested': false,
-    });
-    batch.update(remoteDoc, {
-      'connectedTo': currentUser.uid,
-      'disconnectRequested': false,
-    });
-
-    batch.update(myDoc, {
-      'previouslyConnected': FieldValue.arrayUnion([widget.receiverId]),
-    });
-    batch.update(remoteDoc, {
-      'previouslyConnected': FieldValue.arrayUnion([currentUser.uid]),
-    });
-
-    await batch.commit();
+      await remoteDoc.update({
+        'connectedTo': currentUser.uid,
+        'disconnectRequested': false,
+        'previouslyConnected': FieldValue.arrayUnion([currentUser.uid]),
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Connection failed: $e')),
+        );
+      }
+    }
   }
 
   Widget _buildConnectionRequestUI(
@@ -749,15 +781,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     final partnerRequestedDisconnect =
         _receiverUser?.disconnectRequested == true &&
         currentUser?.disconnectRequested == false;
-    final isBlockedByMe =
-        currentUser != null &&
-        _receiverUser != null &&
-        currentUser.blockedUsers.contains(_receiverUser!.uid);
-    final isBlockedByThem =
-        currentUser != null &&
-        _receiverUser != null &&
-        _receiverUser!.blockedUsers.contains(currentUser.uid);
-    final isChatDisabled = isBlockedByMe || isBlockedByThem;
     final globalWallpaper = ref.read(hiveServiceProvider).getChatWallpaper();
     final wallpaperPath = useAdvancedThemeData
         ? (advTheme.backgroundTheme.wallpaperUrl ?? globalWallpaper)
@@ -794,7 +817,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           receiverUser: _receiverUser,
           currentUser: currentUser,
           isOtherTyping: isOtherTyping,
-          isChatDisabled: isChatDisabled,
           isConnectionEstablished: isConnectionEstablished,
           hidePhoto: hidePhoto,
           hideName: hideName,
@@ -1003,23 +1025,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                   ),
                 ),
                 if (_replyingToMessage != null) _buildReplyingBar(theme),
-                if (isChatDisabled)
-                  Container(
-                    color: theme.colorScheme.surface,
-                    padding: const EdgeInsets.all(16),
-                    child: Center(
-                      child: Text(
-                        isBlockedByMe
-                            ? 'You have blocked this user'
-                            : 'This contact is unavailable',
-                        style: TextStyle(
-                          color: theme.colorScheme.error,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  )
-                else if (limitReached)
+                if (limitReached)
                   _buildConnectionRequestUI(
                     theme,
                     connectionRequestedBy,

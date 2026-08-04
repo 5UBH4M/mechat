@@ -355,20 +355,6 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const Icon(Icons.block, color: Colors.red),
-                title: const Text(
-                  'Block User',
-                  style: TextStyle(color: Colors.red),
-                ),
-                onTap: () {
-                  ref.read(contactsNotifierProvider.notifier).blockUser(uid);
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(const SnackBar(content: Text('User blocked')));
-                },
-              ),
-              ListTile(
                 leading: const Icon(Icons.report, color: Colors.orange),
                 title: const Text('Report User'),
                 onTap: () {

@@ -10,7 +10,6 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   final UserEntity? receiverUser;
   final UserEntity? currentUser;
   final bool isOtherTyping;
-  final bool isChatDisabled;
   final bool isConnectionEstablished;
   final bool hidePhoto;
   final bool hideName;
@@ -38,7 +37,6 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.receiverUser,
     required this.currentUser,
     required this.isOtherTyping,
-    required this.isChatDisabled,
     required this.isConnectionEstablished,
     required this.hidePhoto,
     required this.hideName,
@@ -248,7 +246,6 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
       ),
       if (!isNotesToSelf &&
           receiverUser != null &&
-          !isChatDisabled &&
           isConnectionEstablished) ...[
         IconButton(
           icon: const Icon(Icons.call_rounded),

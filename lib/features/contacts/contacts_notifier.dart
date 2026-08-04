@@ -9,13 +9,11 @@ enum ContactOpsStatus { initial, loading, success, error }
 class ContactsState {
   final ContactOpsStatus status;
   final UserEntity? searchResult;
-  final List<UserEntity> blockedUsers;
   final String? errorMessage;
 
   const ContactsState({
     required this.status,
     this.searchResult,
-    this.blockedUsers = const [],
     this.errorMessage,
   });
 
@@ -25,13 +23,11 @@ class ContactsState {
   ContactsState copyWith({
     ContactOpsStatus? status,
     UserEntity? searchResult,
-    List<UserEntity>? blockedUsers,
     String? errorMessage,
   }) {
     return ContactsState(
       status: status ?? this.status,
       searchResult: searchResult,
-      blockedUsers: blockedUsers ?? this.blockedUsers,
       errorMessage: errorMessage ?? this.errorMessage,
     );
   }
@@ -70,39 +66,6 @@ class ContactsNotifier extends StateNotifier<ContactsState> {
     }
   }
 
-  Future<void> blockUser(String blockUid) async {
-    final currentUser = _ref.read(authNotifierProvider).user;
-    if (currentUser == null) return;
-
-    state = state.copyWith(status: ContactOpsStatus.loading);
-    try {
-      await _contactRepository.blockUser(currentUser.uid, blockUid);
-      state = state.copyWith(status: ContactOpsStatus.success);
-      loadBlockedUsers();
-    } catch (e) {
-      state = state.copyWith(
-        status: ContactOpsStatus.error,
-        errorMessage: e.toString(),
-      );
-    }
-  }
-
-  Future<void> unblockUser(String unblockUid) async {
-    final currentUser = _ref.read(authNotifierProvider).user;
-    if (currentUser == null) return;
-
-    state = state.copyWith(status: ContactOpsStatus.loading);
-    try {
-      await _contactRepository.unblockUser(currentUser.uid, unblockUid);
-      state = state.copyWith(status: ContactOpsStatus.success);
-      loadBlockedUsers();
-    } catch (e) {
-      state = state.copyWith(
-        status: ContactOpsStatus.error,
-        errorMessage: e.toString(),
-      );
-    }
-  }
 
   Future<void> reportUser(String reportedUid, String reason) async {
     final currentUser = _ref.read(authNotifierProvider).user;
@@ -124,21 +87,6 @@ class ContactsNotifier extends StateNotifier<ContactsState> {
     }
   }
 
-  Future<void> loadBlockedUsers() async {
-    final currentUser = _ref.read(authNotifierProvider).user;
-    if (currentUser == null) return;
-
-    try {
-      final freshProfile = await _ref
-          .read(profileRepositoryProvider)
-          .getUserProfile(currentUser.uid);
-      final blockedUids =
-          freshProfile?.blockedUsers ?? currentUser.blockedUsers;
-
-      final list = await _contactRepository.getBlockedUsers(blockedUids);
-      state = state.copyWith(blockedUsers: list);
-    } catch (_) {}
-  }
 
   Future<void> connectWithUser(String targetUid) async {
     final currentUser = _ref.read(authNotifierProvider).user;

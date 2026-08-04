@@ -21,7 +21,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen>
     with WidgetsBindingObserver {
-  static const List<String> _quotes = [
+  static const List<String> _defaultQuotes = [
     "Bad days are part of a good life, too.",
     "The things we do, do things to us.",
     "What a privilege it is to grow into someone I used to need.",
@@ -36,7 +36,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     "It is easier to forgive an enemy than to forgive a friend.",
     "A mosquito can fly, but a fly cannot mosquito.",
   ];
-  late String _randomQuote;
+  List<String> _quotes = List.from(_defaultQuotes);
+  int _quoteIndex = 0;
   Timer? _heartbeatTimer;
 
   @override
@@ -45,8 +46,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     WidgetsBinding.instance.addObserver(this);
     ref.read(profileNotifierProvider.notifier).updateOnlinePresence(true);
     ref.read(chatNotifierProvider.notifier).syncOffline();
-    _randomQuote = _quotes[DateTime.now().millisecond % _quotes.length];
+    _quoteIndex = DateTime.now().millisecond % _quotes.length;
     _startHeartbeat();
+    _fetchQuotes();
+  }
+
+  Future<void> _fetchQuotes() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('quotes')
+          .orderBy('order')
+          .get();
+      if (snapshot.docs.isNotEmpty) {
+        final fetched = snapshot.docs
+            .map((doc) => doc.data()['text'] as String?)
+            .where((t) => t != null && t.isNotEmpty)
+            .cast<String>()
+            .toList();
+        if (fetched.isNotEmpty && mounted) {
+          setState(() {
+            _quotes = fetched;
+            _quoteIndex = DateTime.now().millisecond % _quotes.length;
+          });
+        }
+      }
+    } catch (_) {}
   }
 
   void _startHeartbeat() {
@@ -122,32 +146,51 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
-                    theme.colorScheme.secondaryContainer.withValues(alpha: 0.3),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: theme.colorScheme.outline.withValues(alpha: 0.12),
-                ),
-              ),
-              child: Text(
-                '"${_randomQuote}"',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontStyle: FontStyle.italic,
-                  fontWeight: FontWeight.w500,
-                  height: 1.5,
-                  color: theme.colorScheme.onSurfaceVariant,
+          GestureDetector(
+            onHorizontalDragEnd: (details) {
+              if (details.primaryVelocity == null) return;
+              setState(() {
+                if (details.primaryVelocity! < 0) {
+                  _quoteIndex = (_quoteIndex + 1) % _quotes.length;
+                } else if (details.primaryVelocity! > 0) {
+                  _quoteIndex = (_quoteIndex - 1 + _quotes.length) % _quotes.length;
+                }
+              });
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                transitionBuilder: (child, animation) {
+                  return FadeTransition(opacity: animation, child: child);
+                },
+                child: Container(
+                  key: ValueKey<int>(_quoteIndex),
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
+                        theme.colorScheme.secondaryContainer.withValues(alpha: 0.3),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: theme.colorScheme.outline.withValues(alpha: 0.12),
+                    ),
+                  ),
+                  child: Text(
+                    '"${_quotes[_quoteIndex]}"',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w500,
+                      height: 1.5,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
                 ),
               ),
             ),

@@ -36,39 +36,6 @@ class ContactRepositoryImpl implements ContactRepository {
     return null;
   }
 
-  @override
-  Future<void> blockUser(String currentUid, String blockUid) async {
-    await _db.collection(AppConstants.usersCollection).doc(currentUid).update({
-      'blockedUsers': FieldValue.arrayUnion([blockUid]),
-    });
-
-
-    final localUser = _hive.getUser();
-    if (localUser != null) {
-      final model = UserModel.fromJson(localUser);
-      final List<String> updatedBlocks = List.from(model.blockedUsers)
-        ..add(blockUid);
-      final updatedModel = model.copyWith(blockedUsers: updatedBlocks);
-      await _hive.saveUser(updatedModel.toJson());
-    }
-  }
-
-  @override
-  Future<void> unblockUser(String currentUid, String unblockUid) async {
-    await _db.collection(AppConstants.usersCollection).doc(currentUid).update({
-      'blockedUsers': FieldValue.arrayRemove([unblockUid]),
-    });
-
-
-    final localUser = _hive.getUser();
-    if (localUser != null) {
-      final model = UserModel.fromJson(localUser);
-      final List<String> updatedBlocks = List.from(model.blockedUsers)
-        ..remove(unblockUid);
-      final updatedModel = model.copyWith(blockedUsers: updatedBlocks);
-      await _hive.saveUser(updatedModel.toJson());
-    }
-  }
 
   @override
   Future<void> reportUser({
@@ -84,24 +51,4 @@ class ContactRepositoryImpl implements ContactRepository {
     });
   }
 
-  @override
-  Future<List<UserEntity>> getBlockedUsers(List<String> blockedUids) async {
-    if (blockedUids.isEmpty) return [];
-
-    final List<UserEntity> blockedUsers = [];
-
-
-    for (final uid in blockedUids) {
-      try {
-        final doc = await _db
-            .collection(AppConstants.usersCollection)
-            .doc(uid)
-            .get();
-        if (doc.exists && doc.data() != null) {
-          blockedUsers.add(UserModel.fromJson(doc.data()!));
-        }
-      } catch (_) {}
-    }
-    return blockedUsers;
-  }
 }

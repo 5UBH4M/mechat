@@ -168,35 +168,12 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
         });
   }
 
-  Future<void> _toggleBlock() async {
-    final currentUser = ref.read(authNotifierProvider).user;
-    if (currentUser == null) return;
 
-    final db = FirebaseFirestore.instance;
-    final myDoc = db.collection('users').doc(currentUser.uid);
-    final isBlocked = currentUser.blockedUsers.contains(_user.uid);
-
-    if (isBlocked) {
-      await myDoc.update({
-        'blockedUsers': FieldValue.arrayRemove([_user.uid]),
-      });
-    } else {
-      await myDoc.update({
-        'blockedUsers': FieldValue.arrayUnion([_user.uid]),
-      });
-    }
-
-
-    ref.read(authNotifierProvider.notifier).init();
-  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final currentUser = ref.watch(authNotifierProvider).user;
-    final isBlockedByMe =
-        currentUser?.blockedUsers.contains(_user.uid) ?? false;
-
     final bothAllowLastSeen =
         currentUser != null &&
         currentUser.lastSeenVisible &&
@@ -586,52 +563,6 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
                         ),
                       ],
                     ],
-                  ),
-                ),
-
-                Container(
-                  width: double.infinity,
-                  color: theme.colorScheme.surface,
-                  child: ListTile(
-                    leading: Icon(
-                      isBlockedByMe ? Icons.block : Icons.block_outlined,
-                      color: theme.colorScheme.error,
-                    ),
-                    title: Text(
-                      isBlockedByMe
-                          ? 'Unblock ${_user.displayName}'
-                          : 'Block ${_user.displayName}',
-                      style: TextStyle(color: theme.colorScheme.error),
-                    ),
-                    onTap: () async {
-                      final confirm = await showDialog<bool>(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          title: Text(isBlockedByMe ? 'Unblock?' : 'Block?'),
-                          content: Text(
-                            isBlockedByMe
-                                ? 'Are you sure you want to unblock ${_user.displayName}?'
-                                : 'Are you sure you want to block ${_user.displayName}? They will not be able to send you messages.',
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(ctx, false),
-                              child: const Text('Cancel'),
-                            ),
-                            FilledButton(
-                              onPressed: () => Navigator.pop(ctx, true),
-                              style: FilledButton.styleFrom(
-                                backgroundColor: theme.colorScheme.error,
-                              ),
-                              child: Text(isBlockedByMe ? 'Unblock' : 'Block'),
-                            ),
-                          ],
-                        ),
-                      );
-                      if (confirm == true) {
-                        await _toggleBlock();
-                      }
-                    },
                   ),
                 ),
 

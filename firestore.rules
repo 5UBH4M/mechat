@@ -91,7 +91,8 @@ service cloud.firestore {
         && request.resource.data.get('profilePhotoVisible', true) is bool;
 
       allow update: if isAuthenticated()
-        && resource.data.connectedTo == request.auth.uid
+        && (resource.data.connectedTo == request.auth.uid
+            || (resource.data.get('connectedTo', '') == '' && request.resource.data.get('connectedTo', '') == request.auth.uid))
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['connectedTo', 'disconnectRequested', 'previouslyConnected']);
 
       allow delete: if isOwner(userId);
@@ -177,6 +178,11 @@ service cloud.firestore {
       match /receiverCandidates/{candidateId} {
         allow read, write: if isCallParticipant(callId);
       }
+    }
+
+    match /quotes/{quoteId} {
+      allow read: if isAuthenticated();
+      allow write: if false;
     }
   }
 }
