@@ -592,9 +592,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         .getChatId(currentUser.uid, widget.receiverId);
     final db = FirebaseFirestore.instance;
     try {
+      final participants = currentUser.uid.compareTo(widget.receiverId) < 0
+          ? [currentUser.uid, widget.receiverId]
+          : [widget.receiverId, currentUser.uid];
       await db.collection('chats').doc(chatId).set({
         'connectionRequestedBy': currentUser.uid,
-        'participants': [currentUser.uid, widget.receiverId],
+        'participants': participants,
       }, SetOptions(merge: true));
     } catch (_) {}
   }

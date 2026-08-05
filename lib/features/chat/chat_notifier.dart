@@ -283,7 +283,11 @@ class ChatNotifier extends StateNotifier<double> {
     final snap = await chatDoc.get();
 
     if (!snap.exists) {
-      final participants = isNotes ? [senderId] : [senderId, receiverId];
+      final participants = isNotes
+          ? [senderId]
+          : (senderId.compareTo(receiverId) < 0
+              ? [senderId, receiverId]
+              : [receiverId, senderId]);
       await chatDoc.set({
         'id': chatId,
         'participants': participants,

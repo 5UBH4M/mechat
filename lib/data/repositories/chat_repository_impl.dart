@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cross_file/cross_file.dart';
@@ -271,18 +271,11 @@ class ChatRepositoryImpl implements ChatRepository {
           .collection(AppConstants.messagesCollection)
           .doc(message.id);
 
-      final participants = message.senderId == message.receiverId
-          ? [message.senderId]
-          : (message.senderId.compareTo(message.receiverId) < 0
-              ? [message.senderId, message.receiverId]
-              : [message.receiverId, message.senderId]);
-
       final batch = _db.batch();
       batch.set(msgRef, msgModel.toFirestore());
       batch.set(chatRef, {
         'lastMessage': msgModel.toFirestore(),
         'unreadCounts.${message.receiverId}': FieldValue.increment(1),
-        'participants': participants,
       }, SetOptions(merge: true));
 
       await batch.commit();
@@ -290,7 +283,8 @@ class ChatRepositoryImpl implements ChatRepository {
       await _localDb.updateMessageStatus(message.id, 'sent');
       await _localDb.markSynced(message.id);
       await _emitLocalMessages(chatId);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('syncMessageToFirestore failed: $e');
     }
   }
 
@@ -376,7 +370,7 @@ class ChatRepositoryImpl implements ChatRepository {
       await _localDb.updateChatLastMessage(chatId, sentMsgLocal);
       await _emitLocalMessages(chatId);
     } catch (e) {
-      // noop
+      debugPrint('sendMessage failed: $e');
     }
   }
 
@@ -611,17 +605,13 @@ class ChatRepositoryImpl implements ChatRepository {
           'unreadCounts': {
             localMsg.receiverId: FieldValue.increment(1),
           },
-          'participants': localMsg.senderId == localMsg.receiverId
-              ? [localMsg.senderId]
-              : (localMsg.senderId.compareTo(localMsg.receiverId) < 0
-                  ? [localMsg.senderId, localMsg.receiverId]
-                  : [localMsg.receiverId, localMsg.senderId]),
         }, SetOptions(merge: true));
         await batch.commit();
 
         await _localDb.updateMessageStatus(localMsg.id, 'sent');
         await _localDb.markSynced(localMsg.id);
-      } catch (_) {
+      } catch (e) {
+        debugPrint('syncOfflineMessages failed: $e');
       }
     }
   }
