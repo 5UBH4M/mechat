@@ -1,5 +1,4 @@
 
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -280,14 +279,13 @@ class ChatNotifier extends StateNotifier<double> {
 
     final isNotes = receiverId == 'notes_to_self' || receiverId == senderId;
     final chatDoc = FirebaseFirestore.instance.collection('chats').doc(chatId);
-    final snap = await chatDoc.get();
+    final participants = isNotes
+        ? [senderId]
+        : (senderId.compareTo(receiverId) < 0
+            ? [senderId, receiverId]
+            : [receiverId, senderId]);
 
-    if (!snap.exists) {
-      final participants = isNotes
-          ? [senderId]
-          : (senderId.compareTo(receiverId) < 0
-              ? [senderId, receiverId]
-              : [receiverId, senderId]);
+    try {
       await chatDoc.set({
         'id': chatId,
         'participants': participants,
@@ -296,6 +294,7 @@ class ChatNotifier extends StateNotifier<double> {
         'isNotesToSelf': isNotes,
         'lastMessage': null,
       });
+    } catch (_) {
     }
 
     _initializedChats.add(chatId);

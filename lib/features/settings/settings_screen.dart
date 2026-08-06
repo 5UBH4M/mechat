@@ -9,7 +9,6 @@ import '../../core/widgets/profile_crop_screen.dart';
 import '../auth/auth_notifier.dart';
 import '../profile/profile_notifier.dart';
 import '../../core/services/service_providers.dart';
-import '../chat/user_info_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -40,11 +39,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     super.dispose();
   }
 
-  Future<void> _pickImage() async {
+  Future<void> _pickImage(ImageSource source) async {
     try {
       final picker = ImagePicker();
       final picked = await picker.pickImage(
-        source: ImageSource.gallery,
+        source: source,
         imageQuality: 70,
       );
       if (picked != null) {
@@ -72,6 +71,69 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         }
       }
     } catch (_) {}
+  }
+
+  void _showImagePickerOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt_rounded),
+              title: const Text('Camera'),
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.pop(context);
+                _pickImage(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded),
+              title: const Text('Gallery'),
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.pop(context);
+                _pickImage(ImageSource.gallery);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showProfileImageFullScreen(BuildContext context) {
+    final user = ref.read(authNotifierProvider).user;
+    if (user == null) return;
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (ctx) => Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            iconTheme: const IconThemeData(color: Colors.white),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.edit, color: Colors.white),
+                onPressed: () {
+                  _showImagePickerOptions(ctx);
+                },
+              ),
+            ],
+          ),
+          body: Center(
+            child: _localImagePath != null && !kIsWeb
+                ? Image.file(File(_localImagePath!))
+                : (user.profilePictureUrl.isNotEmpty
+                    ? Image(image: getBase64ImageProvider(user.profilePictureUrl))
+                    : const Icon(Icons.person, size: 200, color: Colors.white)),
+          ),
+        ),
+      ),
+    );
   }
 
   void _editName() {
@@ -231,7 +293,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: Row(
               children: [
                 GestureDetector(
-                  onTap: _pickImage,
+                  onTap: () => _showProfileImageFullScreen(context),
                   child: Stack(
                     children: [
                       CircleAvatar(
@@ -298,19 +360,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
-                  ),
-                ),
-                IconButton(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => UserInfoScreen(user: user),
-                      ),
-                    );
-                  },
-                  icon: Icon(
-                    Icons.qr_code_2_rounded,
-                    color: theme.colorScheme.primary,
                   ),
                 ),
               ],
