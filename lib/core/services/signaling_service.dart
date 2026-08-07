@@ -21,6 +21,7 @@ class SignalingService {
 
   StreamSubscription<DocumentSnapshot>? _callSubscription;
   StreamSubscription<QuerySnapshot>? _candidatesSubscription;
+  final List<RTCIceCandidate> _pendingCallerCandidates = [];
 
 
   Future<MediaStream> getLocalStream(bool videoEnabled) async {
@@ -69,7 +70,7 @@ class SignalingService {
     });
 
     peerConnection?.onIceCandidate = (RTCIceCandidate candidate) {
-      callDoc.collection('callerCandidates').add(candidate.toMap());
+      _pendingCallerCandidates.add(candidate);
     };
 
     final offer = await peerConnection!.createOffer();
@@ -85,6 +86,15 @@ class SignalingService {
       'sdpOffer': {'type': offer.type, 'sdp': offer.sdp},
       'createdAt': FieldValue.serverTimestamp(),
     });
+
+    for (final candidate in _pendingCallerCandidates) {
+      await callDoc.collection('callerCandidates').add(candidate.toMap());
+    }
+    _pendingCallerCandidates.clear();
+
+    peerConnection?.onIceCandidate = (RTCIceCandidate candidate) {
+      callDoc.collection('callerCandidates').add(candidate.toMap());
+    };
 
     _callSubscription = callDoc.snapshots().listen((snapshot) async {
       if (!snapshot.exists) return;
@@ -247,6 +257,13 @@ class SignalingService {
         }
       }
     };
+
+    peerConnection?.onIceConnectionState = (RTCIceConnectionState iceState) {
+      if (iceState == RTCIceConnectionState.RTCIceConnectionStateFailed ||
+          iceState == RTCIceConnectionState.RTCIceConnectionStateDisconnected) {
+        cleanUpCall();
+      }
+    };
   }
 
 
@@ -330,7 +347,10 @@ class SignalingService {
 
   void cleanUpCall() {
     _callSubscription?.cancel();
+    _callSubscription = null;
     _candidatesSubscription?.cancel();
+    _candidatesSubscription = null;
+    _pendingCallerCandidates.clear();
 
     localStream?.getTracks().forEach((track) => track.stop());
     localStream?.dispose();

@@ -180,6 +180,10 @@ service cloud.firestore {
       }
     }
 
+    match /app_config/{document=**} {
+      allow read: if isAuthenticated();
+    }
+
     match /quotes/{quoteId} {
       allow read: if isAuthenticated();
       allow write: if false;

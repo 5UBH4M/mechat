@@ -36,15 +36,18 @@ class AppConstants {
   };
 
   static Future<Map<String, dynamic>> getIceServers() async {
-    final snapshot = await FirebaseFirestore.instance
-        .collection(appConfigCollection)
-        .doc(webrtcConfigDocument)
-        .get();
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection(appConfigCollection)
+          .doc(webrtcConfigDocument)
+          .get();
 
-    final data = snapshot.data();
-    final iceServers = data?['iceServers'];
-    if (iceServers is List && iceServers.isNotEmpty) {
-      return {'iceServers': iceServers};
+      final data = snapshot.data();
+      final iceServers = data?['iceServers'];
+      if (iceServers is List && iceServers.isNotEmpty) {
+        return {'iceServers': iceServers};
+      }
+    } catch (_) {
     }
 
     return fallbackIceServers;

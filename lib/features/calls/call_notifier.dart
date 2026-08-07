@@ -114,6 +114,13 @@ class CallNotifier extends StateNotifier<CallState> {
       final user = next.user;
       if (user == null) {
         _incomingCallSub?.cancel();
+        if (state.status != 'idle') {
+          _ref.read(signalingServiceProvider).cleanUpCall();
+          _stopTimer();
+          localRenderer.srcObject = null;
+          remoteRenderer.srcObject = null;
+          state = CallState.idle();
+        }
         return;
       }
 
@@ -182,6 +189,8 @@ class CallNotifier extends StateNotifier<CallState> {
 
       if (status == 'ended' || status == 'rejected' || status == 'idle') {
         _stopTimer();
+        localRenderer.srcObject = null;
+        remoteRenderer.srcObject = null;
         _ref
             .read(notificationServiceProvider)
             .cancelOngoingCallNotification(state.callId.hashCode);

@@ -279,6 +279,16 @@ class ChatNotifier extends StateNotifier<double> {
 
     final isNotes = receiverId == 'notes_to_self' || receiverId == senderId;
     final chatDoc = FirebaseFirestore.instance.collection('chats').doc(chatId);
+
+    try {
+      final snap = await chatDoc.get();
+      if (snap.exists) {
+        _initializedChats.add(chatId);
+        return;
+      }
+    } catch (_) {
+    }
+
     final participants = isNotes
         ? [senderId]
         : (senderId.compareTo(receiverId) < 0
