@@ -157,6 +157,7 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen>
 
 
               Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   const Spacer(flex: 2),
 
