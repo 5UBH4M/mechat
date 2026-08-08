@@ -165,86 +165,90 @@ class SignalingService {
 
   Future<void> joinCall(String callId) async {
     final callDoc = _db.collection(AppConstants.callsCollection).doc(callId);
-    final snapshot = await callDoc.get();
-    if (!snapshot.exists) return;
+    try {
+      final snapshot = await callDoc.get();
+      if (!snapshot.exists) return;
 
-    final data = snapshot.data() as Map<String, dynamic>;
-    final sdpOfferData = data['sdpOffer'];
+      final data = snapshot.data() as Map<String, dynamic>;
+      final sdpOfferData = data['sdpOffer'];
 
-    peerConnection = await createPeerConnection(
-      await AppConstants.getIceServers(),
-    );
-    _registerConnectionListeners();
+      peerConnection = await createPeerConnection(
+        await AppConstants.getIceServers(),
+      );
+      _registerConnectionListeners();
 
-    localStream?.getTracks().forEach((track) {
-      peerConnection?.addTrack(track, localStream!);
-    });
+      localStream?.getTracks().forEach((track) {
+        peerConnection?.addTrack(track, localStream!);
+      });
 
-    peerConnection?.onIceCandidate = (RTCIceCandidate candidate) {
-      callDoc.collection('receiverCandidates').add(candidate.toMap());
-    };
+      peerConnection?.onIceCandidate = (RTCIceCandidate candidate) {
+        callDoc.collection('receiverCandidates').add(candidate.toMap());
+      };
 
-    final offer = RTCSessionDescription(
-      sdpOfferData['sdp'],
-      sdpOfferData['type'],
-    );
-    await peerConnection?.setRemoteDescription(offer);
+      final offer = RTCSessionDescription(
+        sdpOfferData['sdp'],
+        sdpOfferData['type'],
+      );
+      await peerConnection?.setRemoteDescription(offer);
 
-    final answer = await peerConnection!.createAnswer();
-    await peerConnection!.setLocalDescription(answer);
+      final answer = await peerConnection!.createAnswer();
+      await peerConnection!.setLocalDescription(answer);
 
-    await callDoc.update({
-      'status': 'connected',
-      'startedAt': FieldValue.serverTimestamp(),
-      'sdpAnswer': {'type': answer.type, 'sdp': answer.sdp},
-    });
+      await callDoc.update({
+        'status': 'connected',
+        'startedAt': FieldValue.serverTimestamp(),
+        'sdpAnswer': {'type': answer.type, 'sdp': answer.sdp},
+      });
 
 
-    _callSubscription = callDoc.snapshots().listen((snap) {
-      if (!snap.exists) return;
-      final snapData = snap.data();
-      if (snapData == null) return;
+      _callSubscription = callDoc.snapshots().listen((snap) {
+        if (!snap.exists) return;
+        final snapData = snap.data();
+        if (snapData == null) return;
 
-      final status = snapData['status'] as String?;
-      if (onCallStatusChanged != null && status != null) {
-        onCallStatusChanged!(status);
-      }
-      if (status == 'ended' || status == 'rejected') {
-        cleanUpCall();
-      } else {
-        final myUid = FirebaseAuth.instance.currentUser?.uid;
-        final isCaller = myUid == snapData['callerId'];
-        final otherWantsHangup = isCaller
-            ? snapData['receiverHangup'] == true
-            : snapData['callerHangup'] == true;
-        if (otherWantsHangup && onPartnerWantsHangup != null) {
-          onPartnerWantsHangup!();
-        } else if (!otherWantsHangup && snapData['rejectedHangup'] == true) {
-          if (onPartnerHangupRejected != null) {
-            onPartnerHangupRejected!();
-          }
-          callDoc.update({'rejectedHangup': FieldValue.delete()});
+        final status = snapData['status'] as String?;
+        if (onCallStatusChanged != null && status != null) {
+          onCallStatusChanged!(status);
         }
-      }
-    });
-
-    _candidatesSubscription = callDoc
-        .collection('callerCandidates')
-        .snapshots()
-        .listen((snap) {
-          for (final change in snap.docChanges) {
-            if (change.type == DocumentChangeType.added) {
-              final dat = change.doc.data() as Map<String, dynamic>;
-              peerConnection?.addCandidate(
-                RTCIceCandidate(
-                  dat['candidate'],
-                  dat['sdpMid'],
-                  dat['sdpMLineIndex'],
-                ),
-              );
+        if (status == 'ended' || status == 'rejected') {
+          cleanUpCall();
+        } else {
+          final myUid = FirebaseAuth.instance.currentUser?.uid;
+          final isCaller = myUid == snapData['callerId'];
+          final otherWantsHangup = isCaller
+              ? snapData['receiverHangup'] == true
+              : snapData['callerHangup'] == true;
+          if (otherWantsHangup && onPartnerWantsHangup != null) {
+            onPartnerWantsHangup!();
+          } else if (!otherWantsHangup && snapData['rejectedHangup'] == true) {
+            if (onPartnerHangupRejected != null) {
+              onPartnerHangupRejected!();
             }
+            callDoc.update({'rejectedHangup': FieldValue.delete()});
           }
-        });
+        }
+      });
+
+      _candidatesSubscription = callDoc
+          .collection('callerCandidates')
+          .snapshots()
+          .listen((snap) {
+            for (final change in snap.docChanges) {
+              if (change.type == DocumentChangeType.added) {
+                final dat = change.doc.data() as Map<String, dynamic>;
+                peerConnection?.addCandidate(
+                  RTCIceCandidate(
+                    dat['candidate'],
+                    dat['sdpMid'],
+                    dat['sdpMLineIndex'],
+                  ),
+                );
+              }
+            }
+          });
+    } catch (_) {
+      return;
+    }
   }
 
 

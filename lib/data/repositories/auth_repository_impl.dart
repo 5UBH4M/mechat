@@ -51,7 +51,7 @@ class AuthRepositoryImpl implements AuthRepository {
         final cached = _hive.getUser();
         if (cached != null) {
 
-          _refreshUserFromFirestore(firebaseUser.uid);
+          unawaited(_refreshUserFromFirestore(firebaseUser.uid));
           return UserModel.fromJson(cached);
         }
 
@@ -251,9 +251,11 @@ class AuthRepositoryImpl implements AuthRepository {
       }
     } catch (_) {}
 
-    await AppDatabase.instance.clearAll();
-    await _googleSignIn.signOut();
-    await _auth.signOut();
-    await _hive.clearAllCache();
+    await Future.wait([
+      AppDatabase.instance.clearAll(),
+      _googleSignIn.signOut(),
+      _auth.signOut(),
+      _hive.clearAllCache(),
+    ]);
   }
 }

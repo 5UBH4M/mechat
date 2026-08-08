@@ -57,10 +57,12 @@ class ProfileRepositoryImpl implements ProfileRepository {
       hideNotificationMessage: user.hideNotificationMessage,
     );
 
-    await _db
-        .collection(AppConstants.usersCollection)
-        .doc(user.uid)
-        .set(model.toFirestore());
+    try {
+      await _db
+          .collection(AppConstants.usersCollection)
+          .doc(user.uid)
+          .set(model.toFirestore());
+    } catch (_) {}
     await _hive.saveUser(model.toJson());
   }
 
@@ -95,10 +97,12 @@ class ProfileRepositoryImpl implements ProfileRepository {
       hideNotificationMessage: user.hideNotificationMessage,
     );
 
-    await _db
-        .collection(AppConstants.usersCollection)
-        .doc(user.uid)
-        .update(model.toFirestore());
+    try {
+      await _db
+          .collection(AppConstants.usersCollection)
+          .doc(user.uid)
+          .update(model.toFirestore());
+    } catch (_) {}
     await _hive.saveUser(model.toJson());
   }
 
@@ -113,7 +117,9 @@ class ProfileRepositoryImpl implements ProfileRepository {
       'isOnline': isOnline,
       'lastSeen': FieldValue.serverTimestamp(),
     };
-    await _db.collection(AppConstants.usersCollection).doc(uid).update(data);
+    try {
+      await _db.collection(AppConstants.usersCollection).doc(uid).update(data);
+    } catch (_) {}
 
 
     final currentUser = _hive.getUser();

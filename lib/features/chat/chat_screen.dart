@@ -297,6 +297,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       });
 
       _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (!mounted) { _recordingTimer?.cancel(); return; }
         setState(() {});
       });
     } catch (e) {
@@ -340,6 +341,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     try {
       final path = await _audioRecorder.stop();
       _recordingTimer?.cancel();
+      if (!mounted) return;
       setState(() {
         _isRecording = false;
       });

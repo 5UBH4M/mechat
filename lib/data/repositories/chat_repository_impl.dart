@@ -280,8 +280,10 @@ class ChatRepositoryImpl implements ChatRepository {
 
       await batch.commit();
 
-      await _localDb.updateMessageStatus(message.id, 'sent');
-      await _localDb.markSynced(message.id);
+      await Future.wait([
+        _localDb.updateMessageStatus(message.id, 'sent'),
+        _localDb.markSynced(message.id),
+      ]);
       await _emitLocalMessages(chatId);
     } catch (e) {
       debugPrint('syncMessageToFirestore failed: $e');
@@ -349,8 +351,10 @@ class ChatRepositoryImpl implements ChatRepository {
 
       await batch.commit();
 
-      await _localDb.updateMessageStatus(message.id, 'sent');
-      await _localDb.markSynced(message.id);
+      await Future.wait([
+        _localDb.updateMessageStatus(message.id, 'sent'),
+        _localDb.markSynced(message.id),
+      ]);
 
       final sentMsgLocal = MessageEntity(
         id: localMsg.id,
@@ -520,9 +524,13 @@ class ChatRepositoryImpl implements ChatRepository {
     required String uid,
     required bool isTyping,
   }) async {
-    await _db.collection(AppConstants.chatsCollection).doc(chatId).update({
-      'typingStatus.$uid': isTyping,
-    });
+    try {
+      await _db.collection(AppConstants.chatsCollection).doc(chatId).update({
+        'typingStatus.$uid': isTyping,
+      });
+    } catch (e) {
+      debugPrint('setTypingStatus failed: $e');
+    }
   }
 
   @override
@@ -566,38 +574,38 @@ class ChatRepositoryImpl implements ChatRepository {
     final unsynced = await _localDb.getUnsyncedMessages();
     if (unsynced.isEmpty) return;
 
-    for (final localMsg in unsynced) {
-      final chatId = await _localDb.getUnsyncedChatId(localMsg.id);
-      if (chatId == null) continue;
+    try {
+      final batch = _db.batch();
+      for (final localMsg in unsynced) {
+        final chatId = await _localDb.getUnsyncedChatId(localMsg.id);
+        if (chatId == null) continue;
 
-      final encryptedContent = _encryptor.encrypt(localMsg.content, chatId);
-      final encryptedReplyContent = localMsg.repliedToMessageContent.isNotEmpty
-          ? _encryptor.encrypt(localMsg.repliedToMessageContent, chatId)
-          : '';
+        final encryptedContent = _encryptor.encrypt(localMsg.content, chatId);
+        final encryptedReplyContent = localMsg.repliedToMessageContent.isNotEmpty
+            ? _encryptor.encrypt(localMsg.repliedToMessageContent, chatId)
+            : '';
 
-      final msgModel = MessageModel(
-          id: localMsg.id,
-          senderId: localMsg.senderId,
-          receiverId: localMsg.receiverId,
-          content: encryptedContent,
-          type: localMsg.type,
-          timestamp: localMsg.timestamp,
-          status: 'sent',
-          fileUrl: localMsg.fileUrl,
-          fileName: localMsg.fileName,
-          fileSize: localMsg.fileSize,
-          duration: localMsg.duration,
-          repliedToMessageId: localMsg.repliedToMessageId,
-          repliedToMessageContent: encryptedReplyContent,
-      );
+        final msgModel = MessageModel(
+            id: localMsg.id,
+            senderId: localMsg.senderId,
+            receiverId: localMsg.receiverId,
+            content: encryptedContent,
+            type: localMsg.type,
+            timestamp: localMsg.timestamp,
+            status: 'sent',
+            fileUrl: localMsg.fileUrl,
+            fileName: localMsg.fileName,
+            fileSize: localMsg.fileSize,
+            duration: localMsg.duration,
+            repliedToMessageId: localMsg.repliedToMessageId,
+            repliedToMessageContent: encryptedReplyContent,
+        );
 
-      try {
         final chatRef = _db.collection(AppConstants.chatsCollection).doc(chatId);
         final msgRef = chatRef
             .collection(AppConstants.messagesCollection)
             .doc(localMsg.id);
 
-        final batch = _db.batch();
         batch.set(msgRef, msgModel.toFirestore());
 
         batch.set(chatRef, {
@@ -606,13 +614,15 @@ class ChatRepositoryImpl implements ChatRepository {
             localMsg.receiverId: FieldValue.increment(1),
           },
         }, SetOptions(merge: true));
-        await batch.commit();
 
-        await _localDb.updateMessageStatus(localMsg.id, 'sent');
-        await _localDb.markSynced(localMsg.id);
-      } catch (e) {
-        debugPrint('syncOfflineMessages failed: $e');
+        await Future.wait([
+          _localDb.updateMessageStatus(localMsg.id, 'sent'),
+          _localDb.markSynced(localMsg.id),
+        ]);
       }
+      await batch.commit();
+    } catch (e) {
+      debugPrint('syncOfflineMessages failed: $e');
     }
   }
 
@@ -660,10 +670,14 @@ class ChatRepositoryImpl implements ChatRepository {
         .collection(AppConstants.messagesCollection)
         .doc(messageId);
 
-    if (reaction.isEmpty) {
-      await msgRef.update({'reactions.$userId': FieldValue.delete()});
-    } else {
-      await msgRef.update({'reactions.$userId': reaction});
+    try {
+      if (reaction.isEmpty) {
+        await msgRef.update({'reactions.$userId': FieldValue.delete()});
+      } else {
+        await msgRef.update({'reactions.$userId': reaction});
+      }
+    } catch (e) {
+      debugPrint('addReaction failed: $e');
     }
   }
 
@@ -680,14 +694,18 @@ class ChatRepositoryImpl implements ChatRepository {
         .collection(AppConstants.messagesCollection)
         .doc(messageId);
 
-    if (isStarred) {
-      await msgRef.update({
-        'starredBy': FieldValue.arrayUnion([userId]),
-      });
-    } else {
-      await msgRef.update({
-        'starredBy': FieldValue.arrayRemove([userId]),
-      });
+    try {
+      if (isStarred) {
+        await msgRef.update({
+          'starredBy': FieldValue.arrayUnion([userId]),
+        });
+      } else {
+        await msgRef.update({
+          'starredBy': FieldValue.arrayRemove([userId]),
+        });
+      }
+    } catch (e) {
+      debugPrint('toggleStar failed: $e');
     }
   }
 }
