@@ -1,10 +1,10 @@
-import 'dart:convert';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import '../../domain/entities/message_entity.dart';
 import '../../domain/entities/chat_entity.dart';
-
+import 'dao/message_dao.dart';
+import 'dao/chat_dao.dart';
 
 class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
@@ -14,6 +14,9 @@ class AppDatabase {
   String? _dbPath;
 
   String? get databasePath => _dbPath;
+
+  MessageDao get messageDao => MessageDao(() => database);
+  ChatDao get chatDao => ChatDao(() => database);
 
   Future<Database> get database async {
     _db ??= await _initDb();
@@ -98,219 +101,6 @@ class AppDatabase {
     ''');
   }
 
-
-  Future<void> insertMessage(MessageEntity msg, String chatId,
-      {bool synced = false}) async {
-    final db = await database;
-    await db.insert(
-      'messages',
-      _messageToRow(msg, chatId, synced),
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
-  }
-
-  Future<void> insertMessages(
-      List<MessageEntity> msgs, String chatId,
-      {bool synced = true}) async {
-    final db = await database;
-    final batch = db.batch();
-    for (final msg in msgs) {
-      batch.insert('messages', _messageToRow(msg, chatId, synced),
-          conflictAlgorithm: ConflictAlgorithm.replace);
-    }
-    await batch.commit(noResult: true);
-  }
-
-  Future<List<MessageEntity>> getMessages(String chatId,
-      {int limit = 50, int offset = 0}) async {
-    final db = await database;
-
-    final rows = await db.query(
-      'messages',
-      where: 'chat_id = ?',
-      whereArgs: [chatId],
-      orderBy: 'timestamp DESC',
-      limit: limit,
-      offset: offset,
-    );
-
-    return rows.reversed.map(_rowToMessage).toList();
-  }
-
-  Future<List<MessageEntity>> getAllMessages(String chatId) async {
-    final db = await database;
-    final rows = await db.query(
-      'messages',
-      where: 'chat_id = ?',
-      whereArgs: [chatId],
-      orderBy: 'timestamp ASC',
-    );
-    return rows.map(_rowToMessage).toList();
-  }
-
-  Future<int> getMessageCount(String chatId) async {
-    final db = await database;
-    final result = await db.rawQuery(
-      'SELECT COUNT(*) as cnt FROM messages WHERE chat_id = ?',
-      [chatId],
-    );
-    return Sqflite.firstIntValue(result) ?? 0;
-  }
-
-  Future<DateTime?> getLatestMessageTimestamp(String chatId) async {
-    final db = await database;
-    final rows = await db.query(
-      'messages',
-      columns: ['timestamp'],
-      where: 'chat_id = ?',
-      whereArgs: [chatId],
-      orderBy: 'timestamp DESC',
-      limit: 1,
-    );
-    if (rows.isEmpty) return null;
-    return DateTime.fromMillisecondsSinceEpoch(rows.first['timestamp'] as int);
-  }
-
-  Future<void> updateMessageStatus(
-      String messageId, String status) async {
-    final db = await database;
-    await db.update(
-      'messages',
-      {'status': status, 'synced': 1},
-      where: 'id = ?',
-      whereArgs: [messageId],
-    );
-  }
-
-  Future<void> updateMessageField(
-      String messageId, Map<String, dynamic> fields) async {
-    final db = await database;
-    await db.update('messages', fields,
-        where: 'id = ?', whereArgs: [messageId]);
-  }
-
-  Future<void> markSynced(String messageId) async {
-    final db = await database;
-    await db.update('messages', {'synced': 1},
-        where: 'id = ?', whereArgs: [messageId]);
-  }
-
-  Future<List<MessageEntity>> getUnsyncedMessages() async {
-    final db = await database;
-    final rows = await db.query(
-      'messages',
-      where: 'synced = 0',
-      orderBy: 'timestamp ASC',
-    );
-    return rows.map(_rowToMessage).toList();
-  }
-
-  Future<String?> getUnsyncedChatId(String messageId) async {
-    final db = await database;
-    final rows = await db.query('messages',
-        columns: ['chat_id'],
-        where: 'id = ?',
-        whereArgs: [messageId],
-        limit: 1);
-    if (rows.isEmpty) return null;
-    return rows.first['chat_id'] as String?;
-  }
-
-  Future<bool> hasMessage(String messageId) async {
-    final db = await database;
-    final count = Sqflite.firstIntValue(await db.rawQuery(
-      'SELECT COUNT(*) FROM messages WHERE id = ?',
-      [messageId],
-    ));
-    return (count ?? 0) > 0;
-  }
-
-
-  Future<Set<String>> getMessageIds(String chatId) async {
-    final db = await database;
-    final rows = await db.query('messages',
-        columns: ['id'], where: 'chat_id = ?', whereArgs: [chatId]);
-    return rows.map((r) => r['id'] as String).toSet();
-  }
-
-  Future<void> deleteMessage(String messageId) async {
-    final db = await database;
-    await db.delete('messages', where: 'id = ?', whereArgs: [messageId]);
-  }
-
-  Future<List<MessageEntity>> searchMessages(String query,
-      {String? chatId}) async {
-    final db = await database;
-    final where =
-        chatId != null ? 'chat_id = ? AND content LIKE ?' : 'content LIKE ?';
-    final args =
-        chatId != null ? [chatId, '%$query%'] : ['%$query%'];
-    final rows = await db.query(
-      'messages',
-      where: where,
-      whereArgs: args,
-      orderBy: 'timestamp DESC',
-      limit: 100,
-    );
-    return rows.map(_rowToMessage).toList();
-  }
-
-
-  Future<void> upsertChat(ChatEntity chat) async {
-    final db = await database;
-    await db.insert('chats', _chatToRow(chat),
-        conflictAlgorithm: ConflictAlgorithm.replace);
-  }
-
-  Future<List<ChatEntity>> getAllChats() async {
-    final db = await database;
-    final rows = await db.query('chats', orderBy: 'updated_at DESC');
-    return rows.map(_rowToChat).toList();
-  }
-
-  Future<ChatEntity?> getChat(String chatId) async {
-    final db = await database;
-    final rows = await db.query('chats',
-        where: 'id = ?', whereArgs: [chatId], limit: 1);
-    if (rows.isEmpty) return null;
-    return _rowToChat(rows.first);
-  }
-
-  Future<void> updateUnreadCounts(String chatId, Map<String, int> counts) async {
-    final db = await database;
-    await db.update('chats', {'unread_counts': jsonEncode(counts)},
-        where: 'id = ?', whereArgs: [chatId]);
-  }
-
-  Future<void> updateChatLastMessage(
-      String chatId, MessageEntity msg) async {
-    final db = await database;
-    await db.update(
-      'chats',
-      {
-        'last_message_id': msg.id,
-        'last_message_content': msg.content,
-        'last_message_timestamp': msg.timestamp.millisecondsSinceEpoch,
-        'last_message_sender_id': msg.senderId,
-        'last_message_receiver_id': msg.receiverId,
-        'last_message_type': msg.type,
-        'last_message_status': msg.status,
-        'last_message_file_url': msg.fileUrl,
-        'last_message_file_name': msg.fileName,
-        'updated_at': msg.timestamp.millisecondsSinceEpoch,
-      },
-      where: 'id = ?',
-      whereArgs: [chatId],
-    );
-  }
-
-  Future<void> deleteChat(String chatId) async {
-    final db = await database;
-    await db.delete('messages', where: 'chat_id = ?', whereArgs: [chatId]);
-    await db.delete('chats', where: 'id = ?', whereArgs: [chatId]);
-  }
-
-
   Future<void> cacheUserProfile(String uid, Map<String, dynamic> data) async {
     final db = await database;
     await db.insert(
@@ -356,7 +146,6 @@ class AppDatabase {
     };
   }
 
-
   Future<void> close() async {
     await _db?.close();
     _db = null;
@@ -369,136 +158,66 @@ class AppDatabase {
     await db.delete('user_profiles');
   }
 
+  Future<void> insertMessage(MessageEntity msg, String chatId, {bool synced = false}) =>
+      messageDao.insertMessage(msg, chatId, synced: synced);
 
-  Map<String, dynamic> _messageToRow(
-      MessageEntity msg, String chatId, bool synced) {
-    return {
-      'id': msg.id,
-      'chat_id': chatId,
-      'sender_id': msg.senderId,
-      'receiver_id': msg.receiverId,
-      'content': msg.content,
-      'type': msg.type,
-      'timestamp': msg.timestamp.millisecondsSinceEpoch,
-      'status': msg.status,
-      'file_url': msg.fileUrl,
-      'file_name': msg.fileName,
-      'file_size': msg.fileSize,
-      'duration': msg.duration,
-      'replied_to_message_id': msg.repliedToMessageId,
-      'replied_to_message_content': msg.repliedToMessageContent,
-      'reactions': jsonEncode(msg.reactions),
-      'starred_by': jsonEncode(msg.starredBy),
-      'is_forwarded': msg.isForwarded ? 1 : 0,
-      'local_file_path': msg.localFilePath,
-      'synced': synced ? 1 : 0,
-    };
-  }
+  Future<void> insertMessages(List<MessageEntity> msgs, String chatId, {bool synced = true}) =>
+      messageDao.insertMessages(msgs, chatId, synced: synced);
 
-  MessageEntity _rowToMessage(Map<String, dynamic> row) {
-    return MessageEntity(
-      id: row['id'] as String,
-      senderId: row['sender_id'] as String,
-      receiverId: row['receiver_id'] as String,
-      content: row['content'] as String? ?? '',
-      type: row['type'] as String? ?? 'text',
-      timestamp:
-          DateTime.fromMillisecondsSinceEpoch(row['timestamp'] as int),
-      status: row['status'] as String? ?? 'sent',
-      fileUrl: row['file_url'] as String? ?? '',
-      fileName: row['file_name'] as String? ?? '',
-      fileSize: row['file_size'] as int? ?? 0,
-      duration: row['duration'] as int? ?? 0,
-      repliedToMessageId:
-          row['replied_to_message_id'] as String? ?? '',
-      repliedToMessageContent:
-          row['replied_to_message_content'] as String? ?? '',
-      reactions: _decodeReactions(row['reactions'] as String?),
-      starredBy: _decodeStarredBy(row['starred_by'] as String?),
-      isForwarded: (row['is_forwarded'] as int? ?? 0) == 1,
-      localFilePath: row['local_file_path'] as String? ?? '',
-    );
-  }
+  Future<List<MessageEntity>> getMessages(String chatId, {int limit = 50, int offset = 0}) =>
+      messageDao.getMessages(chatId, limit: limit, offset: offset);
 
-  Map<String, dynamic> _chatToRow(ChatEntity chat) {
-    final lm = chat.lastMessage;
-    return {
-      'id': chat.id,
-      'participants': jsonEncode(chat.participants),
-      'last_message_id': lm?.id ?? '',
-      'last_message_content': lm?.content ?? '',
-      'last_message_timestamp':
-          lm?.timestamp.millisecondsSinceEpoch ?? 0,
-      'last_message_sender_id': lm?.senderId ?? '',
-      'last_message_receiver_id': lm?.receiverId ?? '',
-      'last_message_type': lm?.type ?? 'text',
-      'last_message_status': lm?.status ?? '',
-      'last_message_file_url': lm?.fileUrl ?? '',
-      'last_message_file_name': lm?.fileName ?? '',
-      'unread_counts': jsonEncode(chat.unreadCounts),
-      'is_notes_to_self': chat.isNotesToSelf ? 1 : 0,
-      'disappearing_timer': chat.disappearingTimer,
-      'typing_status': jsonEncode(chat.typingStatus),
-      'is_connection_established':
-          chat.isConnectionEstablished ? 1 : 0,
-      'connection_requested_by': chat.connectionRequestedBy,
-      'updated_at':
-          lm?.timestamp.millisecondsSinceEpoch ??
-          DateTime.now().millisecondsSinceEpoch,
-    };
-  }
+  Future<List<MessageEntity>> getAllMessages(String chatId) =>
+      messageDao.getAllMessages(chatId);
 
-  ChatEntity _rowToChat(Map<String, dynamic> row) {
-    final lastMsgTs = row['last_message_timestamp'] as int? ?? 0;
-    MessageEntity? lastMessage;
-    if (lastMsgTs > 0) {
-      lastMessage = MessageEntity(
-        id: row['last_message_id'] as String? ?? '',
-        senderId: row['last_message_sender_id'] as String? ?? '',
-        receiverId:
-            row['last_message_receiver_id'] as String? ?? '',
-        content: row['last_message_content'] as String? ?? '',
-        type: row['last_message_type'] as String? ?? 'text',
-        timestamp: DateTime.fromMillisecondsSinceEpoch(lastMsgTs),
-        status: row['last_message_status'] as String? ?? '',
-        fileUrl: row['last_message_file_url'] as String? ?? '',
-        fileName: row['last_message_file_name'] as String? ?? '',
-      );
-    }
+  Future<int> getMessageCount(String chatId) =>
+      messageDao.getMessageCount(chatId);
 
-    return ChatEntity(
-      id: row['id'] as String,
-      participants: List<String>.from(
-          jsonDecode(row['participants'] as String? ?? '[]')),
-      lastMessage: lastMessage,
-      unreadCounts: Map<String, int>.from(
-          jsonDecode(row['unread_counts'] as String? ?? '{}')),
-      isNotesToSelf: (row['is_notes_to_self'] as int? ?? 0) == 1,
-      disappearingTimer: row['disappearing_timer'] as int? ?? 0,
-      typingStatus: Map<String, bool>.from(
-          jsonDecode(row['typing_status'] as String? ?? '{}')),
-      isConnectionEstablished:
-          (row['is_connection_established'] as int? ?? 1) == 1,
-      connectionRequestedBy:
-          row['connection_requested_by'] as String? ?? '',
-    );
-  }
+  Future<DateTime?> getLatestMessageTimestamp(String chatId) =>
+      messageDao.getLatestMessageTimestamp(chatId);
 
-  Map<String, String> _decodeReactions(String? json) {
-    if (json == null || json.isEmpty || json == '{}') return {};
-    try {
-      return Map<String, String>.from(jsonDecode(json));
-    } catch (_) {
-      return {};
-    }
-  }
+  Future<void> updateMessageStatus(String messageId, String status) =>
+      messageDao.updateMessageStatus(messageId, status);
 
-  List<String> _decodeStarredBy(String? json) {
-    if (json == null || json.isEmpty || json == '[]') return [];
-    try {
-      return List<String>.from(jsonDecode(json));
-    } catch (_) {
-      return [];
-    }
-  }
+  Future<void> updateMessageField(String messageId, Map<String, dynamic> fields) =>
+      messageDao.updateMessageField(messageId, fields);
+
+  Future<void> markSynced(String messageId) =>
+      messageDao.markSynced(messageId);
+
+  Future<List<MessageEntity>> getUnsyncedMessages() =>
+      messageDao.getUnsyncedMessages();
+
+  Future<String?> getUnsyncedChatId(String messageId) =>
+      messageDao.getUnsyncedChatId(messageId);
+
+  Future<bool> hasMessage(String messageId) =>
+      messageDao.hasMessage(messageId);
+
+  Future<Set<String>> getMessageIds(String chatId) =>
+      messageDao.getMessageIds(chatId);
+
+  Future<void> deleteMessage(String messageId) =>
+      messageDao.deleteMessage(messageId);
+
+  Future<List<MessageEntity>> searchMessages(String query, {String? chatId}) =>
+      messageDao.searchMessages(query, chatId: chatId);
+
+  Future<void> upsertChat(ChatEntity chat) =>
+      chatDao.upsertChat(chat);
+
+  Future<List<ChatEntity>> getAllChats() =>
+      chatDao.getAllChats();
+
+  Future<ChatEntity?> getChat(String chatId) =>
+      chatDao.getChat(chatId);
+
+  Future<void> updateUnreadCounts(String chatId, Map<String, int> counts) =>
+      chatDao.updateUnreadCounts(chatId, counts);
+
+  Future<void> updateChatLastMessage(String chatId, MessageEntity msg) =>
+      chatDao.updateChatLastMessage(chatId, msg);
+
+  Future<void> deleteChat(String chatId) =>
+      chatDao.deleteChat(chatId);
 }

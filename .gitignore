@@ -55,3 +55,6 @@ app.*.map.json
 logcat.txt
 analyze_output.txt
 .env
+
+# AI context file
+memory.md

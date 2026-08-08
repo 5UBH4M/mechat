@@ -16,6 +16,10 @@ import '../audio_message_player.dart';
 import '../chat_media_notifier.dart';
 import '../chat_notifier.dart';
 import '../chat_search_notifier.dart';
+import 'bubbles/text_bubble.dart';
+import 'bubbles/image_bubble.dart';
+import 'bubbles/audio_bubble.dart';
+import 'bubbles/file_bubble.dart';
 
 class MessageBubbleWidget extends ConsumerWidget {
   final MessageEntity msg;
@@ -53,21 +57,6 @@ class MessageBubbleWidget extends ConsumerWidget {
     required this.onScrollToMessage,
   });
 
-  bool _containsLink(String text) {
-    return RegExp(r'(https?:\/\/[^\s]+)').hasMatch(text);
-  }
-
-  String _extractLink(String text) {
-    final match = RegExp(r'(https?:\/\/[^\s]+)').firstMatch(text);
-    final raw = match?.group(0) ?? '';
-    if (raw.isEmpty) return '';
-    final uri = Uri.tryParse(raw);
-    if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) {
-      return '';
-    }
-    return raw;
-  }
-
   Future<void> _openLocation(String latLng) async {
     if (!RegExp(r'^-?\d+\.?\d*,-?\d+\.?\d*$').hasMatch(latLng)) {
       return;
@@ -80,61 +69,6 @@ class MessageBubbleWidget extends ConsumerWidget {
     if (await canLaunchUrl(url)) {
       await launchUrl(url);
     }
-  }
-
-  Widget _buildHighlightedText(
-    String text,
-    String query,
-    bool isCurrentMatch,
-    Color textColor,
-  ) {
-    if (query.isEmpty) {
-      return Text(text, style: TextStyle(color: textColor, fontSize: 15));
-    }
-
-    final lowerText = text.toLowerCase();
-    final lowerQuery = query.toLowerCase();
-
-    final List<TextSpan> spans = [];
-    int start = 0;
-
-    while (true) {
-      final int index = lowerText.indexOf(lowerQuery, start);
-      if (index == -1) {
-        spans.add(
-          TextSpan(
-            text: text.substring(start),
-            style: TextStyle(color: textColor, fontSize: 15),
-          ),
-        );
-        break;
-      }
-
-      if (index > start) {
-        spans.add(
-          TextSpan(
-            text: text.substring(start, index),
-            style: TextStyle(color: textColor, fontSize: 15),
-          ),
-        );
-      }
-
-      spans.add(
-        TextSpan(
-          text: text.substring(index, index + query.length),
-          style: TextStyle(
-            color: Colors.black,
-            backgroundColor: isCurrentMatch ? Colors.deepOrange : Colors.yellow,
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      );
-
-      start = index + query.length;
-    }
-
-    return RichText(text: TextSpan(children: spans));
   }
 
   Widget _buildMessageStatusIcon(
@@ -344,148 +278,22 @@ class MessageBubbleWidget extends ConsumerWidget {
                         ),
                       ),
                     if (msg.type == 'image')
-                      GestureDetector(
-                        onTap: msg.fileUrl.isNotEmpty
-                            ? () {
-                                Navigator.of(context).push(
-                                  PageRouteBuilder(
-                                    opaque: false,
-                                    pageBuilder: (context, animation, secondaryAnimation) => ImageViewerScreen(
-                                      base64String: msg.fileUrl,
-                                      senderName: isMe
-                                          ? 'You'
-                                          : (receiverUser?.displayName ?? 'User'),
-                                      timestamp: msg.timestamp,
-                                    ),
-                                  ),
-                                );
-                              }
-                            : null,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: msg.fileUrl.isNotEmpty
-                              ? ConstrainedBox(
-                                  constraints: const BoxConstraints(
-                                    maxWidth: 250,
-                                    maxHeight: 300,
-                                    minWidth: 150,
-                                    minHeight: 150,
-                                  ),
-                                  child: Base64Image(
-                                    key: ValueKey(msg.fileUrl),
-                                    base64String: msg.fileUrl,
-                                    fit: BoxFit.cover,
-                                  ),
-                                )
-                              : msg.localFilePath.isNotEmpty
-                                  ? Stack(
-                                      alignment: Alignment.center,
-                                      children: [
-                                        Image.file(
-                                          File(msg.localFilePath),
-                                          fit: BoxFit.cover,
-                                          width: 220,
-                                          height: 220,
-                                          errorBuilder: (_, __, ___) => const SizedBox(
-                                            width: 220,
-                                            height: 220,
-                                            child: Icon(Icons.broken_image, size: 48),
-                                          ),
-                                        ),
-                                        Positioned.fill(
-                                          child: Container(
-                                            color: Colors.black45,
-                                            child: Consumer(
-                                              builder: (context, ref, _) {
-                                                final progress = ref.watch(chatNotifierProvider);
-                                                return Column(
-                                                  mainAxisAlignment: MainAxisAlignment.center,
-                                                  children: [
-                                                    SizedBox(
-                                                      width: 48,
-                                                      height: 48,
-                                                      child: CircularProgressIndicator(
-                                                        value: progress > 0 && progress < 1.0 ? progress : null,
-                                                        strokeWidth: 3,
-                                                        color: Colors.white,
-                                                      ),
-                                                    ),
-                                                    if (progress > 0 && progress < 1.0) ...[
-                                                      const SizedBox(height: 8),
-                                                      Text(
-                                                        '${(progress * 100).toInt()}%',
-                                                        style: const TextStyle(
-                                                          color: Colors.white,
-                                                          fontSize: 12,
-                                                          fontWeight: FontWeight.bold,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ],
-                                                );
-                                              },
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    )
-                                  : const SizedBox(
-                                      width: 220,
-                                      height: 220,
-                                      child: Center(child: CircularProgressIndicator()),
-                                    ),
-                        ),
+                      ImageBubble(
+                        msg: msg,
+                        isMe: isMe,
+                        receiverUser: receiverUser,
                       )
                     else if (msg.type == 'audio')
-                      AudioMessagePlayer(
-                        audioUrl: msg.fileUrl,
-                        duration: msg.duration,
-                        isSender: isMe,
+                      AudioBubble(
+                        msg: msg,
+                        isMe: isMe,
                       )
                     else if (msg.type == 'document' || msg.type == 'video')
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            msg.type == 'video'
-                                ? Icons.video_file
-                                : Icons.insert_drive_file,
-                            color: isMe ? textColor : theme.colorScheme.primary,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  msg.fileName,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: textColor,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Text(
-                                  '${(msg.fileSize / 1024).toStringAsFixed(1)} KB',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: isMe
-                                        ? textColor.withValues(alpha: 0.7)
-                                        : Colors.grey,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          IconButton(
-                            icon: Icon(
-                              Icons.download,
-                              color: isMe ? textColor : null,
-                            ),
-                            onPressed: () {},
-                          ),
-                        ],
+                      FileBubble(
+                        msg: msg,
+                        isMe: isMe,
+                        textColor: textColor,
+                        theme: theme,
                       )
                     else if (msg.type == 'location')
                       Column(
@@ -568,49 +376,14 @@ class MessageBubbleWidget extends ConsumerWidget {
                         ],
                       )
                     else
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (isMatch &&
-                              !searchState.isFuzzy &&
-                              searchState.query.isNotEmpty)
-                            _buildHighlightedText(
-                              msg.content,
-                              searchState.query,
-                              isCurrentMatch,
-                              textColor,
-                            )
-                          else
-                            Text(
-                              msg.content,
-                              style: TextStyle(color: textColor, fontSize: 15),
-                            ),
-                          if (msg.type == 'text' &&
-                              _containsLink(msg.content)) ...[
-                            const SizedBox(height: 8),
-                            SizedBox(
-                              width: MediaQuery.of(context).size.width * 0.6,
-                              child: AnyLinkPreview(
-                                link: _extractLink(msg.content),
-                                displayDirection:
-                                    UIDirection.uiDirectionHorizontal,
-                                backgroundColor: isMe
-                                    ? Colors.white12
-                                    : theme.colorScheme.surfaceContainerHighest,
-                                bodyStyle: TextStyle(
-                                  color: textColor,
-                                  fontSize: 12,
-                                ),
-                                titleStyle: TextStyle(
-                                  color: textColor,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
-                                errorWidget: const SizedBox.shrink(),
-                              ),
-                            ),
-                          ],
-                        ],
+                      TextBubble(
+                        msg: msg,
+                        isMatch: isMatch,
+                        isCurrentMatch: isCurrentMatch,
+                        searchState: searchState,
+                        textColor: textColor,
+                        theme: theme,
+                        isMe: isMe,
                       ),
                   ],
                 ),
